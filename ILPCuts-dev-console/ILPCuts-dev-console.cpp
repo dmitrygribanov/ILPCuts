@@ -19,7 +19,7 @@ int main()
     CutsGen::GreadyDirection gd(c);
     CutsGen::int_type det = 100;
 
-    gen.generate_cuts(A, adjA, optLP, gd, det);
+    gen.generate_cuts(A, optLP, gd);
 
     std::cout << "Hello World!\n";
 }

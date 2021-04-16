@@ -1,14 +1,82 @@
 #pragma once
 
+//#include<gcd.hpp>
+
 #include<Eigen\SparseCore>
 #include<Eigen\Dense>
 
 #include<vector>
 #include<numeric>
+#include<functional>
 
 namespace ILPCuts {
 
 	using namespace Eigen;
+
+	template <typename T>
+	T euclid_bezout
+	(
+		const T& a,
+		const T& b,
+		T& u,
+		T& v
+	)
+	{
+		u = 1;
+		v = 0;
+		T u_new = v;
+		T v_new = u;
+		T r = std::abs(a);
+		T r_new = std::abs(b);
+
+		while ( r_new != 0 )
+		{
+			T q = r / r_new;
+
+			T aux = u_new;
+			u_new = u - q * u_new;
+			u = aux;
+
+			aux = v_new;
+			v_new = v - q * v_new;
+			v = aux;
+
+			aux = r_new;
+			r_new = r - q * r_new;
+			r = aux;
+		}
+
+		/*if (is_negative(a))
+			opposite(&u);
+		if (is_negative(b))
+			opposite(&v);*/
+
+		//_Internal::euclid_norm(r, u, v);
+
+		//ARAGELI_ASSERT_1(a * u + b * v == r);
+
+		return r;
+	}
+
+	/*template <typename T>
+	T euclid(T a, T b)
+	{
+		while ((a %= b) != 0)
+		{
+			std::swap(a, b);
+		}
+		return b;
+	}
+
+	template <typename T>
+	inline T gcd
+	(
+		const T& a,
+		const T& b
+	)
+	{
+		return euclid(a, b);
+	}*/
 
 	template<typename intT, typename rationalT,
 		template<typename> class matrixT,
@@ -39,16 +107,59 @@ namespace ILPCuts {
 		int_type vec_max2pow(const int_vec& vec) const {
 			int_type res = 1;
 
-			while ( (vec.array().unaryExpr([](const int_type & x) { return x % 2; }) 
-				== 0).all()  ) {
+			int_vec vec_copy = vec;
+
+			while ( 
+				(vec_copy.array().unaryExpr(std::ref(mod2_unaryop)) == 0).all()
+				) {
 				res *= 2;
+				vec_copy /= 2;
 			}
 
 			return res;
 		}
 
-		int_type is_even(const int_type& x) {
+		static int_type mod2_unaryop(const int_type& x) {
+			return x % 2;
+		}
 
+		class mod_unaryop {
+		private:
+			const int_type& _mod;
+
+		public:
+			mod_unaryop(const int_type& mod)
+				:_mod(mod) {}
+
+			int_type operator()(const int_type& x) const {
+				int_type res = x % _mod;
+				if (res < 0) res += _mod;
+				return res;
+			}
+		};
+
+		/*template<const int_type & mod>
+		static int_type mod_unaryop(const int_type & x) {
+			int_type res = x % mod;
+			if (res < 0) res += mod;
+			return res;
+		}*/
+
+		int_type _mod_equation_solve(int_type a, int_type b, int_type mod) const {
+#ifdef _DEBUG
+			assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
+#endif
+			int_type x = 0, y = 0;
+			int_type gcd_a_mod = euclid_bezout(a, mod, x, y);
+
+			if (x < 0) x += mod;
+
+#ifdef _DEBUG
+			assert(b % gcd_a_mod == 0, "No solutions in _mod_equation_solve.");
+#endif
+			x *= (b / gcd_a_mod);
+
+			return x;
 		}
 
 	public:
@@ -67,47 +178,117 @@ namespace ILPCuts {
 				:_c(c) {}
 
 			rat_mat generate_directons() {
-				return rat_mat(_c);
+				return std::move(rat_mat(_c));
 			}
 		};
 
-		void partial_uni_decomp
-		(std::vector<int_mat> & result, const int_mat& A, const rat_mat& directions_pool,
+		struct cone_traits {
+			int_mat A;
+			int_mat adjA;
+			int_type det;
+		};
+
+		std::vector<cone_traits> compute_layer(const cone_traits & cone, const rat_mat& directions_pool,
+			const rational_type& tolerance = 0.00001,
+			const rational_type& err_tolerance = 0.0001) {
+
+			std::vector<cone_traits> result;
+			const int_mat & A = cone.A;
+			const int_mat& adjA = cone.adjA;
+			const int_type& det = cone.det;
+			size_t n = A.cols();
+
+			/*void process_new_candidate(const int_mat & a, const rat_vec & t) {
+				result.size();
+			};*/
+
+			auto process_new_candidate = [&](size_t i, const int_vec& t, const int_type & div)
+			{
+				cone_traits new_cone;
+
+				new_cone.A = A;
+				new_cone.A.col(i) = ( (A * t).cast<rational_type>().array() /div)
+					.round()
+					.cast<int_type>();
+
+				PartialPivLU<rat_mat> decomp_LU(new_cone.A.cast<rational_type>());
+
+				new_cone.det = std::abs(decomp_LU.determinant());
+
+				new_cone.adjA = (decomp_LU.inverse().array() * new_cone.det)
+					.round()
+					.cast<int_type>();
+
+				for (size_t i = 0; i < directions_pool.cols(); ++i) {
+					rat_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool.col(i);
+					if (((duals.array() + tolerance) > 0).all()) {
+						result.push_back( std::move(new_cone) );
+					}
+				}
+			};
+
+			if (det % 2 == 0) {
+				int_vec pivot;
+				for (size_t i = 0; i < n; ++i) {
+					pivot = adjA.col(i);
+					int_type adj_col_2pow = vec_max2pow(pivot);
+					if ((static_cast<int_type>(det) / adj_col_2pow) % 2 == 0) {
+						pivot /= adj_col_2pow;
+						break;
+					}
+				}
+
+				pivot = pivot.unaryExpr(std::ref(mod2_unaryop)).eval();
+
+				for (size_t i = 0; i < n; ++i) {
+					process_new_candidate(i, pivot, 2);
+				}
+
+			}
+			else {
+				int_vec pivot = adjA.array().unaryExpr( mod_unaryop(det) );
+				for (size_t i = 0; i < n; ++i) {
+					if (pivot[i] > 0) {
+						int_type lambda = _mod_equation_solve(pivot[i], det - std::gcd(det,pivot[i]), det);
+						int_vec t = (pivot.array() * lambda).unaryExpr(mod_unaryop(det));
+
+						process_new_candidate(i, t, det);
+					}
+				}
+			}
+
+			return std::move(result);
+		}
+
+		std::vector<int_mat> partial_uni_decomp
+		(const int_mat & A, const rat_mat& directions_pool,
 			const int_mat& adjA, const int_type& det,
 			const rational_type& tolerance = 0.00001,
 			const rational_type& err_tolerance = 0.0001) {
 
-			if (det == 1)
-				result.push_back(A);
-			else {
-				size_t n = A.cols();
+			std::vector<cone_traits> current_layer;
+			std::vector<cone_traits> next_layer;
+			std::vector<int_mat> result;
 
-				if (det % 2 == 0) {
-					int_vec u;
-					for (size_t i = 0; i < n; ++i) {
-						u = adjA.col(i);
-						int_type adj_col_2pow = vec_max2pow(u);
-						if (((int_type)det / adj_col_2pow) % 2 == 0) {
-							u /= adj_col_2pow;
-							break;
-						}
+			current_layer.push_back(std::move( cone_traits{ A,adjA,det } ));
+			
+			while ( !current_layer.empty() ) {
+
+				for (const cone_traits& node : current_layer) {
+					std::vector<cone_traits> next_node_layer = std::move( compute_layer(node, directions_pool, tolerance, err_tolerance) );
+					for (cone_traits& next_node : next_node_layer) {
+						if (next_node.det == 1)
+							result.push_back(std::move( next_node.A ));
+						else
+							next_layer.push_back(std::move( next_node ));
 					}
-
-					rat_vec t(u.size(), 0);
-					for (size_t i = 0; i < t.size(); ++i) {
-						if (u[i] % 2 != 0)
-							t[i] = 0.5;
-					}
-
-					for (size_t i = 0; i < n; ++i) {
-						int_mat newA = A;
-						newA.col(i) = (A.cast<rational_type>() * t).array().round().cast<int_type>();
-					}
-					
-				} else {
-
 				}
+
+				std::swap(current_layer, next_layer);
+				next_layer.clear();
 			}
+
+			return std::move(result);
 		}
 
 		std::vector<int_vec> generate_cuts(const int_mat& A, const int_mat& adjA, const rat_vec& optLP,
@@ -118,12 +299,10 @@ namespace ILPCuts {
 			
 			std::vector<int_vec> res_cuts;
 
-			rat_mat directions_pool = directions_strategy.generate_directons();
+			rat_mat directions_pool = std::move( directions_strategy.generate_directons() );
 
-			std::vector<int_mat> uni_mat_pool;
-			
-			partial_uni_decomp(uni_mat_pool, A, directions_pool,
-				adjA, det, tolerance, err_tolerance);
+			std::vector<int_mat> uni_mat_pool = std::move( partial_uni_decomp(A, directions_pool,
+				adjA, det, tolerance, err_tolerance) );
 			
 			for (const int_mat& uni_mat : uni_mat_pool) {
 				rat_vec rat_b = uni_mat.cast<rational_type>() * optLP;
@@ -135,12 +314,25 @@ namespace ILPCuts {
 					if (diff_b[i] > tolerance) {
 						int_vec cut = uni_mat.row(i);
 						cut << int_b[i];
-						res_cuts.push_back(cut);
+						res_cuts.push_back(std::move( cut ));
 					}
 				}
 			}
 
 			return std::move(res_cuts);
+		}
+
+		std::vector<int_vec> generate_cuts(const int_mat& A, const rat_vec& optLP,
+			DirectionsStrategyBase& directions_strategy,
+			const rational_type& tolerance = 0.00001,
+			const rational_type& err_tolerance = 0.0001) {
+
+			PartialPivLU<rat_mat> decomp_LU(A.cast<rational_type>());
+			int_type det = std::abs(decomp_LU.determinant());
+			int_mat adjA = (decomp_LU.inverse().array() * det).cast<int_type>();
+
+			return std::move(generate_cuts(A, adjA, optLP, directions_strategy,
+				det, tolerance, err_tolerance));
 		}
 	};
 
