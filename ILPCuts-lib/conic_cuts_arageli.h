@@ -14,7 +14,7 @@ public:
 	typedef Arageli::vector<int_type> int_vec;
 	typedef Arageli::matrix<int_type> int_mat;
 
-	class ChoiceStrategy {
+	/*class ChoiceStrategy {
 	protected:
 		std::vector<size_t> _base_idxs;
 		const int_mat* _facets_mat;
@@ -47,7 +47,7 @@ public:
 		const std::vector<size_t>& get_base_idxs()const {
 			return _base_idxs;
 		}
-	};
+	};*/
 
 	rational_mat make_cuts(const rational_vec& vertex_LP,
 		const int_vec& cT,

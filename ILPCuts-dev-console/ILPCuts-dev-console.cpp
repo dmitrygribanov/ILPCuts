@@ -3,17 +3,23 @@
 
 #include <iostream>
 
-#include "conic_cuts.h"
+#include "conic_cuts_Eigen.h"
 
-typedef ConicCutsGenerator_Arageli<int, Arageli::rational<int> > CCGen;
+//#include "conic_cuts_arageli.h"
+
+//typedef ConicCutsGenerator_Arageli<int, Arageli::rational<int> > CCGen;
 
 int main()
 {
-    CCGen cc_gen;
-    CCGen::int_mat Ab = "((1,0,1,1),(0,1,2,2),(1,2,3,3),(-1,1,-1,-1))";
-    CCGen::rational_vec vertex = "(1/2,2/3,3/4)";
-    CCGen::int_vec cT = "(1,2,3)";
-    cc_gen.make_cuts(vertex, cT, Ab);
+    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<int, double>;
+    CutsGen gen;
+
+    CutsGen::int_mat A, adjA;
+    CutsGen::rat_vec c, optLP;
+    CutsGen::GreadyDirection gd(c);
+    CutsGen::int_type det = 100;
+
+    gen.generate_cuts(A, adjA, optLP, gd, det);
 
     std::cout << "Hello World!\n";
 }

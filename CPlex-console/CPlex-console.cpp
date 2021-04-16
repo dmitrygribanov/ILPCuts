@@ -3,17 +3,23 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-ILOMIPCALLBACK0(queryCollback)
-{
+ILOUSERCUTCALLBACK0(myCutsCallback) {
     IloEnv env = getEnv();
     IloModel mod = getModel();
+    env.out() << "--------------My cut Callback----------------" << std::endl;
+    IloModel::Iterator iter = IloModel::Iterator(mod);
+    while (iter.ok()) {
+        env.out() << (*iter).asNumExpr() << std::endl;
+        ++iter;
+    }
+    env.out() << "---------------------------------------------" << std::endl;
 }
 
 ILOMIPINFOCALLBACK0(loggingCallback)
 {
-   IloModel mod = getModel();
    IloEnv env = getEnv();
-   env.out() << "--------------Info Callback------------------" << std::endl;
+   IloModel mod = getModel();
+   env.out() << "--------------My info Callback---------------" << std::endl;
    env.out() << "---------------------------------------------" << std::endl;
 }
 
@@ -38,6 +44,8 @@ int main(int argc, char** argv)
 
         cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
         env.out() << "solving model ...\n";
+
+        cplex.use(myCutsCallback(env));
 
         if (!cplex.solve()) {
             env.error() << "Failed to optimize." << endl;
