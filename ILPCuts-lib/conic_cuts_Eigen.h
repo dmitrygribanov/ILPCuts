@@ -8,57 +8,59 @@
 #include<vector>
 #include<numeric>
 #include<functional>
+#include<sstream>
 
 namespace ILPCuts {
 
 	using namespace Eigen;
 
-	template <typename T>
-	T euclid_bezout
-	(
-		const T& a,
-		const T& b,
-		T& u,
-		T& v
-	)
-	{
-		u = 1;
-		v = 0;
-		T u_new = v;
-		T v_new = u;
-		T r = std::abs(a);
-		T r_new = std::abs(b);
-
-		while ( r_new != 0 )
+	namespace Internal {
+		template <typename T>
+		T euclid_bezout
+		(
+			const T& a,
+			const T& b,
+			T& u,
+			T& v
+		)
 		{
-			T q = r / r_new;
+			u = 1;
+			v = 0;
+			T u_new = v;
+			T v_new = u;
+			T r = std::abs(a);
+			T r_new = std::abs(b);
 
-			T aux = u_new;
-			u_new = u - q * u_new;
-			u = aux;
+			while (r_new != 0)
+			{
+				T q = r / r_new;
 
-			aux = v_new;
-			v_new = v - q * v_new;
-			v = aux;
+				T aux = u_new;
+				u_new = u - q * u_new;
+				u = aux;
 
-			aux = r_new;
-			r_new = r - q * r_new;
-			r = aux;
+				aux = v_new;
+				v_new = v - q * v_new;
+				v = aux;
+
+				aux = r_new;
+				r_new = r - q * r_new;
+				r = aux;
+			}
+
+			/*if (is_negative(a))
+				opposite(&u);
+			if (is_negative(b))
+				opposite(&v);*/
+
+				//_Internal::euclid_norm(r, u, v);
+
+				//ARAGELI_ASSERT_1(a * u + b * v == r);
+
+			return r;
 		}
 
-		/*if (is_negative(a))
-			opposite(&u);
-		if (is_negative(b))
-			opposite(&v);*/
-
-		//_Internal::euclid_norm(r, u, v);
-
-		//ARAGELI_ASSERT_1(a * u + b * v == r);
-
-		return r;
-	}
-
-	/*template <typename T>
+		/*template <typename T>
 	T euclid(T a, T b)
 	{
 		while ((a %= b) != 0)
@@ -77,6 +79,7 @@ namespace ILPCuts {
 	{
 		return euclid(a, b);
 	}*/
+	}
 
 	template<typename intT, typename rationalT,
 		template<typename> class matrixT,
@@ -94,6 +97,9 @@ namespace ILPCuts {
 		using rat_vec = vectorT<rational_type>;
 
 	private:
+
+		std::stringstream _out;
+
 		int_type vec_gcd(const int_vec& vec) const {
 			int_type res = std::gcd(vec[0], vec[1]);
 
@@ -102,6 +108,11 @@ namespace ILPCuts {
 			}
 
 			return res;
+		}
+
+		void normalize(int_vec & v) const {
+			int_type gcd = vec_gcd(v);
+			v = v.array() / gcd;
 		}
 
 		int_type vec_max2pow(const int_vec& vec) const {
@@ -138,19 +149,12 @@ namespace ILPCuts {
 			}
 		};
 
-		/*template<const int_type & mod>
-		static int_type mod_unaryop(const int_type & x) {
-			int_type res = x % mod;
-			if (res < 0) res += mod;
-			return res;
-		}*/
-
 		int_type _mod_equation_solve(int_type a, int_type b, int_type mod) const {
 #ifdef _DEBUG
 			assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
 #endif
 			int_type x = 0, y = 0;
-			int_type gcd_a_mod = euclid_bezout(a, mod, x, y);
+			int_type gcd_a_mod = Internal::euclid_bezout(a, mod, x, y);
 
 			if (x < 0) x += mod;
 
@@ -162,23 +166,28 @@ namespace ILPCuts {
 			return x;
 		}
 
-	public:
+		static int_type rat_to_int(const rational_type& rat_x, const rational_type& err_tolerance) {
+			int_type int_x = static_cast<int_type>(std::round(rat_x));
+			if (std::abs(rat_x - int_x) <= err_tolerance) {
+				return int_x;
+			}
+			else {
+				std::stringstream msg;
+				msg << "rat_to_int tolerance error (" << std::abs(rat_x - int_x) << ")";
+				throw ToleranceErrorException(msg.str());
+			}
+		}
 
-		class DirectionsStrategyBase {
-		public:
-			virtual rat_mat generate_directons() = 0; // { return rat_mat();  };
-		};
-
-		class GreadyDirection :public DirectionsStrategyBase {
+		class RatToInt_Unary {
 		private:
-			const rat_vec& _c;
+			rational_type _err_tolerance;
 
 		public:
-			GreadyDirection(const rat_vec& c)
-				:_c(c) {}
+			RatToInt_Unary(const rational_type& err_tolerance)
+				:_err_tolerance(err_tolerance) {}
 
-			rat_mat generate_directons() {
-				return std::move(rat_mat(_c));
+			int_type operator()(const rational_type& rat_x) const {
+				return rat_to_int(rat_x, _err_tolerance);
 			}
 		};
 
@@ -188,12 +197,12 @@ namespace ILPCuts {
 			int_type det;
 		};
 
-		std::vector<cone_traits> compute_layer(const cone_traits & cone, const rat_mat& directions_pool,
+		std::vector<cone_traits> compute_layer(const cone_traits& cone, const rat_mat& directions_pool,
 			const rational_type& tolerance = 0.00001,
 			const rational_type& err_tolerance = 0.0001) {
 
 			std::vector<cone_traits> result;
-			const int_mat & A = cone.A;
+			const int_mat& A = cone.A;
 			const int_mat& adjA = cone.adjA;
 			const int_type& det = cone.det;
 			size_t n = A.cols();
@@ -202,27 +211,45 @@ namespace ILPCuts {
 				result.size();
 			};*/
 
-			auto process_new_candidate = [&](size_t i, const int_vec& t, const int_type & div)
+			auto process_new_candidate = [&](size_t i, const int_vec& t, const int_type& div)
 			{
 				cone_traits new_cone;
 
-				new_cone.A = A;
-				new_cone.A.col(i) = ( (A * t).cast<rational_type>().array() /div)
-					.round()
-					.cast<int_type>();
+				try {
+					new_cone.A = A;
+					new_cone.A.col(i) = ((A * t).cast<rational_type>().array() / div)
+						.unaryExpr(RatToInt_Unary(err_tolerance));
+					//.round()
+					//.cast<int_type>();
+				}
+				catch (ToleranceErrorException exc) {
+					out() << "b-column construction tolerance error: " << exc.what() << '\n';
+				}
 
 				PartialPivLU<rat_mat> decomp_LU(new_cone.A.cast<rational_type>());
 
-				new_cone.det = std::abs(decomp_LU.determinant());
+				try {
 
-				new_cone.adjA = (decomp_LU.inverse().array() * new_cone.det)
-					.round()
-					.cast<int_type>();
+					new_cone.det = rat_to_int(std::abs(decomp_LU.determinant()), err_tolerance);
+
+				}
+				catch (ToleranceErrorException exc) {
+					out() << "Determinant computing tolerance error: " << exc.what() << '\n';
+				}
+
+				try {
+					new_cone.adjA = (decomp_LU.inverse().array() * new_cone.det)
+						.round()
+						.cast<int_type>();
+				}
+				catch (ToleranceErrorException exc) {
+					out() << "Inversion tolerance error: " << exc.what() << '\n';
+				}
 
 				for (size_t i = 0; i < directions_pool.cols(); ++i) {
 					rat_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool.col(i);
 					if (((duals.array() + tolerance) > 0).all()) {
-						result.push_back( std::move(new_cone) );
+						result.push_back(std::move(new_cone));
 					}
 				}
 			};
@@ -246,10 +273,10 @@ namespace ILPCuts {
 
 			}
 			else {
-				int_vec pivot = adjA.array().unaryExpr( mod_unaryop(det) );
+				int_vec pivot = adjA.array().unaryExpr(mod_unaryop(det));
 				for (size_t i = 0; i < n; ++i) {
 					if (pivot[i] > 0) {
-						int_type lambda = _mod_equation_solve(pivot[i], det - std::gcd(det,pivot[i]), det);
+						int_type lambda = _mod_equation_solve(pivot[i], det - std::gcd(det, pivot[i]), det);
 						int_vec t = (pivot.array() * lambda).unaryExpr(mod_unaryop(det));
 
 						process_new_candidate(i, t, det);
@@ -261,7 +288,7 @@ namespace ILPCuts {
 		}
 
 		std::vector<int_mat> partial_uni_decomp
-		(const int_mat & A, const rat_mat& directions_pool,
+		(const int_mat& A, const rat_mat& directions_pool,
 			const int_mat& adjA, const int_type& det,
 			const rational_type& tolerance = 0.00001,
 			const rational_type& err_tolerance = 0.0001) {
@@ -270,17 +297,17 @@ namespace ILPCuts {
 			std::vector<cone_traits> next_layer;
 			std::vector<int_mat> result;
 
-			current_layer.push_back(std::move( cone_traits{ A,adjA,det } ));
-			
-			while ( !current_layer.empty() ) {
+			current_layer.push_back(std::move(cone_traits{ A,adjA,det }));
+
+			while (!current_layer.empty()) {
 
 				for (const cone_traits& node : current_layer) {
-					std::vector<cone_traits> next_node_layer = std::move( compute_layer(node, directions_pool, tolerance, err_tolerance) );
+					std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, tolerance, err_tolerance));
 					for (cone_traits& next_node : next_node_layer) {
 						if (next_node.det == 1)
-							result.push_back(std::move( next_node.A ));
+							result.push_back(std::move(next_node.A));
 						else
-							next_layer.push_back(std::move( next_node ));
+							next_layer.push_back(std::move(next_node));
 					}
 				}
 
@@ -290,6 +317,28 @@ namespace ILPCuts {
 
 			return std::move(result);
 		}
+
+	public:
+
+		std::stringstream& out() { return _out; }
+
+		class DirectionsStrategyBase {
+		public:
+			virtual rat_mat generate_directons() = 0; // { return rat_mat();  };
+		};
+
+		class GreadyDirection :public DirectionsStrategyBase {
+		private:
+			const rat_vec& _c;
+
+		public:
+			GreadyDirection(const rat_vec& c)
+				:_c(c) {}
+
+			rat_mat generate_directons() {
+				return std::move(rat_mat(_c));
+			}
+		};
 
 		std::vector<int_vec> generate_cuts(const int_mat& A, const int_mat& adjA, const rat_vec& optLP,
 			DirectionsStrategyBase & directions_strategy,
@@ -306,14 +355,15 @@ namespace ILPCuts {
 			
 			for (const int_mat& uni_mat : uni_mat_pool) {
 				rat_vec rat_b = uni_mat.cast<rational_type>() * optLP;
-				int_vec int_b = rat_b.array().floor().cast<int_type>();
+				int_vec rounded_b = rat_b.array().round().cast<int_type>();
+				int_vec floor_b = rat_b.array().floor().cast<int_type>();
 
-				rat_vec diff_b = (rat_b - int_b.cast<rational_type>()).array().abs();
+				rat_vec diff_b = (rat_b - rounded_b.cast<rational_type>()).array().abs();
 
 				for (size_t i = 0; i < diff_b.size(); ++i) {
 					if (diff_b[i] > tolerance) {
 						int_vec cut = uni_mat.row(i);
-						cut << int_b[i];
+						cut << floor_b[i];
 						res_cuts.push_back(std::move( cut ));
 					}
 				}
@@ -328,12 +378,36 @@ namespace ILPCuts {
 			const rational_type& err_tolerance = 0.0001) {
 
 			PartialPivLU<rat_mat> decomp_LU(A.cast<rational_type>());
-			int_type det = std::abs(decomp_LU.determinant());
-			int_mat adjA = (decomp_LU.inverse().array() * det).cast<int_type>();
 
-			return std::move(generate_cuts(A, adjA, optLP, directions_strategy,
-				det, tolerance, err_tolerance));
+			int_type det = 0;
+
+			try {
+				det = rat_to_int(std::abs(decomp_LU.determinant()), err_tolerance);
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
+			}
+
+			try {
+				int_mat adjA = (decomp_LU.inverse().array() * det).unaryExpr(RatToInt_Unary(err_tolerance));
+
+				return std::move(generate_cuts(A, adjA, optLP, directions_strategy,
+					det, tolerance, err_tolerance));
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "Root: inverse tolerance error: " << exc.what() << '\n';
+			}
+
 		}
+
+		class ToleranceErrorException : public std::exception {
+		public:
+			ToleranceErrorException()
+				:std::exception() {}
+
+			ToleranceErrorException(std::string msg)
+				:std::exception(msg.c_str()) {}
+		};
 	};
 
 	template<typename T>
