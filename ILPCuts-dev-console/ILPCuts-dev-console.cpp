@@ -20,8 +20,6 @@ int main()
     CutsGen::int_type det = 100;
 
     gen.generate_cuts(A, optLP, gd);
-
-    std::cout << "Hello World!\n";
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"

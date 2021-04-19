@@ -11,7 +11,7 @@ using std::endl;
 
 void unit_test_I() {
 
-    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<int, double>;
+    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
     CutsGen::int_mat        A(4,4);
@@ -29,7 +29,7 @@ void unit_test_I() {
 
     c = (A * t).cast<double>();
 
-    optLP << 1, 2, 4, -5;
+    optLP << 1, 2, 4, -5.5;
 
     std::vector<CutsGen::int_vec> cuts = gen.generate_cuts(A, optLP, gd);
 
@@ -42,7 +42,7 @@ void unit_test_I() {
 }
 
 void unit_test_S2() {
-    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<int, double>;
+    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
     CutsGen::int_mat A(3, 3);
@@ -74,7 +74,7 @@ void unit_test_S2() {
 }
 
 void unit_test_S3() {
-    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<int, double>;
+    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
     CutsGen::int_mat A(3, 3);
@@ -106,7 +106,7 @@ void unit_test_S3() {
 }
 
 void unit_test_POW2() {
-    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<int, double>;
+    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
     CutsGen::int_mat A(3, 3);

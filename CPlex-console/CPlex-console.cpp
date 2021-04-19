@@ -14,6 +14,7 @@ ILOUSERCUTCALLBACK0(myCutsCallback) {
         env.out() << (*iter).asNumExpr() << std::endl;
         ++iter;
     }
+    
     env.out() << "---------------------------------------------" << std::endl;
 }
 

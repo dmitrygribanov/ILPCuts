@@ -9,6 +9,7 @@
 #include<numeric>
 #include<functional>
 #include<sstream>
+#include<random>
 
 namespace ILPCuts {
 
@@ -47,15 +48,6 @@ namespace ILPCuts {
 				r_new = r - q * r_new;
 				r = aux;
 			}
-
-			/*if (is_negative(a))
-				opposite(&u);
-			if (is_negative(b))
-				opposite(&v);*/
-
-			//_Internal::euclid_norm(r, u, v);
-
-			//ARAGELI_ASSERT_1(a * u + b * v == r);
 
 			return r;
 		}
@@ -304,7 +296,7 @@ namespace ILPCuts {
 			return std::move(result);
 		}
 
-		static int_type foo(int_type) { return 0; }
+		//static int_type foo(int_type) { return 0; }
 
 		std::vector<int_mat> partial_uni_decomp
 		(const int_mat& A, const rat_mat& directions_pool,
@@ -358,6 +350,58 @@ namespace ILPCuts {
 
 			rat_mat generate_directons() {
 				return std::move(rat_mat(_c));
+			}
+		};
+
+		class SomeDirection :public DirectionsStrategyBase {
+		private:
+			rat_vec _direction;
+
+		public:
+			SomeDirection(const int_mat& A) {
+				size_t n = A.cols();
+				_direction = A.cast<rational_type>().colwise().sum().array() / n;
+			}
+
+			rat_mat generate_directons() {
+				return std::move(rat_mat(_direction));
+			}
+		};
+
+		template<typename randGenT>
+		class ConvUniformAndGready :public GreadyDirection {
+		public:
+			using gen_type = randGenT;
+
+		private:
+			const int_mat& _A;
+			const size_t _rand_dir_num;
+			gen_type& _gen;
+
+		public:
+
+			ConvUniformAndGready(gen_type& gen, const rat_vec& c, const int_mat& A, size_t rand_dir_num = 3)
+				:GreadyDirection(c), _gen(gen), _A(A), _rand_dir_num(rand_dir_num) {}
+
+			rat_mat generate_directons() {
+				rat_mat result_directions = std::move(GreadyDirection::generate_directons());
+				size_t n = _A.cols();
+
+				result_directions.conservative_resize(n, _rand_dir_num + 1);
+
+				//rat_mat NA = _A.cast<rational_type>().colwise().normalize();
+				std::uniform_real_distribution<rational_type> udistr(0.0, 1.0);
+
+				for (size_t i = 0; i < _rand_dir_num; ++i) {
+					rat_vec new_dir = _A.col(0).cast<rational_type>();
+					for (size_t j = 1; j < n; ++j) {
+						rational_type alpha = udistr(_gen);
+						new_dir = (new_dir * alpha + _A.col(j).cast<rational_type>() * (1.0 - alpha)).eval();
+					}
+					result_directions.col(i+1) = std::move(new_dir);
+				}
+
+				return std::move(result_directions);
 			}
 		};
 
