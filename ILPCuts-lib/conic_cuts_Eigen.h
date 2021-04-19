@@ -53,9 +53,9 @@ namespace ILPCuts {
 			if (is_negative(b))
 				opposite(&v);*/
 
-				//_Internal::euclid_norm(r, u, v);
+			//_Internal::euclid_norm(r, u, v);
 
-				//ARAGELI_ASSERT_1(a * u + b * v == r);
+			//ARAGELI_ASSERT_1(a * u + b * v == r);
 
 			return r;
 		}
@@ -99,6 +99,7 @@ namespace ILPCuts {
 	private:
 
 		std::stringstream _out;
+		std::stringstream _err;
 
 		int_type vec_gcd(const int_vec& vec) const {
 			int_type res = std::gcd(vec[0], vec[1]);
@@ -219,11 +220,15 @@ namespace ILPCuts {
 					new_cone.A = A;
 					new_cone.A.col(i) = ((A * t).cast<rational_type>().array() / div)
 						.unaryExpr(RatToInt_Unary(err_tolerance));
+
+					//std::cout << A << std::endl;
+					//std::cout << new_cone.A << std::endl;
 					//.round()
 					//.cast<int_type>();
 				}
 				catch (ToleranceErrorException exc) {
 					out() << "b-column construction tolerance error: " << exc.what() << '\n';
+					err() << "b-column construction tolerance error: " << exc.what() << '\n';
 				}
 
 				PartialPivLU<rat_mat> decomp_LU(new_cone.A.cast<rational_type>());
@@ -235,6 +240,7 @@ namespace ILPCuts {
 				}
 				catch (ToleranceErrorException exc) {
 					out() << "Determinant computing tolerance error: " << exc.what() << '\n';
+					err() << "Determinant computing tolerance error: " << exc.what() << '\n';
 				}
 
 				try {
@@ -244,6 +250,7 @@ namespace ILPCuts {
 				}
 				catch (ToleranceErrorException exc) {
 					out() << "Inversion tolerance error: " << exc.what() << '\n';
+					err() << "Inversion tolerance error: " << exc.what() << '\n';
 				}
 
 				for (size_t i = 0; i < directions_pool.cols(); ++i) {
@@ -268,12 +275,22 @@ namespace ILPCuts {
 				pivot = pivot.unaryExpr(std::ref(mod2_unaryop)).eval();
 
 				for (size_t i = 0; i < n; ++i) {
-					process_new_candidate(i, pivot, 2);
+					if (pivot[i] != 0) 
+						process_new_candidate(i, pivot, 2);
 				}
 
 			}
-			else {
-				int_vec pivot = adjA.array().unaryExpr(mod_unaryop(det));
+			else { 
+				//std::cout << adjA << std::endl;
+
+				int_vec pivot;
+				for (size_t i = 0; i < n; ++i) {
+					pivot = adjA.col(i).unaryExpr(mod_unaryop(det));
+					if ((pivot.array() != 0).any())
+						break;
+				}
+
+				//std::cout << pivot << std::endl;
 				for (size_t i = 0; i < n; ++i) {
 					if (pivot[i] > 0) {
 						int_type lambda = _mod_equation_solve(pivot[i], det - std::gcd(det, pivot[i]), det);
@@ -286,6 +303,8 @@ namespace ILPCuts {
 
 			return std::move(result);
 		}
+
+		static int_type foo(int_type) { return 0; }
 
 		std::vector<int_mat> partial_uni_decomp
 		(const int_mat& A, const rat_mat& directions_pool,
@@ -321,6 +340,8 @@ namespace ILPCuts {
 	public:
 
 		std::stringstream& out() { return _out; }
+
+		std::stringstream& err() { return _err; }
 
 		class DirectionsStrategyBase {
 		public:
@@ -360,10 +381,19 @@ namespace ILPCuts {
 
 				rat_vec diff_b = (rat_b - rounded_b.cast<rational_type>()).array().abs();
 
+				/*std::cout << uni_mat << std::endl;
+				std::cout << optLP.transpose() << std::endl;
+				std::cout << rat_b.transpose() << std::endl;
+				std::cout << rounded_b.transpose() << std::endl;
+				std::cout << floor_b.transpose() << std::endl;
+				std::cout << diff_b.transpose() << std::endl;*/
+
 				for (size_t i = 0; i < diff_b.size(); ++i) {
 					if (diff_b[i] > tolerance) {
 						int_vec cut = uni_mat.row(i);
-						cut << floor_b[i];
+						cut.conservativeResize(cut.size()+1);
+						cut[cut.size()-1] = floor_b[i];
+						out() << "cut has been added: (" << cut.transpose() << ")\n";
 						res_cuts.push_back(std::move( cut ));
 					}
 				}
@@ -386,6 +416,7 @@ namespace ILPCuts {
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
+				err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
 			}
 
 			try {
@@ -396,6 +427,7 @@ namespace ILPCuts {
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Root: inverse tolerance error: " << exc.what() << '\n';
+				err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
 			}
 
 		}

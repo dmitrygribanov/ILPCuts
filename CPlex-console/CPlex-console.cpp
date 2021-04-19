@@ -3,6 +3,8 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
+#include "conic_cuts_Eigen.h"
+
 ILOUSERCUTCALLBACK0(myCutsCallback) {
     IloEnv env = getEnv();
     IloModel mod = getModel();
