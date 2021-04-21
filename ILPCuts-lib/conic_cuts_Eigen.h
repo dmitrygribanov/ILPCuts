@@ -15,6 +15,21 @@ namespace ILPCuts {
 
 	using namespace Eigen;
 
+	template<typename intT, typename rationalsT>
+	intT round(const rationalsT& x) {
+		return static_cast<intT>(std::round(x));
+	}
+
+	template<typename intT>
+	intT gcd(const intT & x, const intT& y) {
+		return std::gcd(x,y);
+	}
+
+	template<typename T>
+	T abs(const T& x) {
+		return std::abs(x);
+	}
+
 	namespace Internal {
 		template <typename T>
 		T euclid_bezout
@@ -29,8 +44,8 @@ namespace ILPCuts {
 			v = 0;
 			T u_new = v;
 			T v_new = u;
-			T r = std::abs(a);
-			T r_new = std::abs(b);
+			T r = ILPCuts::abs(a);
+			T r_new = ILPCuts::abs(b);
 
 			while (r_new != 0)
 			{
@@ -88,16 +103,25 @@ namespace ILPCuts {
 		using int_vec = vectorT<int_type>;
 		using rat_vec = vectorT<rational_type>;
 
+		/*typedef rationalT rational_type;
+		typedef intT int_type;
+
+		typedef matrixT<int_type> int_mat;
+		typedef matrixT<rational_type> rat_mat;
+
+		typedef vectorT<int_type> int_vec;
+		typedef vectorT<rational_type> rat_vec;*/
+
 	private:
 
-		std::stringstream _out;
-		std::stringstream _err;
+		std::ostream * _out;
+		std::ostream * _err;
 
 		int_type vec_gcd(const int_vec& vec) const {
-			int_type res = std::gcd(vec[0], vec[1]);
+			int_type res = ILPCuts::gcd(vec[0], vec[1]);
 
 			for (size_t i = 2; i < vec.size(); ++i) {
-				res = std::gcd(res, vec[i]);
+				res = ILPCuts::gcd(res, vec[i]);
 			}
 
 			return res;
@@ -160,13 +184,14 @@ namespace ILPCuts {
 		}
 
 		static int_type rat_to_int(const rational_type& rat_x, const rational_type& err_tolerance) {
-			int_type int_x = static_cast<int_type>(std::round(rat_x));
+			//cout << rat_x << endl;
+			int_type int_x = ILPCuts::round<int_type>(rat_x);
 			if (std::abs(rat_x - int_x) <= err_tolerance) {
 				return int_x;
 			}
 			else {
 				std::stringstream msg;
-				msg << "rat_to_int tolerance error (" << std::abs(rat_x - int_x) << ")";
+				msg << "rat_to_int tolerance error (" << ILPCuts::abs(rat_x - int_x) << ")";
 				throw ToleranceErrorException(msg.str());
 			}
 		}
@@ -227,7 +252,7 @@ namespace ILPCuts {
 
 				try {
 
-					new_cone.det = rat_to_int(std::abs(decomp_LU.determinant()), err_tolerance);
+					new_cone.det = rat_to_int(ILPCuts::abs(decomp_LU.determinant()), err_tolerance);
 
 				}
 				catch (ToleranceErrorException exc) {
@@ -285,7 +310,7 @@ namespace ILPCuts {
 				//std::cout << pivot << std::endl;
 				for (size_t i = 0; i < n; ++i) {
 					if (pivot[i] > 0) {
-						int_type lambda = _mod_equation_solve(pivot[i], det - std::gcd(det, pivot[i]), det);
+						int_type lambda = _mod_equation_solve(pivot[i], det - ILPCuts::gcd(det, pivot[i]), det);
 						int_vec t = (pivot.array() * lambda).unaryExpr(mod_unaryop(det));
 
 						process_new_candidate(i, t, det);
@@ -331,9 +356,12 @@ namespace ILPCuts {
 
 	public:
 
-		std::stringstream& out() { return _out; }
+		ConicCutsGenerator_Eigen(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
+			:_out(outs), _err(errs) {}
 
-		std::stringstream& err() { return _err; }
+		std::ostream& out() { return *_out; }
+
+		std::ostream& err() { return *_err; }
 
 		class DirectionsStrategyBase {
 		public:
@@ -455,8 +483,10 @@ namespace ILPCuts {
 
 			int_type det = 0;
 
+			//std::cout << A << std::endl;
+
 			try {
-				det = rat_to_int(std::abs(decomp_LU.determinant()), err_tolerance);
+				det = rat_to_int(ILPCuts::abs(decomp_LU.determinant()), err_tolerance);
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';

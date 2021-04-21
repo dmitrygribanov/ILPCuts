@@ -19,6 +19,8 @@ int main()
     CutsGen::GreadyDirection gd(c);
     CutsGen::int_type det = 100;
 
+    std::cout
+
     gen.generate_cuts(A, optLP, gd);
 }
 
