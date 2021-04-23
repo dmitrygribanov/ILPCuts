@@ -2,16 +2,16 @@
 //
 
 #include <iostream>
+#include <mpir.h>
+#include <mpirxx.h>
 
+#include "mpir_eigen_supp.h"
 #include "conic_cuts_Eigen.h"
 
-//#include "conic_cuts_arageli.h"
-
-//typedef ConicCutsGenerator_Arageli<int, Arageli::rational<int> > CCGen;
 
 int main()
 {
-    using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<int, double>;
+    using CutsGen = ILPCuts::ConicCutsGenerator_EigenSparce<mpz_class, mpf_class>;
     CutsGen gen;
 
     CutsGen::int_mat A, adjA;
@@ -19,9 +19,28 @@ int main()
     CutsGen::GreadyDirection gd(c);
     CutsGen::int_type det = 100;
 
-    std::cout
-
     gen.generate_cuts(A, optLP, gd);
+
+    /*mpf_class x("1234444444441354231341432415234.0000099999999999");
+    mpf_class y("12344444434534534526246.9999999999999");*/
+
+    mpf_class x("1234444444441354231341432415234.0000099999999999", 10000);
+    mpf_class y("123444444444444444444444444444444444444444444.999999999999999999999999999999999", 10000);
+
+    mpz_class xi = static_cast<mpz_class>(round(x));
+    mpz_class yi = static_cast<mpz_class>(round(y));
+
+    std::cout << x << ", " << xi << ", " << abs(x-xi) << std::endl;
+    std::cout << y << ", " << yi << ", " << abs(y - yi) << std::endl;
+
+	/*if (x > mpf_class(0)) {
+		y = floor(x + mpf_class(0.5));
+	}
+	else {
+		y = ceil(x - mpf_class(0.5));
+	}*/
+    
+    //y = (x > mpf_class(0)) ? floor(x + mpf_class(0.5)) : ceil(x - mpf_class(0.5));
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"

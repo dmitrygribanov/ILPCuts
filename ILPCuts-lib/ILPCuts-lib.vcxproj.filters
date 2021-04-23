@@ -19,7 +19,13 @@
       <Filter>Исходные файлы</Filter>
     </ClInclude>
     <ClInclude Include="conic_cuts_Eigen.h">
-      <Filter>Файлы заголовков</Filter>
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="base_module.h">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="mpir_eigen_supp.h">
+      <Filter>Исходные файлы</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

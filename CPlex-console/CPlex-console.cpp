@@ -4,6 +4,7 @@
 ILOSTLBEGIN
 
 #include "conic_cuts_Eigen.h"
+#include "mpir_eigen_supp.h"
 
 namespace ILPCuts {
     template<typename intT = long long int, typename ratT = double>
@@ -43,13 +44,16 @@ namespace ILPCuts {
             //for (size_t i = 0; i < n; ++i) {
             //    var_index_map[vars[i].getId()] = i;
             //}
+            for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
+                base::out() << cuts_Eigen[i] << endl;
+            }
 
             for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
                 IloExpr lhs = IloExpr(env);
                 for (size_t j = 0; j+1 < n; ++j) {
-                    lhs += vars[j] * cuts_Eigen[i][j];
+                    lhs += vars[j] * cuts_Eigen[i][j].get_si();
                 }
-                IloNum rhs = cuts_Eigen[i][n-1];
+                IloNum rhs = cuts_Eigen[i][n-1].get_si();
                 ilo_cuts.add( IloRange(env, lhs, rhs) );
             }
 
@@ -157,7 +161,7 @@ ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVa
     if (getNnodes() == 0) {
         //env.out() << "--------------My cut Callback----------------" << std::endl;
 
-        using CutsGen = ILPCuts::CPlexAdapter<long long int, double>;
+        using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpz_class>;
         CutsGen cuts_gen;
 
         typename CutsGen::int_mat A;
@@ -281,7 +285,7 @@ int main(int argc, char** argv)
         env.out() << "solution status is " << cplex.getStatus() << endl;
         env.out() << "solution value  is " << cplex.getObjValue() << endl;
 
-        using CutsGen = ILPCuts::CPlexAdapter<int64_t, double>;
+        using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpq_class>;
         CutsGen cuts_gen(&env.out(), &env.out());
 
         env.out() << "cutting generation:" << endl;

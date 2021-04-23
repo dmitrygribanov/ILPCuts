@@ -11,82 +11,11 @@
 #include<sstream>
 #include<random>
 
+#include"base_module.h"
+
 namespace ILPCuts {
 
 	using namespace Eigen;
-
-	template<typename intT, typename rationalsT>
-	intT round(const rationalsT& x) {
-		return static_cast<intT>(std::round(x));
-	}
-
-	template<typename intT>
-	intT gcd(const intT & x, const intT& y) {
-		return std::gcd(x,y);
-	}
-
-	template<typename T>
-	T abs(const T& x) {
-		return std::abs(x);
-	}
-
-	namespace Internal {
-		template <typename T>
-		T euclid_bezout
-		(
-			const T& a,
-			const T& b,
-			T& u,
-			T& v
-		)
-		{
-			u = 1;
-			v = 0;
-			T u_new = v;
-			T v_new = u;
-			T r = ILPCuts::abs(a);
-			T r_new = ILPCuts::abs(b);
-
-			while (r_new != 0)
-			{
-				T q = r / r_new;
-
-				T aux = u_new;
-				u_new = u - q * u_new;
-				u = aux;
-
-				aux = v_new;
-				v_new = v - q * v_new;
-				v = aux;
-
-				aux = r_new;
-				r_new = r - q * r_new;
-				r = aux;
-			}
-
-			return r;
-		}
-
-		/*template <typename T>
-	T euclid(T a, T b)
-	{
-		while ((a %= b) != 0)
-		{
-			std::swap(a, b);
-		}
-		return b;
-	}
-
-	template <typename T>
-	inline T gcd
-	(
-		const T& a,
-		const T& b
-	)
-	{
-		return euclid(a, b);
-	}*/
-	}
 
 	template<typename intT, typename rationalT,
 		template<typename> class matrixT,
@@ -118,10 +47,10 @@ namespace ILPCuts {
 		std::ostream * _err;
 
 		int_type vec_gcd(const int_vec& vec) const {
-			int_type res = ILPCuts::gcd(vec[0], vec[1]);
+			int_type res = gcd(vec[0], vec[1]);
 
 			for (size_t i = 2; i < vec.size(); ++i) {
-				res = ILPCuts::gcd(res, vec[i]);
+				res = gcd(res, vec[i]);
 			}
 
 			return res;
@@ -148,7 +77,7 @@ namespace ILPCuts {
 		}
 
 		static int_type mod2_unaryop(const int_type& x) {
-			return x % 2;
+			return abs(x % 2);
 		}
 
 		class mod_unaryop {
@@ -184,16 +113,20 @@ namespace ILPCuts {
 		}
 
 		static int_type rat_to_int(const rational_type& rat_x, const rational_type& err_tolerance) {
-			//cout << rat_x << endl;
-			int_type int_x = ILPCuts::round<int_type>(rat_x);
-			if (std::abs(rat_x - int_x) <= err_tolerance) {
+			//std::cout << rat_x << std::endl;
+			int_type int_x = static_cast<int_type>(round(rat_x));
+			/*std::cout << int_x << std::endl;
+			std::cout << abs(rat_x - int_x) << std::endl;*/
+			if (abs(rat_x - int_x) <= err_tolerance) {
 				return int_x;
 			}
 			else {
 				std::stringstream msg;
-				msg << "rat_to_int tolerance error (" << ILPCuts::abs(rat_x - int_x) << ")";
+				msg << "rat_to_int tolerance error (" << abs(rat_x - int_x) << ")";
+				std::cout << abs(rat_x - int_x) << std::endl;
 				throw ToleranceErrorException(msg.str());
 			}
+			return 0;
 		}
 
 		class RatToInt_Unary {
@@ -225,9 +158,7 @@ namespace ILPCuts {
 			const int_type& det = cone.det;
 			size_t n = A.cols();
 
-			/*void process_new_candidate(const int_mat & a, const rat_vec & t) {
-				result.size();
-			};*/
+			std::cout << "current determinant: " << det << std::endl;
 
 			auto process_new_candidate = [&](size_t i, const int_vec& t, const int_type& div)
 			{
@@ -252,8 +183,11 @@ namespace ILPCuts {
 
 				try {
 
-					new_cone.det = rat_to_int(ILPCuts::abs(decomp_LU.determinant()), err_tolerance);
-
+					new_cone.det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
+					/*if (det % 2 == 0) {
+						cout << "old det:" << det << endl;
+						cout << "new det:" << new_cone.det << endl;
+ 					}*/
 				}
 				catch (ToleranceErrorException exc) {
 					out() << "Determinant computing tolerance error: " << exc.what() << '\n';
@@ -271,14 +205,26 @@ namespace ILPCuts {
 				}
 
 				for (size_t i = 0; i < directions_pool.cols(); ++i) {
+					//cout << "direction: " << directions_pool.col(i).transpose() << endl;
 					rat_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool.col(i);
+					//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
+					//cout << "duals: " << duals << endl;
+
+					/*int_mat I = A * adjA;
+					cout << I << endl;
+					cin.ignore();*/
+
 					if (((duals.array() + tolerance) > 0).all()) {
 						result.push_back(std::move(new_cone));
+						std::cout << "adding step done" << std::endl;
+						//cin.ignore();
 					}
 				}
 			};
 
 			if (det % 2 == 0) {
+				std::cout << "evennnnnnnnnnnnnnn" << std::endl;
+
 				int_vec pivot;
 				for (size_t i = 0; i < n; ++i) {
 					pivot = adjA.col(i);
@@ -289,7 +235,14 @@ namespace ILPCuts {
 					}
 				}
 
+				
 				pivot = pivot.unaryExpr(std::ref(mod2_unaryop)).eval();
+
+				/*for (size_t i = 0; i < pivot.size(); ++i)
+					if (pivot[i] != 0 && pivot[i] != 1) {
+						cout << "pivot[i]" << pivot[i] << endl;
+						cin.ignore();
+					}*/
 
 				for (size_t i = 0; i < n; ++i) {
 					if (pivot[i] != 0) 
@@ -298,7 +251,7 @@ namespace ILPCuts {
 
 			}
 			else { 
-				//std::cout << adjA << std::endl;
+				std::cout << "oddddddddddddddddodddd" << std::endl;
 
 				int_vec pivot;
 				for (size_t i = 0; i < n; ++i) {
@@ -310,7 +263,7 @@ namespace ILPCuts {
 				//std::cout << pivot << std::endl;
 				for (size_t i = 0; i < n; ++i) {
 					if (pivot[i] > 0) {
-						int_type lambda = _mod_equation_solve(pivot[i], det - ILPCuts::gcd(det, pivot[i]), det);
+						int_type lambda = _mod_equation_solve(pivot[i], det - gcd(det, pivot[i]), det);
 						int_vec t = (pivot.array() * lambda).unaryExpr(mod_unaryop(det));
 
 						process_new_candidate(i, t, det);
@@ -388,7 +341,7 @@ namespace ILPCuts {
 		public:
 			SomeDirection(const int_mat& A) {
 				size_t n = A.cols();
-				_direction = A.cast<rational_type>().colwise().sum().array() / n;
+				_direction = A.cast<rational_type>().rowwise().sum().array() / n;
 			}
 
 			rat_mat generate_directons() {
@@ -486,7 +439,7 @@ namespace ILPCuts {
 			//std::cout << A << std::endl;
 
 			try {
-				det = rat_to_int(ILPCuts::abs(decomp_LU.determinant()), err_tolerance);
+				det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';

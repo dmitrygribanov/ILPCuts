@@ -11,6 +11,7 @@ using std::endl;
 
 void unit_test_I() {
 
+    cout << "---------------unit_test_I---------------------" << endl;
     using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
@@ -33,15 +34,14 @@ void unit_test_I() {
 
     std::vector<CutsGen::int_vec> cuts = gen.generate_cuts(A, optLP, gd);
 
-    cout << "---------------unit_test_I---------------------" << endl;
+    
     assert(cuts.empty());
 
-    cout << gen.out().str() << endl;
-    cout << gen.err().str() << endl;
     cout << "-----------------------------------------------" << endl;
 }
 
 void unit_test_S2() {
+    cout << "---------------unit_test_S2---------------------" << endl;
     using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
@@ -65,15 +65,14 @@ void unit_test_S2() {
 
     true_cuts[0] << 0, 0, 1, 5;
 
-    cout << "---------------unit_test_S2---------------------" << endl;
+    
     assert( cuts == true_cuts );
 
-    cout << gen.out().str() << endl;
-    cout << gen.err().str() << endl;
     cout << "-----------------------------------------------" << endl;
 }
 
 void unit_test_S3() {
+    cout << "---------------unit_test_S3---------------------" << endl;
     using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
@@ -97,15 +96,13 @@ void unit_test_S3() {
 
     true_cuts[0] << 0, 0, 1, 3;
 
-    cout << "---------------unit_test_S3---------------------" << endl;
     assert(cuts == true_cuts);
 
-    cout << gen.out().str() << endl;
-    cout << gen.err().str() << endl;
     cout << "-----------------------------------------------" << endl;
 }
 
 void unit_test_POW2() {
+    cout << "---------------unit_test_POW2---------------------" << endl;
     using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<long long int, double>;
     CutsGen gen;
 
@@ -136,16 +133,11 @@ void unit_test_POW2() {
     true_cuts.push_back(CutsGen::int_vec(4));
     true_cuts[2] << 3, -10, 1, std::floor(168.0/ 16);
 
-    cout << "---------------unit_test_POW2---------------------" << endl;
-
     /*for (const auto& cut : cuts)
         cout << cut.transpose() << endl;
 
     for (const auto& cut : true_cuts)
         cout << cut.transpose() << endl;*/
-
-    cout << gen.out().str() << endl;
-    cout << gen.err().str() << endl;
 
     assert(cuts == true_cuts);
     cout << "-----------------------------------------------" << endl;

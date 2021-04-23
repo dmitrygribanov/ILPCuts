@@ -23,5 +23,11 @@
     <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
+    <ClInclude Include="..\ILPCuts-lib\base_module.h">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ILPCuts-lib\mpir_eigen_supp.h">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

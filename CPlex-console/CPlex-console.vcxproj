@@ -73,8 +73,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(EIGEN_HEADERS);$(CPLEX_STUDIO_DIR201)\cplex\include;$(SolutionDir)ILPCuts-lib;$(CPLEX_STUDIO_DIR201)\concert\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mdd;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mdd;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(MPIR_HEADERS);$(EIGEN_HEADERS);$(CPLEX_STUDIO_DIR201)\cplex\include;$(SolutionDir)ILPCuts-lib;$(CPLEX_STUDIO_DIR201)\concert\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(MPIR_DYNAMIC_LIB)\x64\Debug;$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mdd;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mdd;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(VC_ExecutablePath_x64);$(CommonExecutablePath);$(MPIR_DYNAMIC_LIB)\x64\Debug</ExecutablePath>
+    <ReferencePath>$(MPIR_DYNAMIC_LIB)\x64\Debug;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -84,8 +86,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(EIGEN_HEADERS);$(CPLEX_STUDIO_DIR201)\cplex\include;$(SolutionDir)ILPCuts-lib;$(CPLEX_STUDIO_DIR201)\concert\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mda;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mda;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(MPIR_HEADERS);$(EIGEN_HEADERS);$(CPLEX_STUDIO_DIR201)\cplex\include;$(SolutionDir)ILPCuts-lib;$(CPLEX_STUDIO_DIR201)\concert\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(MPIR_DYNAMIC_LIB)\x64\Release;$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mda;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mda;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -104,7 +106,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cplex2010.lib;ilocplex.lib;concert.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mpir.lib;cplex2010.lib;ilocplex.lib;concert.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -158,14 +160,16 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>cplex2010.lib;ilocplex.lib;concert.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mpir.lib;cplex2010.lib;ilocplex.lib;concert.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CPlex-console.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\ILPCuts-lib\base_module.h" />
     <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen.h" />
+    <ClInclude Include="..\ILPCuts-lib\mpir_eigen_supp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
