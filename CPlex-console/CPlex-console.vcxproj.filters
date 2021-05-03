@@ -20,7 +20,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen.h">
+    <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen_dence.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
     <ClInclude Include="..\ILPCuts-lib\base_module.h">

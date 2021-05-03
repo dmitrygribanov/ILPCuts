@@ -18,13 +18,16 @@
     <ClInclude Include="conic_cuts_arageli.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
-    <ClInclude Include="conic_cuts_Eigen.h">
+    <ClInclude Include="conic_cuts_Eigen_dence.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
     <ClInclude Include="base_module.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
     <ClInclude Include="mpir_eigen_supp.h">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="conic_cuts_Eigen.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
   </ItemGroup>

@@ -11,27 +11,27 @@
 
 int main()
 {
-    using CutsGen = ILPCuts::ConicCutsGenerator_EigenSparce<mpz_class, mpf_class>;
+    using CutsGen = ILPCuts::ConicCutsGenerator<mpz_class, mpq_class>;
     CutsGen gen;
 
-    CutsGen::int_mat A, adjA;
-    CutsGen::rat_vec c, optLP;
+    CutsGen::is_mat A, adjA;
+    CutsGen::rs_vec c, optLP;
     CutsGen::GreadyDirection gd(c);
     CutsGen::int_type det = 100;
 
     gen.generate_cuts(A, optLP, gd);
 
-    /*mpf_class x("1234444444441354231341432415234.0000099999999999");
-    mpf_class y("12344444434534534526246.9999999999999");*/
+    ///*mpf_class x("1234444444441354231341432415234.0000099999999999");
+    //mpf_class y("12344444434534534526246.9999999999999");*/
 
-    mpf_class x("1234444444441354231341432415234.0000099999999999", 10000);
-    mpf_class y("123444444444444444444444444444444444444444444.999999999999999999999999999999999", 10000);
+    //mpf_class x("1234444444441354231341432415234.0000099999999999", 10000);
+    //mpf_class y("123444444444444444444444444444444444444444444.999999999999999999999999999999999", 10000);
 
-    mpz_class xi = static_cast<mpz_class>(round(x));
-    mpz_class yi = static_cast<mpz_class>(round(y));
+    //mpz_class xi = static_cast<mpz_class>(round(x));
+    //mpz_class yi = static_cast<mpz_class>(round(y));
 
-    std::cout << x << ", " << xi << ", " << abs(x-xi) << std::endl;
-    std::cout << y << ", " << yi << ", " << abs(y - yi) << std::endl;
+    //std::cout << x << ", " << xi << ", " << abs(x-xi) << std::endl;
+    //std::cout << y << ", " << yi << ", " << abs(y - yi) << std::endl;
 
 	/*if (x > mpf_class(0)) {
 		y = floor(x + mpf_class(0.5));

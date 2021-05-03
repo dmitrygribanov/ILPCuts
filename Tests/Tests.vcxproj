@@ -160,7 +160,7 @@
     <ClCompile Include="Tests.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen.h" />
+    <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen_dence.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
