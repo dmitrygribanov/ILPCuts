@@ -101,13 +101,11 @@ namespace ILPCuts {
 		template<typename solverT>
 		rs_mat compute_inverse(const is_mat & A, solverT & solver);
 
-		std::tuple<is_mat, int_type> compute_adjugate_and_absdet(const is_mat& A, const rational_type& err_tolerance);
+		std::tuple<is_mat, int_type> compute_adjugate_and_absdet(const is_mat& A);
 
 		std::vector<is_mat> partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
-			const is_mat& adjA, const int_type& det,
-			const rational_type& tolerance = 0.00001,
-			const rational_type& err_tolerance = 0.0001);
+			const is_mat& adjA, const int_type& det);
 
 		struct cone_traits {
 			is_mat A;
@@ -115,9 +113,7 @@ namespace ILPCuts {
 			int_type det;
 		};
 
-		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool,
-			const rational_type& tolerance = 0.00001,
-			const rational_type& err_tolerance = 0.0001);
+		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<size_t>& directions_evaluation_counter);
 
 		int_type vec_max2pow(const is_vec& vec) const;
 
@@ -125,27 +121,41 @@ namespace ILPCuts {
 
 	public:
 
+		class DirectionsStrategyBase {
+		public:
+			virtual std::vector<rs_vec> generate_directons(const is_mat& A) = 0; // { return rat_mat();  };
+		};
+
+		rational_type tolerance;
+		rational_type err_tolerance;
+		size_t cone_limit_per_direction;
+		std::vector<std::unique_ptr<DirectionsStrategyBase> > direction_strategies;
+
 		ConicCutsGenerator(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
-			:_out(outs), _err(errs) {}
+			:_out(outs), _err(errs), cone_limit_per_direction(0), tolerance(0), err_tolerance(0) {}
+
+		void Init(const rational_type & a_tolerance = 0.00001,
+			const rational_type& a_err_tolerance = 0.001, 
+			size_t a_cone_limit_per_direction = 1) {
+			tolerance = a_tolerance;
+			err_tolerance = a_err_tolerance;
+			cone_limit_per_direction = a_cone_limit_per_direction;
+			direction_strategies.push_back(std::make_unique<SomeDirection>() );
+		}
 
 		std::ostream& out() { return *_out; }
 
 		std::ostream& err() { return *_err; }
 
-		class DirectionsStrategyBase {
-		public:
-			virtual std::vector<rs_vec> generate_directons() = 0; // { return rat_mat();  };
-		};
-
 		class GreadyDirection :public DirectionsStrategyBase {
 		private:
-			const rs_vec& _c;
+			rs_vec _c;
 
 		public:
 			GreadyDirection(const rs_vec& c)
 				:_c(c) {}
 
-			std::vector<rs_vec> generate_directons() {
+			std::vector<rs_vec> generate_directons(const is_mat & A) {
 				std::vector<rs_vec> res(1);
 				res[0] = _c;
 				return std::move(res);
@@ -154,10 +164,10 @@ namespace ILPCuts {
 
 		class SomeDirection :public DirectionsStrategyBase {
 		private:
-			rs_vec _direction;
+			//rs_vec _direction;
 
 		public:
-			SomeDirection(const is_mat& A) {
+			/*SomeDirection(const is_mat& A) {
 				size_t n = A.cols();
 				_direction.resize(n);
 				_direction.setZero();
@@ -166,11 +176,20 @@ namespace ILPCuts {
 					_direction += A.cast<rational_type>().col(i);
 				}
 				_direction /= n;
-			}
+			}*/
 
-			std::vector<rs_vec> generate_directons() {
+			std::vector<rs_vec> generate_directons(const is_mat& A) {
+				size_t n = A.cols();
+				rs_vec direction(n);
+				direction.setZero();
+
+				for (size_t i = 0; i < n; ++i) {
+					direction += A.cast<rational_type>().col(i);
+				}
+				direction /= n;
+
 				std::vector<rs_vec> res(1);
-				res[0] = _direction;
+				res[0] = std::move(direction);
 				return std::move(res);
 			}
 		};
@@ -181,18 +200,21 @@ namespace ILPCuts {
 			using gen_type = randGenT;
 
 		private:
-			const is_mat& _A;
+			//const is_mat& _A;
 			const size_t _rand_dir_num;
 			gen_type& _gen;
 
 		public:
 
-			ConvUniform(gen_type& gen, const is_mat& A, size_t rand_dir_num = 3)
-				:DirectionsStrategyBase(), _gen(gen), _A(A), _rand_dir_num(rand_dir_num) {}
+			/*ConvUniform(gen_type& gen, const is_mat& A, size_t rand_dir_num = 3)
+				:DirectionsStrategyBase(), _gen(gen), _A(A), _rand_dir_num(rand_dir_num) {}*/
 
-			std::vector<rs_vec> generate_directons() {
+			ConvUniform(gen_type& gen, size_t rand_dir_num = 3)
+				:DirectionsStrategyBase(), _gen(gen), _rand_dir_num(rand_dir_num) {}
+
+			std::vector<rs_vec> generate_directons(const is_mat& A) {
 				std::vector<rs_vec> result_directions;
-				size_t n = _A.cols();
+				size_t n = A.cols();
 
 				result_directions.reserve(_rand_dir_num);
 
@@ -200,10 +222,10 @@ namespace ILPCuts {
 				std::uniform_real_distribution<double> udistr(0.0, 1.0);
 
 				for (size_t i = 0; i < _rand_dir_num; ++i) {
-					rs_vec new_dir = _A.col(0).cast<rational_type>();
+					rs_vec new_dir = A.col(0).cast<rational_type>();
 					for (size_t j = 1; j < n; ++j) {
 						rational_type alpha = udistr(_gen);
-						new_dir = (new_dir * alpha + _A.col(j).cast<rational_type>() * (1.0 - alpha)).eval();
+						new_dir = (new_dir * alpha + A.col(j).cast<rational_type>() * (1.0 - alpha)).eval();
 					}
 					result_directions.push_back(std::move(new_dir));
 				}
@@ -212,25 +234,51 @@ namespace ILPCuts {
 			}
 		};
 
-		std::vector<is_vec> generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP,
-			DirectionsStrategyBase& directions_strategy,
-			const int_type& det,
-			const rational_type& tolerance = 0.00001,
-			const rational_type& err_tolerance = 0.0001);
+		std::vector<is_vec> generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det);
 
-		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP,
-			DirectionsStrategyBase& directions_strategy,
-			const rational_type& tolerance = 0.00001,
-			const rational_type& err_tolerance = 0.0001);
+		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP);
+
+		is_mat adjust_normal_cone(const is_mat& A, const rs_vec& c);
 	};
+
+	template<typename intT, typename ratT>
+	typename ConicCutsGenerator<intT, ratT>::is_mat 
+		ConicCutsGenerator<intT, ratT>::adjust_normal_cone(const is_mat& A, const rs_vec& c) {
+
+		is_mat resA = A;
+
+		is_mat adjA;
+		int_type det;
+
+		std::tie(adjA, det) = compute_adjugate_and_absdet(A);
+
+		rs_vec t = adjA.cast<rational_type>() * c;
+
+		for (typename rs_vec::InnerIterator it(t); it; ++it) {
+			if (it.value()  < tolerance) {
+				resA.col(it.index()) = -resA.col(it.index());
+			}
+		}
+
+		/*out() << t.transpose() << std::endl;
+		out() << A << std::endl;
+		out() << "--------------------------------------" << std::endl;
+		out() << resA << std::endl;
+
+		std::tie(adjA, det) = compute_adjugate_and_absdet(resA);
+		t = adjA.cast<rational_type>() * c;
+
+		out() << t.transpose() << std::endl;
+		out() << c.transpose() << std::endl;*/
+
+		return std::move(resA);
+	}
 
 	template<typename intT, typename ratT>
 	std::vector<typename ConicCutsGenerator<intT, ratT>::is_mat> 
 		ConicCutsGenerator<intT, ratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
-			const is_mat& adjA, const int_type& det,
-			const rational_type& tolerance,
-			const rational_type& err_tolerance) {
+			const is_mat& adjA, const int_type& det) {
 		std::vector<cone_traits> current_layer;
 		std::vector<cone_traits> next_layer;
 		std::vector<is_mat> result;
@@ -239,8 +287,13 @@ namespace ILPCuts {
 
 		while (!current_layer.empty()) {
 
+			/*out() << "Curr level size: " << current_layer.size() << std::endl;
+			std::cin.ignore();*/
+
+			std::vector<size_t> directions_evaluation_counter(directions_pool.size(), 0);
+
 			for (const cone_traits& node : current_layer) {
-				std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, tolerance, err_tolerance));
+				std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, directions_evaluation_counter));
 				for (cone_traits& next_node : next_node_layer) {
 					if (next_node.det == 1)
 						result.push_back(std::move(next_node.A));
@@ -258,18 +311,21 @@ namespace ILPCuts {
 
 	template<typename intT, typename ratT>
 	std::vector<typename ConicCutsGenerator<intT, ratT>::is_vec>
-		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP,
-			DirectionsStrategyBase& directions_strategy,
-			const int_type& det,
-			const rational_type& tolerance,
-			const rational_type& err_tolerance) {
+		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det) {
 
 		std::vector<is_vec> res_cuts;
 
-		auto directions_pool = std::move(directions_strategy.generate_directons());
+		std::vector<rs_vec> directions_pool;
+		for (auto & strategy : direction_strategies) {
+			std::vector<rs_vec> strategy_directions = std::move(strategy->generate_directons(A));
+			//out() << strategy_directions[0] << std::endl;
+			directions_pool.insert(directions_pool.end(), strategy_directions.begin(), strategy_directions.end());
+		}
+
+		//auto directions_pool = std::move(directions_strategy.generate_directons(A));
 
 		std::vector<is_mat> uni_mat_pool = std::move(partial_uni_decomp(A, directions_pool,
-			adjA, det, tolerance, err_tolerance));
+			adjA, det));
 
 		for (const is_mat& uni_mat : uni_mat_pool) {
 			rs_vec rat_b = uni_mat.cast<rational_type>() * optLP;
@@ -315,10 +371,7 @@ namespace ILPCuts {
 
 	template<typename intT, typename ratT>
 	std::vector<typename ConicCutsGenerator<intT, ratT>::is_vec>
-		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const rs_vec& optLP,
-			DirectionsStrategyBase& directions_strategy,
-			const rational_type& tolerance,
-			const rational_type& err_tolerance) {
+		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const rs_vec& optLP) {
 
 		//SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
 
@@ -329,10 +382,9 @@ namespace ILPCuts {
 
 		try {
 			//det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
-			std::tie(adjA, det) = std::move(compute_adjugate_and_absdet(A, err_tolerance));
+			std::tie(adjA, det) = std::move(compute_adjugate_and_absdet(A));
 
-			return std::move(generate_cuts(A, adjA, optLP, directions_strategy,
-				det, tolerance, err_tolerance));
+			return std::move(generate_cuts(A, adjA, optLP, det));
 		}
 		catch (ToleranceErrorException exc) {
 			out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
@@ -372,8 +424,7 @@ namespace ILPCuts {
 
 	template<typename intT, typename ratT>
 	std::tuple<typename ConicCutsGenerator<intT, ratT>::is_mat, typename ConicCutsGenerator<intT, ratT>::int_type> 
-		ConicCutsGenerator<intT, ratT>::compute_adjugate_and_absdet(const is_mat& A,
-			const rational_type& err_tolerance) {
+		ConicCutsGenerator<intT, ratT>::compute_adjugate_and_absdet(const is_mat& A) {
 		SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
 
 		int_type det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
@@ -414,16 +465,15 @@ namespace ILPCuts {
 
 	template<typename intT, typename ratT>
 	std::vector<typename ConicCutsGenerator<intT, ratT>::cone_traits> 
-		ConicCutsGenerator<intT, ratT>::compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool,
-			const rational_type& tolerance,
-			const rational_type& err_tolerance) {
+		ConicCutsGenerator<intT, ratT>::compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, 
+			std::vector<size_t> & directions_evaluation_counter) {
+
 		std::vector<cone_traits> result;
+
 		const is_mat& A = cone.A;
 		const is_mat& adjA = cone.adjA;
 		const int_type& det = cone.det;
 		size_t n = A.cols();
-
-		std::vector<bool> is_direction_evaluated(directions_pool.size(), false);
 
 		out() << "current determinant: " << det << std::endl;
 		out() << "Nonzeros: " << A.nonZeros() << std::endl;
@@ -433,6 +483,9 @@ namespace ILPCuts {
 			cone_traits new_cone;
 
 			try {
+				if (t.coeff(i) == 0)
+					std::cin.ignore();
+
 				new_cone.A = A;
 				new_cone.A.col(i) = ((A * t).cast<rational_type>() / div)
 					.unaryExpr(RatToInt_Unary(err_tolerance));
@@ -454,6 +507,11 @@ namespace ILPCuts {
 				int_type ti = t.coeff(i);
 				new_cone.det = rat_to_int(static_cast<rational_type>(det * ti) / div, err_tolerance);
 
+				if (new_cone.det == 0) {
+					out() << det <<", "<< ti << std::endl;
+					std::cin.ignore();
+				}
+
 				is_mat MM(n,n);
 				using Tripl = Triplet<int_type>;
 				std::vector<Tripl> triplets;
@@ -472,7 +530,9 @@ namespace ILPCuts {
 				MM.setFromTriplets(triplets.begin(), triplets.end() );
 
 				new_cone.adjA = ((MM * adjA).cast<rational_type>() / div).unaryExpr(RatToInt_Unary(err_tolerance));
-				//std::tie(new_cone.adjA, new_cone.det) = compute_adjugate_and_absdet(new_cone.A, err_tolerance);
+
+
+				//std::tie(new_cone.adjA, new_cone.det) = compute_adjugate_and_absdet(new_cone.A);
 				/*if (det % 2 == 0) {
 					cout << "old det:" << det << endl;
 					cout << "new det:" << new_cone.det << endl;
@@ -495,7 +555,12 @@ namespace ILPCuts {
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
 				//cout << "direction: " << directions_pool.col(i).transpose() << endl;
-				if (!is_direction_evaluated[i]) {
+				/*if (directions_evaluation_counter[i] >= 3)
+				{
+					out() << directions_evaluation_counter[i] << std::endl;
+					std::cin.ignore();
+				}*/
+				if (directions_evaluation_counter[i] < cone_limit_per_direction) {
 
 					rs_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool[i];
 					//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
@@ -517,7 +582,7 @@ namespace ILPCuts {
 					}
 
 					if (is_nontrivial_nonnegative) {
-						is_direction_evaluated[i] = true;
+						++directions_evaluation_counter[i];
 						result.push_back(std::move(new_cone));
 						out() << "adding step done" << std::endl;
 					}
@@ -616,7 +681,6 @@ namespace ILPCuts {
 	template<typename intT, typename ratT>
 	typename ConicCutsGenerator<intT, ratT>::int_type 
 		ConicCutsGenerator<intT, ratT>::_mod_equation_solve(int_type a, int_type b, int_type mod) const {
-#define _DEBUG
 #ifdef _DEBUG
 		assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
 #endif

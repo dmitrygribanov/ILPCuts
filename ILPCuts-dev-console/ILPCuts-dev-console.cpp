@@ -13,13 +13,14 @@ int main()
 {
     using CutsGen = ILPCuts::ConicCutsGenerator<mpz_class, mpq_class>;
     CutsGen gen;
+    gen.Init();
 
     CutsGen::is_mat A, adjA;
     CutsGen::rs_vec c, optLP;
-    CutsGen::GreadyDirection gd(c);
+    //CutsGen::GreadyDirection gd(c);
     CutsGen::int_type det = 100;
 
-    gen.generate_cuts(A, optLP, gd);
+    gen.generate_cuts(A, optLP);
 
     ///*mpf_class x("1234444444441354231341432415234.0000099999999999");
     //mpf_class y("12344444434534534526246.9999999999999");*/

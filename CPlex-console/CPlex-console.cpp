@@ -75,19 +75,23 @@ namespace ILPCuts {
         void add_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
             is_mat A;
             rs_vec optLP;
+            is_vec c;
 
-            tie(A, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+            tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
 
-            std::mt19937 engine;
-            typename base::template ConvUniform<std::mt19937> ds(engine, A);
+            //std::mt19937 engine;
+            //using Strategy = typename base::template ConvUniform<std::mt19937>;
+            using Strategy = typename base::GreadyDirection;
+
+            base::direction_strategies.push_back(std::make_unique<Strategy>(c));
 
             //typename base::SomeDirection ds(A);
 
-            std::vector<is_vec> cuts_Eigen = base::generate_cuts(A, optLP, ds, 0);
+            std::vector<is_vec> cuts_Eigen = base::generate_cuts(A, optLP);
             add_cuts(cplex, vars, cuts_Eigen);
         }
 
-        std::tuple<is_mat, rs_vec>
+        std::tuple<is_mat, is_vec, rs_vec>
             transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
             size_t n = vars.getSize();
 
@@ -174,7 +178,9 @@ namespace ILPCuts {
                 cplex_optLP.end();
             }
 
-            return std::move(std::make_tuple(A_basis.transpose(), optLP));
+            A_basis = base::adjust_normal_cone(A_basis.transpose(), c);
+
+            return std::move(std::make_tuple(A_basis, c, optLP));
         }
 
         /*std::tuple<is_mat, rs_vec>
@@ -391,11 +397,27 @@ int main(int argc, char** argv)
 
         using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpq_class>;
         CutsGen cuts_gen(&env.out(), &env.out());
+        cuts_gen.Init();
+        cuts_gen.tolerance = 0;
+        cuts_gen.err_tolerance = 0.0000001;
+        cuts_gen.cone_limit_per_direction = 1;
 
         env.out() << "cutting generation:" << endl;
         cuts_gen.add_cuts(cplex, relaxed_model, obj, rngs, vars);
 
-        cin.ignore();
+
+        cplex.setParam(IloCplex::Param::Threads, 1);
+        cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);
+        //cin.ignore();
 
         cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
         cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);

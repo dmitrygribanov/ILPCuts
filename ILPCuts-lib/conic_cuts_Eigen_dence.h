@@ -149,6 +149,7 @@ namespace ILPCuts {
 		};
 
 		std::vector<cone_traits> compute_layer(const cone_traits& cone, const rat_mat& directions_pool,
+			std::vector<size_t>& directions_evaluation_counter,
 			const rational_type& tolerance = 0.00001,
 			const rational_type& err_tolerance = 0.0001) {
 
