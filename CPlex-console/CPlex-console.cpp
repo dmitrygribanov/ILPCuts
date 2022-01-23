@@ -329,13 +329,13 @@ int main(int argc, char** argv)
         cuts_gen.Init();
         cuts_gen.tolerance = 0.000001;
         cuts_gen.err_tolerance = 0.001;
-        cuts_gen.cone_limit_per_direction = 3;
+        cuts_gen.cone_limit_per_direction = 7;
 
         //set strategies for cutting generation
         std::mt19937 engine;
         using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
         //cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 1));
-        //cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
+        cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
         //generate cuts from relaxed model
         env.out() << "cutting generation:" << endl;
@@ -349,7 +349,7 @@ int main(int argc, char** argv)
 
 
         //setting parameters for solving in integer variables
-        cplex.setParam(IloCplex::Param::Threads, 7);
+        cplex.setParam(IloCplex::Param::Threads, 16);
         /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);

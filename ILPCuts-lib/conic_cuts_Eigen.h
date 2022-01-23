@@ -12,8 +12,14 @@
 #include<sstream>
 #include<random>
 #include<chrono>
+#include <iterator>
+#include <algorithm> 
 
 #include"base_module.h"
+
+#include <omp.h>
+#include <../headers/thread-pool-2.0.0/thread_pool.hpp>
+#include <concurrent_queue.h>
 
 namespace ILPCuts {
 
@@ -354,11 +360,14 @@ namespace ILPCuts {
 		ConicCutsGenerator<intT, ratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
 			const is_mat& adjA, const int_type& det) {
+		int threads = 16;
 		std::vector<cone_traits> current_layer;
-		std::vector<cone_traits> next_layer;
-		std::vector<is_mat> result;
+		std::vector<vector<is_mat>> result(threads, std::vector<is_mat>());
 
 		current_layer.push_back(std::move(cone_traits{ A,adjA,det }));
+
+		
+
 
 		while (!current_layer.empty()) {
 
@@ -367,21 +376,45 @@ namespace ILPCuts {
 
 			std::vector<size_t> directions_evaluation_counter(directions_pool.size(), 0);
 
-			for (const cone_traits& node : current_layer) {
+			int dynamic_threads = std::min(threads, (int)current_layer.size());
+
+			std::vector<std::vector<cone_traits>> next_layers(dynamic_threads, std::vector<cone_traits>());
+			out() << current_layer.size() << endl;
+			omp_set_num_threads(dynamic_threads);
+
+#pragma omp parallel for default(none)
+			for (int i = 0; i < current_layer.size(); ++i) {
+				const cone_traits& node = current_layer[i];
 				std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, directions_evaluation_counter));
+				int tid = omp_get_thread_num();
 				for (cone_traits& next_node : next_node_layer) {
 					if (next_node.det == 1)
-						result.push_back(std::move(next_node.A));
+						result[tid].push_back(std::move(next_node.A));
 					else
-						next_layer.push_back(std::move(next_node));
+						next_layers[tid].push_back(std::move(next_node));
 				}
 			}
 
-			std::swap(current_layer, next_layer);
-			next_layer.clear();
+			std::swap(current_layer, next_layers[0]);
+			for (int i = 1; i < next_layers.size(); ++i) {
+				current_layer.insert(
+					current_layer.end(),
+					std::make_move_iterator(next_layers[i].begin()),
+					std::make_move_iterator(next_layers[i].end())
+				);
+			}
 		}
 
-		return std::move(result);
+		std::vector<is_mat>& concatenated_result = result[0];
+		for (int i = 1; i < result.size(); ++i) {
+			concatenated_result.insert(
+				concatenated_result.end(),
+				std::make_move_iterator(result[i].begin()),
+				std::make_move_iterator(result[i].end())
+			);
+		}
+
+		return std::move(concatenated_result);
 	}
 
 	template<typename intT, typename ratT>

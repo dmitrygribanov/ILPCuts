@@ -83,7 +83,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(EIGEN_HEADERS);$(SolutionDir)headers\arageli;$(MPIR_HEADERS);$(IncludePath)</IncludePath>
+    <IncludePath>$(EIGEN_HEADERS);$(SolutionDir)headers\arageli;$(SolutionDir)headers\thread-pool-2.0.0;$(MPIR_HEADERS);$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
