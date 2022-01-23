@@ -71,27 +71,16 @@ namespace Eigen {
     };
 }
 
-mpf_class round(const mpf_class& x) {
-    if (x > mpf_class(0))
-        return floor(x + 0.5);
-    else
-        return ceil(x - 0.5);
-   // return floor(x); // (x > mpf_class(0)) ? mpf_class(floor(x + mpf_class(0.5))) : mpf_class(ceil(x - mpf_class(0.5)));
-}
-
 mpq_class floor(const mpq_class& x) {
     mpz_class num = x.get_num();
     mpz_class den = x.get_den();
-    //cout << "mama: " << mpz_class(num / den) << endl;
+    
     return mpz_class(num/den);
 }
 
 mpq_class ceil(const mpq_class& x) {
     mpz_class num = x.get_num();
     mpz_class den = x.get_den();
-
-    /*cout << "num/den: " << mpz_class(num / den) << endl;
-    cout << "num/den + 1: " << mpz_class(num / den + 1) << endl;*/
 
     if ( num % den != 0 && x > 0 ) {
         return mpz_class(num / den + 1);
@@ -101,9 +90,17 @@ mpq_class ceil(const mpq_class& x) {
     }
 }
 
+mpf_class round(const mpf_class& x) {
+    if (x > mpf_class(0))
+        return floor(x + 0.5);
+    else
+        return ceil(x - 0.5);
+    // return floor(x); // (x > mpf_class(0)) ? mpf_class(floor(x + mpf_class(0.5))) : mpf_class(ceil(x - mpf_class(0.5)));
+}
+
 mpq_class round(const mpq_class& x) {
     if (x >= mpq_class(0))
-        return floor(mpq_class(x + mpq_class(1,2)) );
+        return floor(mpq_class(x + mpq_class(1, 2)));
     else
     {
         //cout << "x: " << x << endl;

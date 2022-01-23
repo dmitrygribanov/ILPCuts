@@ -11,6 +11,7 @@
 #include<functional>
 #include<sstream>
 #include<random>
+#include<chrono>
 
 #include"base_module.h"
 
@@ -119,6 +120,76 @@ namespace ILPCuts {
 
 		int_type _mod_equation_solve(int_type a, int_type b, int_type mod) const;
 
+		template<typename vecT>
+		class SparseVecComp {
+		public:
+			bool operator()(const vecT& v1, const vecT& v2) {
+				typename vecT::InnerIterator it1(v1);
+				typename vecT::InnerIterator it2(v2);
+				while (it1 && it2) {
+					if (it1.index() > it2.index()) {
+						if (it1.value() < 0)
+							return true;
+						else
+							return false;
+					}
+					else if (it1.index() < it2.index()) {
+						if (it2.value() > 0)
+							return true;
+						else
+							return false;
+					}
+					else {
+						if (it1.value() < it2.value())
+							return true;
+						else if (it1.value() > it2.value())
+							return false;
+					}
+
+					++it1; ++it2;
+				}
+
+				if (it1) {
+					if (it1.value() < 0)
+						return true;
+					else
+						return false;
+				}
+
+				if (it2) {
+					if (it2.value() > 0)
+						return true;
+					else
+						return false;
+				}
+
+				return false;
+			}
+		};
+
+		template<typename vecT>
+		class SparseVecEquiv {
+		public:
+			bool operator()(const vecT& v1, const vecT& v2) {
+				typename vecT::InnerIterator it1(v1);
+				typename vecT::InnerIterator it2(v2);
+
+				while (it1 && it2) {
+					
+					if (it1.index() != it2.index())
+						return false;
+					else {
+						if (it1.value() != it2.value())
+							return false;
+					}
+
+					++it1; ++it2;
+				}
+
+				return true;
+			}
+		};
+
 	public:
 
 		class DirectionsStrategyBase {
@@ -129,18 +200,22 @@ namespace ILPCuts {
 		rational_type tolerance;
 		rational_type err_tolerance;
 		size_t cone_limit_per_direction;
+		size_t threads;
 		std::vector<std::unique_ptr<DirectionsStrategyBase> > direction_strategies;
 
 		ConicCutsGenerator(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
-			:_out(outs), _err(errs), cone_limit_per_direction(0), tolerance(0), err_tolerance(0) {}
+			:_out(outs), _err(errs), cone_limit_per_direction(0), 
+			tolerance(0), err_tolerance(0), threads(0) {}
 
 		void Init(const rational_type & a_tolerance = 0.00001,
 			const rational_type& a_err_tolerance = 0.001, 
-			size_t a_cone_limit_per_direction = 1) {
+			size_t a_cone_limit_per_direction = 1,
+			size_t a_threads = 8) {
 			tolerance = a_tolerance;
 			err_tolerance = a_err_tolerance;
 			cone_limit_per_direction = a_cone_limit_per_direction;
 			direction_strategies.push_back(std::make_unique<SomeDirection>() );
+			threads = a_threads;
 		}
 
 		std::ostream& out() { return *_out; }
@@ -313,6 +388,8 @@ namespace ILPCuts {
 	std::vector<typename ConicCutsGenerator<intT, ratT>::is_vec>
 		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det) {
 
+		auto start = std::chrono::steady_clock::now();
+
 		std::vector<is_vec> res_cuts;
 
 		std::vector<rs_vec> directions_pool;
@@ -326,6 +403,11 @@ namespace ILPCuts {
 
 		std::vector<is_mat> uni_mat_pool = std::move(partial_uni_decomp(A, directions_pool,
 			adjA, det));
+
+		for (is_mat& uni_mat : uni_mat_pool) {
+			uni_mat = uni_mat.transpose();
+		}
+		
 
 		for (const is_mat& uni_mat : uni_mat_pool) {
 			rs_vec rat_b = uni_mat.cast<rational_type>() * optLP;
@@ -348,7 +430,7 @@ namespace ILPCuts {
 					is_vec cut = uni_mat.row(diff_it.index());
 					cut.reserve(1);
 					cut.insert(cut.size() - 1) = floor_b.coeff(diff_it.index());
-					out() << "cut has been added: (" << cut.transpose() << ")\n";
+					//out() << "cut has been added: (" << cut.transpose() << ")\n";
 					res_cuts.push_back(std::move(cut));
 				}
 				++diff_it;
@@ -366,6 +448,16 @@ namespace ILPCuts {
 			}*/
 		}
 
+		std::sort(res_cuts.begin(), res_cuts.end(), SparseVecComp<rs_vec>());
+		auto last = std::unique(res_cuts.begin(), res_cuts.end(), SparseVecEquiv<rs_vec>());
+		// v now holds {1 2 3 4 5 x x}, where 'x' is indeterminate
+		res_cuts.erase(last, res_cuts.end());
+
+		auto end = std::chrono::steady_clock::now();
+		std::chrono::duration<double> elapsed_seconds = end - start;
+		out() << "ConicCuts: cuts generation time: " << elapsed_seconds.count() << "s\n";
+		out() << "ConicCuts: total cuts: " << res_cuts.size() << "\n";
+
 		return std::move(res_cuts);
 	}
 
@@ -382,7 +474,11 @@ namespace ILPCuts {
 
 		try {
 			//det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
+			auto start = std::chrono::steady_clock::now();
 			std::tie(adjA, det) = std::move(compute_adjugate_and_absdet(A));
+			auto end = std::chrono::steady_clock::now();
+			std::chrono::duration<double> elapsed_seconds = end - start;
+			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
 
 			return std::move(generate_cuts(A, adjA, optLP, det));
 		}
@@ -425,6 +521,7 @@ namespace ILPCuts {
 	template<typename intT, typename ratT>
 	std::tuple<typename ConicCutsGenerator<intT, ratT>::is_mat, typename ConicCutsGenerator<intT, ratT>::int_type> 
 		ConicCutsGenerator<intT, ratT>::compute_adjugate_and_absdet(const is_mat& A) {
+		//SparseLU<rs_mat> decomp_LU(A.cast<rational_type>());
 		SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
 
 		int_type det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
@@ -483,8 +580,8 @@ namespace ILPCuts {
 			cone_traits new_cone;
 
 			try {
-				if (t.coeff(i) == 0)
-					std::cin.ignore();
+				/*if (t.coeff(i) == 0)
+					std::cin.ignore();*/
 
 				new_cone.A = A;
 				new_cone.A.col(i) = ((A * t).cast<rational_type>() / div)
@@ -507,10 +604,10 @@ namespace ILPCuts {
 				int_type ti = t.coeff(i);
 				new_cone.det = rat_to_int(static_cast<rational_type>(det * ti) / div, err_tolerance);
 
-				if (new_cone.det == 0) {
+				/*if (new_cone.det == 0) {
 					out() << det <<", "<< ti << std::endl;
 					std::cin.ignore();
-				}
+				}*/
 
 				is_mat MM(n,n);
 				using Tripl = Triplet<int_type>;
@@ -585,6 +682,7 @@ namespace ILPCuts {
 						++directions_evaluation_counter[i];
 						result.push_back(std::move(new_cone));
 						out() << "adding step done" << std::endl;
+						break;
 					}
 				}
 
@@ -597,7 +695,7 @@ namespace ILPCuts {
 		};
 
 		if (det % 2 == 0) {
-			std::cout << "evennnnnnnnnnnnnnn" << std::endl;
+			//std::cout << "evennnnnnnnnnnnnnn" << std::endl;
 
 			is_vec pivot;
 			for (size_t i = 0; i < n; ++i) {
@@ -631,7 +729,7 @@ namespace ILPCuts {
 
 		}
 		else {
-			std::cout << "oddddddddddddddddodddd" << std::endl;
+			//std::cout << "oddddddddddddddddodddd" << std::endl;
 
 			is_vec pivot;
 			//out() << A * adjA << std::endl;

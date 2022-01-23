@@ -5,7 +5,7 @@
 namespace ILPCuts {
 
 	namespace Internal {
-		template <typename T>
+		/*template <typename T>
 		T euclid_bezout
 		(
 			const T& a,
@@ -39,8 +39,13 @@ namespace ILPCuts {
 			}
 
 			return r;
-		}
+		}*/
 	}
+
+	/*template<typename intT>
+	intT gcd(const intT& a, const intT& b) {
+		return std::gcd(a, b);
+	}*/
 
 	/*template <typename T>
 	T euclid(T a, T b)

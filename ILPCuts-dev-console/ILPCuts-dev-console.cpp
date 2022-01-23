@@ -11,7 +11,7 @@
 
 int main()
 {
-    using CutsGen = ILPCuts::ConicCutsGenerator<mpz_class, mpq_class>;
+    using CutsGen = ILPCuts::ConicCutsGenerator<int, double>;
     CutsGen gen;
     gen.Init();
 

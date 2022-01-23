@@ -29,25 +29,19 @@ namespace ILPCuts {
         using typename base::is_vec;
         using typename base::rs_vec;
 
+        std::vector<is_vec> cuts_Eigen;
+
         CPlexAdapter(std::ostream* outs, std::ostream* errs)
             :base(outs, errs) {}
 
         CPlexAdapter() :base() {}
 
-        void add_cuts(IloCplex cplex, IloNumVarArray vars, const std::vector<is_vec> & cuts_Eigen) {
+        void add_cuts(IloCplex cplex, IloNumVarArray vars) {
             IloEnv env = cplex.getEnv();
 
             IloConstraintArray ilo_cuts(env);
 
             size_t n = vars.getSize();
-
-            //std::map<IloInt, size_t> var_index_map;
-            //for (size_t i = 0; i < n; ++i) {
-            //    var_index_map[vars[i].getId()] = i;
-            //}
-            /*for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
-                base::out() << cuts_Eigen[i] << endl;
-            }*/
 
             for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
                 IloExpr lhs = IloExpr(env);
@@ -60,35 +54,25 @@ namespace ILPCuts {
                         rhs = it.value().get_si();
                 }
 
-                /*for (size_t j = 0; j+1 < n; ++j) {
-                    lhs += vars[j] * cuts_Eigen[i][j].get_si();
-                }*/
-                //IloNum rhs = cuts_Eigen[i].coeff(n).get_si();
                 ilo_cuts.add( IloRange(env, lhs, rhs) );
             }
 
             cplex.addUserCuts(ilo_cuts);
+            cplex.addLazyConstraints(ilo_cuts);
 
             ilo_cuts.end();
         }
 
-        void add_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
+        void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
             is_mat A;
             rs_vec optLP;
             is_vec c;
 
             tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
 
-            //std::mt19937 engine;
-            //using Strategy = typename base::template ConvUniform<std::mt19937>;
-            using Strategy = typename base::GreadyDirection;
+            base::direction_strategies.push_back(std::make_unique<typename base::GreadyDirection>(c));
 
-            base::direction_strategies.push_back(std::make_unique<Strategy>(c));
-
-            //typename base::SomeDirection ds(A);
-
-            std::vector<is_vec> cuts_Eigen = base::generate_cuts(A, optLP);
-            add_cuts(cplex, vars, cuts_Eigen);
+            cuts_Eigen = std::move(base::generate_cuts(A, optLP));
         }
 
         std::tuple<is_mat, is_vec, rs_vec>
@@ -173,7 +157,6 @@ namespace ILPCuts {
                     if (cplex_optLP[i] != 0)
                         optLP.insertBack(i) = cplex_optLP[i];
                 }
-                    //optLP[i] = cplex_optLP[i];
 
                 cplex_optLP.end();
             }
@@ -182,85 +165,6 @@ namespace ILPCuts {
 
             return std::move(std::make_tuple(A_basis, c, optLP));
         }
-
-        /*std::tuple<is_mat, rs_vec>
-            transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
-            size_t n = vars.getSize();
-
-            typename base::int_mat A_basis = int_mat::Zero(n, n);
-            rat_vec optLP = rat_vec::Zero(n);
-            rat_vec c = rat_vec::Zero(n);
-
-            std::map<IloInt, size_t> var_index_map;
-            for (size_t i = 0; i < n; ++i) {
-                var_index_map[vars[i].getId()] = i;
-            }
-
-            {
-                IloExpr::LinearIterator iter = obj.getLinearIterator();
-                while (iter.ok()) {
-                    if (obj.getSense() == IloObjective::Sense::Maximize)
-                        c[var_index_map[iter.getVar().getId()]] = iter.getCoef();
-                    else
-                        c[var_index_map[iter.getVar().getId()]] = -iter.getCoef();
-                    ++iter;
-                }
-            }
-
-            {
-                IloCplex::BasisStatusArray vars_basis(cplex.getEnv());
-                IloCplex::BasisStatusArray constrs_basis(cplex.getEnv());
-                cplex.getBasisStatuses(vars_basis, vars, constrs_basis, constrs);
-                size_t basis_i = 0;
-
-                for (size_t i = 0; i < constrs.getSize(); ++i) {
-                    IloRange constr = constrs[i];
-                    if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper) {
-                        IloExpr::LinearIterator iter = constr.getLinearIterator();
-                        while (iter.ok()) {
-                            A_basis(basis_i, var_index_map[iter.getVar().getId()]) = iter.getCoef();
-                            ++iter;
-                        }
-                        ++basis_i;
-                    }
-                    else if (constrs_basis[i] == IloCplex::BasisStatus::AtLower) {
-                        IloExpr::LinearIterator iter = constr.getLinearIterator();
-                        while (iter.ok()) {
-                            A_basis(basis_i, var_index_map[iter.getVar().getId()]) = -iter.getCoef();
-                            ++iter;
-                        }
-                        ++basis_i;
-                    }
-                }
-
-                for (size_t i = 0; i < vars.getSize(); ++i) {
-                    IloNumVar var = vars[i];
-                    if (vars_basis[i] == IloCplex::BasisStatus::AtUpper) {
-                        A_basis(basis_i, var_index_map[var.getId()]) = 1;
-                        ++basis_i;
-                    }
-                    else if (vars_basis[i] == IloCplex::BasisStatus::AtLower) {
-                        A_basis(basis_i, var_index_map[var.getId()]) = -1;
-                        ++basis_i;
-                    }
-                }
-
-                vars_basis.end();
-                constrs_basis.end();
-            }
-
-            {
-                IloNumArray cplex_optLP(cplex.getEnv());
-                cplex.getValues(vars, cplex_optLP);
-
-                for (size_t i = 0; i < n; ++i)
-                    optLP[i] = cplex_optLP[i];
-
-                cplex_optLP.end();
-            }
-
-            return std::move(std::make_tuple(A_basis.transpose(), optLP));
-        }*/
     };
 }
 
@@ -345,69 +249,108 @@ namespace ILPCuts {
 //    //mod.end();
 //}
 
-ILOSIMPLEXCALLBACK0(SimplexCollback) {
-    IloEnv env = getEnv();
-
-}
-
 int main(int argc, char** argv)
 {
+    //create CPLEX envirement
     IloEnv env;
+
+    //set global presision for long arithmetics
+    mpf_set_default_prec(200);
+
+
     try {
+        //create main model object
         IloModel master_model(env);
+
+        //create relaxed model object
         IloModel relaxed_model(env);
+
+        //create solver object
         IloCplex cplex(env);
+
+        //create objective function object
         IloObjective   obj;
+
+        //object for variables
         IloNumVarArray vars(env);
+
+        //object for inequalities
         IloRangeArray  rngs(env);
 
+        //defoult datav=bse dir
         const char* datadir = (argc >= 2) ? argv[1] : "../problems/cplex";
+        
         stringstream filename;
-        filename << datadir << "/" << "noswot.mps";
+        filename << datadir << "/" << "sorrell3.mps.gz";
+        //filename << datadir << "/" << "noswot.mps";
+        //filename << datadir << "/" << "bnatt500.mps.gz";
+        //filename << datadir << "/" << "splice1k1.mps.gz";
+        //filename << datadir << "/" << "fhnw-binpack4-48.mps.gz";
+        //filename << datadir << "/" << "hanoi5.mps.gz";
+        //filename << datadir << "/" << "b1c1s1.mps.gz";
+        
+        
         env.out() << "reading " << filename.str() << endl;
+
+        //import main problem from file
         cplex.importModel(master_model, filename.str().c_str(), obj, vars, rngs);
 
+        //import data to the relaxed model
         relaxed_model.add(master_model);
+
+        //make all variables of the relaxed model to be rational
         for (size_t i = 0; i < vars.getSize(); ++i) {
             relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
         }
 
-        /*cplex.extract(master_model);
-        env.out() << "is MIP: " << cplex.isMIP() << endl;
-        cplex.extract(relaxed_model);
-        env.out() << "is MIP: " << cplex.isMIP() << endl;*/
-
-        /*env.out() << "extracting master model..." << endl;
-        cplex.extract(master_model);*/
-
+        //setting parameters to solve relaxed model
         cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
         cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+
+        //put relaxed model to the solver
         cplex.extract(relaxed_model);
         env.out() << "solving relaxed model ...\n";
 
         //cplex.use(myCutsCallback(env, cplex, obj, vars, rngs));
 
+        //run solver
         if (!cplex.solve()) {
             env.error() << "Failed to optimize." << endl;
             throw(-1);
         }
-
         env.out() << "solution status is " << cplex.getStatus() << endl;
         env.out() << "solution value  is " << cplex.getObjValue() << endl;
 
-        using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpq_class>;
+        //createing cuts generator object
+        using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpf_class>;
         CutsGen cuts_gen(&env.out(), &env.out());
+
+        //initialization of cuts generator and setting og its parameters
         cuts_gen.Init();
-        cuts_gen.tolerance = 0;
-        cuts_gen.err_tolerance = 0.0000001;
-        cuts_gen.cone_limit_per_direction = 1;
+        cuts_gen.tolerance = 0.000001;
+        cuts_gen.err_tolerance = 0.001;
+        cuts_gen.cone_limit_per_direction = 3;
 
+        //set strategies for cutting generation
+        std::mt19937 engine;
+        using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
+        //cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 1));
+        //cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
+
+        //generate cuts from relaxed model
         env.out() << "cutting generation:" << endl;
-        cuts_gen.add_cuts(cplex, relaxed_model, obj, rngs, vars);
+        cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+
+        //put the original model to the solver
+        cplex.extract(master_model);
+
+        //adding our cuts to the solver
+        cuts_gen.add_cuts(cplex, vars);
 
 
-        cplex.setParam(IloCplex::Param::Threads, 1);
-        cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+        //setting parameters for solving in integer variables
+        cplex.setParam(IloCplex::Param::Threads, 7);
+        /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
@@ -416,14 +359,13 @@ int main(int argc, char** argv)
         cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
         //cin.ignore();
 
-        cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-        cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
-        cplex.extract(master_model);
-        env.out() << "solving relaxed model ...\n";
+        //cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
+        //cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
+        //solve the ILP model
         if (!cplex.solve()) {
             env.error() << "Failed to optimize." << endl;
             throw(-1);
@@ -434,6 +376,9 @@ int main(int argc, char** argv)
     }
     catch (IloException& e) {
         cerr << "Concert exception caught: " << e << endl;
+    }
+    catch (std::exception & ex) {
+        cerr << ex.what() << endl;
     }
     catch (...) {
         cerr << "Unknown exception caught" << endl;
