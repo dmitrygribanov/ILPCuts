@@ -8,11 +8,12 @@ ILOSTLBEGIN
 #include "mpir_eigen_supp.h"
 
 namespace ILPCuts {
-    template<typename intT = long long int, typename ratT = double>
-    class CPlexAdapter :public ConicCutsGenerator<intT, ratT> {
+    template<typename intT = long long int, typename ratT = double,
+        template<typename, typename> class cutsGeneratorT = ConicCutsGenerator >
+    class CPlexAdapter :public cutsGeneratorT<intT, ratT> {
     public:
 
-        using base = ConicCutsGenerator<intT, ratT>;
+        using base = cutsGeneratorT<intT, ratT>;
         /*using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<intT, ratT>;
 
         using int_type = typename CutsGen::int_type;
@@ -334,7 +335,7 @@ int main(int argc, char** argv)
         //set strategies for cutting generation
         std::mt19937 engine;
         using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
-        //cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 1));
+        cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 3));
         //cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
         //generate cuts from relaxed model

@@ -31,11 +31,11 @@ namespace ILPCuts {
 		using is_vec = SparseVector<int_type>;
 		using rs_vec = SparseVector<rational_type>;
 
-		using id_mat = Matrix<int_type, Dynamic, Dynamic>;
+		/*using id_mat = Matrix<int_type, Dynamic, Dynamic>;
 		using rd_mat = Matrix<rational_type, Dynamic, Dynamic>;
 
 		using id_vec = Matrix<int_type, Dynamic, 1>;
-		using rd_vec = Matrix<rational_type, Dynamic, 1>;
+		using rd_vec = Matrix<rational_type, Dynamic, 1>;*/
 
 	private:
 
