@@ -14,14 +14,6 @@ namespace ILPCuts {
     public:
 
         using base = cutsGeneratorT<intT, ratT>;
-        /*using CutsGen = ILPCuts::ConicCutsGenerator_EigenDence<intT, ratT>;
-
-        using int_type = typename CutsGen::int_type;
-        using rat_type = typename CutsGen::rational_type;
-        using rat_vec = typename CutsGen::rat_vec;
-        using int_vec = typename CutsGen::int_vec;
-        using rat_mat = typename CutsGen::rat_mat;
-        using int_mat = typename CutsGen::int_mat;*/
 
         using typename base::int_type;
         using typename base::rational_type;
