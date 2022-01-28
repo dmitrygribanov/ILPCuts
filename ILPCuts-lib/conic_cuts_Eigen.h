@@ -27,6 +27,7 @@ namespace ILPCuts {
 		using base::err_tolerance;
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
+		using base::compute_adjugate_and_absdet;
 
 		using base::base;
 
@@ -37,11 +38,6 @@ namespace ILPCuts {
 		using rd_vec = Matrix<rational_type, Dynamic, 1>;*/
 
 	private:
-
-		template<typename solverT>
-		rs_mat compute_inverse(const is_mat & A, solverT & solver);
-
-		std::tuple<is_mat, int_type> compute_adjugate_and_absdet(const is_mat& A);
 
 		std::vector<is_mat> partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
@@ -65,42 +61,7 @@ namespace ILPCuts {
 		std::vector<is_vec> generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det);
 
 		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP);
-
-		is_mat adjust_normal_cone(const is_mat& A, const rs_vec& c);
 	};
-
-	template<typename intT, typename ratT>
-	typename ConicCutsGenerator<intT, ratT>::is_mat 
-		ConicCutsGenerator<intT, ratT>::adjust_normal_cone(const is_mat& A, const rs_vec& c) {
-
-		is_mat resA = A;
-
-		is_mat adjA;
-		int_type det;
-
-		std::tie(adjA, det) = compute_adjugate_and_absdet(A);
-
-		rs_vec t = adjA.cast<rational_type>() * c;
-
-		for (typename rs_vec::InnerIterator it(t); it; ++it) {
-			if (it.value()  < tolerance) {
-				resA.col(it.index()) = -resA.col(it.index());
-			}
-		}
-
-		/*out() << t.transpose() << std::endl;
-		out() << A << std::endl;
-		out() << "--------------------------------------" << std::endl;
-		out() << resA << std::endl;
-
-		std::tie(adjA, det) = compute_adjugate_and_absdet(resA);
-		t = adjA.cast<rational_type>() * c;
-
-		out() << t.transpose() << std::endl;
-		out() << c.transpose() << std::endl;*/
-
-		return std::move(resA);
-	}
 
 	template<typename intT, typename ratT>
 	std::vector<typename ConicCutsGenerator<intT, ratT>::is_mat> 
@@ -251,48 +212,6 @@ namespace ILPCuts {
 		//	out() << "Root: inverse tolerance error: " << exc.what() << '\n';
 		//	err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
 		//}
-	}
-
-	template<typename intT, typename ratT>
-	std::tuple<typename ConicCutsGenerator<intT, ratT>::is_mat, typename ConicCutsGenerator<intT, ratT>::int_type> 
-		ConicCutsGenerator<intT, ratT>::compute_adjugate_and_absdet(const is_mat& A) {
-		//SparseLU<rs_mat> decomp_LU(A.cast<rational_type>());
-		SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
-
-		int_type det = rat_to_int<int_type,rational_type>(abs(decomp_LU.determinant()), err_tolerance);
-		is_mat adjA = (compute_inverse(A, decomp_LU) * det).unaryExpr(RatToInt_Unary<int_type,rational_type>(err_tolerance));
-
-		size_t n = A.cols();
-		rs_mat I(n, n);
-		I.reserve(VectorXi::Constant(n, 2));
-		for (size_t i = 0; i < n; ++i)
-			I.insert(i, i) = det;
-
-		/*if (rs_mat(A * adjA) == I)
-			out() << "aaaaaaaaaaaaaaaaaaaa!!!!" << std::endl;*/
-
-		return std::make_tuple(std::move(adjA), std::move(det));
-	}
-
-
-	template<typename intT, typename ratT>
-	template<typename solverT>
-	typename ConicCutsGenerator<intT, ratT>::rs_mat 
-		ConicCutsGenerator<intT, ratT>::compute_inverse(const is_mat& A, solverT & solver) {
-
-		size_t n = A.cols();
-
-		rs_mat I(n, n);
-		I.reserve(VectorXi::Constant(n, 2));
-		for (size_t i = 0; i < n; ++i)
-			I.insert(i, i) = 1;
-
-		rs_mat res(n, n);
-		for (size_t i = 0; i < n; ++i) {
-			res.col(i) = solver.solve(I.col(i));
-		}
-
-		return std::move(res);
 	}
 
 	template<typename intT, typename ratT>
