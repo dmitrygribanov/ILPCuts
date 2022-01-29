@@ -416,7 +416,7 @@ namespace ILPCuts {
 		ConicCutsGenerator<intT, ratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
 			const is_mat& adjA, const int_type& det) {
-		int threads = 16;
+
 		std::vector<cone_traits> current_layer;
 		std::vector<vector<is_mat>> result(threads, std::vector<is_mat>());
 
@@ -429,7 +429,7 @@ namespace ILPCuts {
 
 			std::vector<Atomic<size_t>> directions_evaluation_counter(directions_pool.size(), Atomic<size_t>(0));
 
-			int dynamic_threads = std::min(threads, (int)current_layer.size());
+			int dynamic_threads = std::min(threads, current_layer.size());
 
 			std::vector<std::vector<cone_traits>> next_layers(dynamic_threads, std::vector<cone_traits>());
 			omp_set_num_threads(dynamic_threads);
