@@ -18,12 +18,68 @@
 #include"base_module.h"
 
 #include <omp.h>
-#include <../headers/thread-pool-2.0.0/thread_pool.hpp>
-#include <concurrent_queue.h>
+#include <atomic>
 
 namespace ILPCuts {
 
 	using namespace Eigen;
+
+	template <typename T>
+	class Atomic
+	{
+		std::atomic<T> _a;
+
+		public:
+			Atomic()
+				:_a()
+			{}
+
+			Atomic(const std::atomic<T>& a)
+				:_a(a.load())
+			{}
+
+			Atomic(const Atomic& other)
+				:_a(other._a.load())
+			{}
+
+			Atomic& operator=(const Atomic& other){
+				_a.store(other._a.load());
+			}
+
+			Atomic& operator++(){
+				++_a;
+				return *this;
+			}
+
+			// Define prefix decrement operator.
+			Atomic& operator--(){
+				--_a;
+				return *this;
+			}
+
+			bool operator <(T& a){
+				return _a < a;
+			}
+
+			bool operator >(T& a) {
+				return _a > a;
+			}
+
+			bool operator ==(T& a) {
+				return _a == a;
+			}
+
+			bool operator !=(T& a) {
+				return _a != a;
+			}
+
+			bool operator >=(T& a) {
+				return _a >= a;
+			}
+			bool operator <=(T& a) {
+				return _a <= a;
+			}
+	};
 
 	template<typename intT, typename rationalT>
 	class ConicCutsGenerator {
@@ -120,7 +176,7 @@ namespace ILPCuts {
 			int_type det;
 		};
 
-		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<size_t>& directions_evaluation_counter);
+		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<Atomic<size_t>>& directions_evaluation_counter);
 
 		int_type vec_max2pow(const is_vec& vec) const;
 
@@ -366,20 +422,16 @@ namespace ILPCuts {
 
 		current_layer.push_back(std::move(cone_traits{ A,adjA,det }));
 
-		
-
-
 		while (!current_layer.empty()) {
 
 			/*out() << "Curr level size: " << current_layer.size() << std::endl;
 			std::cin.ignore();*/
 
-			std::vector<size_t> directions_evaluation_counter(directions_pool.size(), 0);
+			std::vector<Atomic<size_t>> directions_evaluation_counter(directions_pool.size(), Atomic<size_t>(0));
 
 			int dynamic_threads = std::min(threads, (int)current_layer.size());
 
 			std::vector<std::vector<cone_traits>> next_layers(dynamic_threads, std::vector<cone_traits>());
-			out() << current_layer.size() << endl;
 			omp_set_num_threads(dynamic_threads);
 
 #pragma omp parallel for default(none)
@@ -596,7 +648,7 @@ namespace ILPCuts {
 	template<typename intT, typename ratT>
 	std::vector<typename ConicCutsGenerator<intT, ratT>::cone_traits> 
 		ConicCutsGenerator<intT, ratT>::compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, 
-			std::vector<size_t> & directions_evaluation_counter) {
+			std::vector<Atomic<size_t>> & directions_evaluation_counter) {
 
 		std::vector<cone_traits> result;
 
@@ -712,6 +764,8 @@ namespace ILPCuts {
 					}
 
 					if (is_nontrivial_nonnegative) {
+						if (directions_evaluation_counter[i] >= cone_limit_per_direction)
+							break;
 						++directions_evaluation_counter[i];
 						result.push_back(std::move(new_cone));
 						out() << "adding step done" << std::endl;
