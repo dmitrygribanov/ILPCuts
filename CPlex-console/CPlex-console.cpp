@@ -172,12 +172,13 @@ int main(int argc, char** argv)
         cuts_gen.tolerance = 0.000001;
         cuts_gen.err_tolerance = 0.001;
         cuts_gen.cone_limit_per_direction = 6;
+        cuts_gen.threads = 16;
 
         //set strategies for cutting generation
         std::mt19937 engine;
         using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
         //cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 1));
-        cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
+        //cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
         //generate cuts from relaxed model
         env.out() << "cutting generation:" << endl;

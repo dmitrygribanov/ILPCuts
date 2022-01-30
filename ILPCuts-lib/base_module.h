@@ -386,6 +386,7 @@ namespace ILPCuts {
 			cin.ignore();*/
 
 			for (typename rs_vec::InnerIterator it(t); it; ++it) {
+				// it.value() < tolerance previouse code. working fast but its must be not correct
 				if ( it.value() < 0 && abs(it.value()) > tolerance ) {
 					/*cout << it.value() << endl;
 					cin.ignore();*/
