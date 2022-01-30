@@ -27,7 +27,7 @@ namespace ILPCuts {
 		using base::err_tolerance;
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
-		using base::compute_adjugate_and_absdet;
+		using base::_rat_to_int;
 
 		using base::base;
 
@@ -68,6 +68,7 @@ namespace ILPCuts {
 		ConicCutsGenerator<intT, ratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
 			const is_mat& adjA, const int_type& det) {
+
 		std::vector<cone_traits> current_layer;
 		std::vector<cone_traits> next_layer;
 		std::vector<is_mat> result;
@@ -125,8 +126,8 @@ namespace ILPCuts {
 
 		for (const is_mat& uni_mat : uni_mat_pool) {
 			rs_vec rat_b = uni_mat.cast<rational_type>() * optLP;
-			is_vec rounded_b = rat_b.unaryExpr(Round<rational_type>()).cast<int_type>();
-			is_vec floor_b = rat_b.unaryExpr(Floor<rational_type>()).cast<int_type>();
+			is_vec rounded_b = rat_b.unaryExpr(Utility::Round<rational_type>()).cast<int_type>();
+			is_vec floor_b = rat_b.unaryExpr(Utility::Floor<rational_type>()).cast<int_type>();
 
 			rs_vec diff_b = (rat_b - rounded_b.cast<rational_type>()).cwiseAbs();
 
@@ -139,11 +140,18 @@ namespace ILPCuts {
 
 			typename rs_vec::InnerIterator diff_it(diff_b);
 			//rs_vec::InnerIterator floor_it(floor_b);
+			size_t jjjj = 0;
 			while(diff_it) {
+				/*if (diff_it.value() != 0)
+				{
+					cout << ++jjjj << ", " << rat_b.coeff(diff_it.index()) - floor_b.coeff(diff_it.index()) << endl;
+					cin.ignore();
+				}*/
 				if (diff_it.value() > tolerance) {
 					is_vec cut = uni_mat.row(diff_it.index());
 					cut.reserve(1);
-					cut.insert(cut.size() - 1) = floor_b.coeff(diff_it.index());
+					cut.insert(cut.size()) = floor_b.coeff(diff_it.index());
+					//cout << cut << endl;
 					//out() << "cut has been added: (" << cut.transpose() << ")\n";
 					res_cuts.push_back(std::move(cut));
 				}
@@ -162,8 +170,8 @@ namespace ILPCuts {
 			}*/
 		}
 
-		std::sort(res_cuts.begin(), res_cuts.end(), SparseVecComp<rs_vec>());
-		auto last = std::unique(res_cuts.begin(), res_cuts.end(), SparseVecEquiv<rs_vec>());
+		std::sort(res_cuts.begin(), res_cuts.end(), Utility::SparseVecComp<rs_vec>());
+		auto last = std::unique(res_cuts.begin(), res_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
 		// v now holds {1 2 3 4 5 x x}, where 'x' is indeterminate
 		res_cuts.erase(last, res_cuts.end());
 
@@ -181,20 +189,22 @@ namespace ILPCuts {
 
 		//SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
 
-		int_type det = 0;
-		is_mat adjA;
+		rational_type det = 0;
+		rs_mat adjA;
 
 		//std::cout << A << std::endl;
 
 		try {
 			//det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
 			auto start = std::chrono::steady_clock::now();
-			std::tie(adjA, det) = std::move(compute_adjugate_and_absdet(A));
+			std::tie(adjA, det) = std::move(
+				Utility::compute_abs_adjugate_and_det<rational_type>(A.cast<rational_type>())
+			);
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
 
-			return std::move(generate_cuts(A, adjA, optLP, det));
+			return std::move(generate_cuts(A, adjA.unaryExpr(*_rat_to_int), optLP, (*_rat_to_int)(det) ));
 		}
 		catch (ToleranceErrorException exc) {
 			out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
@@ -239,7 +249,7 @@ namespace ILPCuts {
 
 				new_cone.A = A;
 				new_cone.A.col(i) = ((A * t).cast<rational_type>() / div)
-					.unaryExpr(RatToInt_Unary<int_type,rational_type>(err_tolerance));
+					.unaryExpr(*_rat_to_int);
 
 				//std::cout << A << std::endl;
 				//std::cout << new_cone.A << std::endl;
@@ -256,7 +266,7 @@ namespace ILPCuts {
 			try {
 
 				int_type ti = t.coeff(i);
-				new_cone.det = rat_to_int<int_type, rational_type>(static_cast<rational_type>(det * ti) / div, err_tolerance);
+				new_cone.det = (*_rat_to_int)(static_cast<rational_type>(det * ti) / div);
 
 				/*if (new_cone.det == 0) {
 					out() << det <<", "<< ti << std::endl;
@@ -280,7 +290,7 @@ namespace ILPCuts {
 
 				MM.setFromTriplets(triplets.begin(), triplets.end() );
 
-				new_cone.adjA = ((MM * adjA).cast<rational_type>() / div).unaryExpr(RatToInt_Unary<int_type, rational_type>(err_tolerance));
+				new_cone.adjA = ((MM * adjA).cast<rational_type>() / div).unaryExpr(*_rat_to_int);
 
 
 				//std::tie(new_cone.adjA, new_cone.det) = compute_adjugate_and_absdet(new_cone.A);
@@ -364,7 +374,7 @@ namespace ILPCuts {
 			}
 
 
-			pivot = pivot.unaryExpr(std::ref(mod2_unaryop<int_type>)).eval();
+			pivot = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<int_type>)).eval();
 
 			/*for (size_t i = 0; i < pivot.size(); ++i)
 				if (pivot[i] != 0 && pivot[i] != 1) {
@@ -388,7 +398,7 @@ namespace ILPCuts {
 			is_vec pivot;
 			//out() << A * adjA << std::endl;
 			for (size_t i = 0; i < n; ++i) {
-				pivot = adjA.col(i).unaryExpr(mod_unaryop(det));
+				pivot = adjA.col(i).unaryExpr(Utility::mod_unaryop(det));
 				//out() << pivot.transpose() << std::endl;
 				bool is_any_nonzero = false;
 				for (typename is_vec::InnerIterator it(pivot); it; ++it) {
@@ -408,8 +418,8 @@ namespace ILPCuts {
 			//std::cout << pivot << std::endl;
 			for (typename is_vec::InnerIterator it(pivot); it; ++it) {
 				if (it.value() > 0) {
-					int_type lambda = mod_equation_solve<int_type>(it.value(), det - gcd(det, it.value()), det);
-					is_vec t = (pivot * lambda).unaryExpr(mod_unaryop(det));
+					int_type lambda = Utility::mod_equation_solve<int_type>(it.value(), det - gcd(det, it.value()), det);
+					is_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
 
 					//out() << t.transpose() << std::endl;
 

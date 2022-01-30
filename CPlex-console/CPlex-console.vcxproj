@@ -171,6 +171,7 @@
   <ItemGroup>
     <ClInclude Include="..\ILPCuts-lib\base_module.h" />
     <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen.h" />
+    <ClInclude Include="..\ILPCuts-lib\cplex_adapter.h" />
     <ClInclude Include="..\ILPCuts-lib\mpir_eigen_supp.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

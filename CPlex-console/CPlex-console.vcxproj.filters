@@ -29,5 +29,8 @@
     <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
+    <ClInclude Include="..\ILPCuts-lib\cplex_adapter.h">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
