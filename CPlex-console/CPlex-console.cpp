@@ -250,16 +250,16 @@ namespace ILPCuts {
 //    //mod.end();
 //}
 
-void run_experiment(
+void run_cplex_experiment(
     std::string input_path,
     double tolerance = 0.000001, 
     double err_tolerance = 0.001,
     size_t cone_limit_per_direction = 1, 
     std::string output_path = "output.csv",
-    int rand_directions = 0,
+    size_t rand_directions = 0,
     bool some_direction = false,
     int threads = 7,
-    bool verbose = false) {
+    bool baseline = false) {
     //TO DO: дописать сохраниение в формат csv
 
     //create CPLEX envirement
@@ -338,15 +338,20 @@ void run_experiment(
         if(some_direction)
             cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
-        //generate cuts from relaxed model
-        env.out() << "cutting generation:" << endl;
-        cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+        
+        if (!baseline) {
+            //generate cuts from relaxed model
+            env.out() << "cutting generation:" << endl;
+            cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+        }
 
         //put the original model to the solver
         cplex.extract(master_model);
 
-        //adding our cuts to the solver
-        cuts_gen.add_cuts(cplex, vars);
+        if (!baseline) {
+            //adding our cuts to the solver
+            cuts_gen.add_cuts(cplex, vars);
+        }
 
         cplex.setParam(IloCplex::Param::Threads, threads);
   
