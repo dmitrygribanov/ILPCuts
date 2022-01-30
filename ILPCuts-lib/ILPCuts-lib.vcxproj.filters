@@ -30,5 +30,8 @@
     <ClInclude Include="conic_cuts_Eigen.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
+    <ClInclude Include="cplex_adapter.h">
+      <Filter>Исходные файлы</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
