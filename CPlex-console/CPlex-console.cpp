@@ -8,6 +8,7 @@ ILOSTLBEGIN
 #include "conic_cuts_Eigen.h"
 #include "mpir_eigen_supp.h"
 #include "../headers/argparse/argparse.hpp"
+using namespace ILPCuts;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -98,10 +99,9 @@ void run_cplex_experiment(
     std::string output_path = "output.csv",
     size_t rand_directions = 0,
     bool some_direction = false,
-    int threads = 7,
+    size_t threads = 7,
     bool baseline = false) {
     //TO DO: дописать сохраниение в формат csv
-
     //create CPLEX envirement
     IloEnv env;
 
@@ -160,7 +160,7 @@ void run_cplex_experiment(
         env.out() << "solution value  is " << cplex.getObjValue() << endl;
 
         //createing cuts generator object
-        using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpf_class>;
+        using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
         CutsGen cuts_gen(&env.out(), &env.out());
 
         //initialization of cuts generator and setting og its parameters
@@ -173,13 +173,13 @@ void run_cplex_experiment(
         //set strategies for cutting generation
         std::mt19937 engine;
         using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
-        if(rand_directions > 0)
+        if (rand_directions > 0) {
             cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+        }
         if(some_direction)
             cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
-        
-        if (!baseline) {
+        if (baseline == false) {
             //generate cuts from relaxed model
             env.out() << "cutting generation:" << endl;
             cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
@@ -188,13 +188,29 @@ void run_cplex_experiment(
         //put the original model to the solver
         cplex.extract(master_model);
 
-        if (!baseline) {
+        if (baseline == false) {
             //adding our cuts to the solver
             cuts_gen.add_cuts(cplex, vars);
         }
 
+        //setting parameters for solving in integer variables
         cplex.setParam(IloCplex::Param::Threads, threads);
-  
+        /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
+        cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
+        //cin.ignore();
+
+        //cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
+        //cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+
+        //solve the ILP model
         if (!cplex.solve()) {
             env.error() << "Failed to optimize." << endl;
             throw(-1);
@@ -219,7 +235,74 @@ void run_cplex_experiment(
 int main(int argc, char** argv)
 {
     argparse::ArgumentParser program("IPLCutsCLI");
-    //TO DO: добавить аргументы, написать их использование
+
+    program.add_argument("-i", "--input")
+        .default_value(std::string("-"))
+        .required()
+        .help("specify the input file.");
+
+    program.add_argument("-o", "--output")
+        .default_value(std::string(""))
+        .help("specify the output file.");
+
+    program.add_argument("-t", "--tolerance")
+        .default_value(0.000001)
+        .help("ILPCuts algorithm tolerance")
+        .scan<'g', double>();
+
+    program.add_argument("-e", "--err_tolerance")
+        .default_value(0.001)
+        .help("ILPCuts algorithm error tolerance")
+        .scan<'g', double>();
+
+    program.add_argument("-c", "--cone_limit")
+        .default_value(size_t(1))
+        .help("cone limit per direction")
+        .scan<'i', size_t>();
+
+    program.add_argument("-r", "--rand_strategy")
+        .default_value(size_t(0))
+        .help("cone limit in random cone strategy")
+        .scan<'i', size_t>();
+
+    program.add_argument("-s", "--some_strategy")
+        .default_value(false)
+        .help("use of some cone strategy ")
+        .implicit_value(true);
+
+    program.add_argument("-w", "--workers", "--threads")
+        .default_value(size_t(1))
+        .help("number of threads")
+        .scan<'i', size_t>();
+
+    program.add_argument("-b", "--baseline")
+        .default_value(false)
+        .help("use baseline solver only")
+        .implicit_value(true);
+
+    try {
+        program.parse_args(argc, argv);
+        std::cout << program.get<size_t>("-c") << std::endl;
+    }
+    catch (const std::runtime_error& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        std::exit(1);
+    }
+
+    run_cplex_experiment(
+        program.get<std::string>("--input"),
+        program.get<double>("--tolerance"),
+        program.get<double>("--err_tolerance"),
+        program.get<size_t>("--cone_limit"),
+        program.get<std::string>("--output"),
+        program.get<size_t>("--rand_strategy"),
+        program.get<bool>("--some_strategy"),
+        program.get<size_t>("--threads"),
+        program.get<bool>("--baseline")
+    );
+
+    return 0;
 
     //create CPLEX envirement
     IloEnv env;
