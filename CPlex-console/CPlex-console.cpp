@@ -243,7 +243,7 @@ int main(int argc, char** argv)
 
     program.add_argument("-o", "--output")
         .default_value(std::string(""))
-        .help("specify the output file.");
+        .help("specify the output file. (not implemented yet)");
 
     program.add_argument("-t", "--tolerance")
         .default_value(0.000001)
@@ -282,7 +282,6 @@ int main(int argc, char** argv)
 
     try {
         program.parse_args(argc, argv);
-        std::cout << program.get<size_t>("-c") << std::endl;
     }
     catch (const std::runtime_error& err) {
         std::cerr << err.what() << std::endl;
@@ -304,143 +303,6 @@ int main(int argc, char** argv)
 
     return 0;
 
-    //create CPLEX envirement
-    IloEnv env;
-
-    //set global presision for long arithmetics
-    mpf_set_default_prec(200);
-
-
-    try {
-        //create main model object
-        IloModel master_model(env);
-
-        //create relaxed model object
-        IloModel relaxed_model(env);
-
-        //create solver object
-        IloCplex cplex(env);
-
-        //create objective function object
-        IloObjective   obj;
-
-        //object for variables
-        IloNumVarArray vars(env);
-
-        //object for inequalities
-        IloRangeArray  rngs(env);
-
-        //defoult datav=bse dir
-        const char* datadir = (argc >= 2) ? argv[1] : "../problems/cplex";
-        
-        stringstream filename;
-        //filename << datadir << "/" << "sorrell3.mps.gz";
-        filename << datadir << "/" << "noswot.mps";
-        //filename << datadir << "/" << "bnatt500.mps.gz";
-        //filename << datadir << "/" << "splice1k1.mps.gz";
-        //filename << datadir << "/" << "fhnw-binpack4-48.mps.gz";
-        //filename << datadir << "/" << "hanoi5.mps.gz";
-        //filename << datadir << "/" << "b1c1s1.mps.gz";
-        
-        
-        env.out() << "reading " << filename.str() << endl;
-
-        //import main problem from file
-        cplex.importModel(master_model, filename.str().c_str(), obj, vars, rngs);
-
-        //import data to the relaxed model
-        relaxed_model.add(master_model);
-
-        //make all variables of the relaxed model to be rational
-        for (size_t i = 0; i < vars.getSize(); ++i) {
-            relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
-        }
-
-        //setting parameters to solve relaxed model
-        cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-        cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
-
-        //put relaxed model to the solver
-        cplex.extract(relaxed_model);
-        env.out() << "solving relaxed model ...\n";
-
-        //cplex.use(myCutsCallback(env, cplex, obj, vars, rngs));
-
-        //run solver
-        if (!cplex.solve()) {
-            env.error() << "Failed to optimize." << endl;
-            throw(-1);
-        }
-        env.out() << "solution status is " << cplex.getStatus() << endl;
-        env.out() << "solution value  is " << cplex.getObjValue() << endl;
-
-        //createing cuts generator object
-        using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
-        CutsGen cuts_gen(&env.out(), &env.out());
-
-        //initialization of cuts generator and setting og its parameters
-        cuts_gen.Init();
-        cuts_gen.tolerance = 0.000001;
-        cuts_gen.err_tolerance = 0.001;
-        cuts_gen.cone_limit_per_direction = 6;
-        cuts_gen.threads = 16;
-
-        //set strategies for cutting generation
-        std::mt19937 engine;
-        using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
-        //cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 1));
-        //cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
-
-        //generate cuts from relaxed model
-        env.out() << "cutting generation:" << endl;
-        cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
-
-        //put the original model to the solver
-        cplex.extract(master_model);
-
-        //adding our cuts to the solver
-        cuts_gen.add_cuts(cplex, vars);
-
-
-        //setting parameters for solving in integer variables
-        cplex.setParam(IloCplex::Param::Threads, 16);
-        /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
-        //cin.ignore();
-
-        //cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-        //cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
-
-        //solve the ILP model
-        if (!cplex.solve()) {
-            env.error() << "Failed to optimize." << endl;
-            throw(-1);
-        }
-
-        env.out() << "solution status is " << cplex.getStatus() << endl;
-        env.out() << "solution value  is " << cplex.getObjValue() << endl;
-    }
-    catch (IloException& e) {
-        cerr << "Concert exception caught: " << e << endl;
-    }
-    catch (std::exception & ex) {
-        cerr << ex.what() << endl;
-    }
-    catch (...) {
-        cerr << "Unknown exception caught" << endl;
-    }
-
-    env.end();
-
-    return 0;
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
