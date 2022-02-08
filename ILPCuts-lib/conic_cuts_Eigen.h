@@ -129,7 +129,8 @@ namespace ILPCuts {
 		ConicCutsGenerator<intT, ratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
 			const is_mat& adjA, const int_type& det) {
-
+		//Задаю глобальную параллельность openmp
+		omp_set_dynamic(max(threads, size_t(1)));
 		std::vector<cone_traits> current_layer;
 		std::vector<vector<is_mat>> result(threads, std::vector<is_mat>());
 
