@@ -7,6 +7,8 @@ ILOSTLBEGIN
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
 #include "mpir_eigen_supp.h"
+#include "../headers/argparse/argparse.hpp"
+using namespace ILPCuts;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -89,10 +91,17 @@ ILOSTLBEGIN
 //    //mod.end();
 //}
 
-using namespace ILPCuts;
-
-int main(int argc, char** argv)
-{
+void run_cplex_experiment(
+    std::string input_path,
+    double tolerance = 0.000001, 
+    double err_tolerance = 0.001,
+    size_t cone_limit_per_direction = 1, 
+    std::string output_path = "output.csv",
+    size_t rand_directions = 0,
+    bool some_direction = false,
+    size_t threads = 7,
+    bool baseline = false) {
+    //TO DO: дописать сохраниение в формат csv
     //create CPLEX envirement
     IloEnv env;
 
@@ -119,23 +128,10 @@ int main(int argc, char** argv)
         //object for inequalities
         IloRangeArray  rngs(env);
 
-        //defoult datav=bse dir
-        const char* datadir = (argc >= 2) ? argv[1] : "../problems/cplex";
-        
-        stringstream filename;
-        filename << datadir << "/" << "sorrell3.mps.gz";
-        //filename << datadir << "/" << "noswot.mps";
-        //filename << datadir << "/" << "bnatt500.mps.gz";
-        //filename << datadir << "/" << "splice1k1.mps.gz";
-        //filename << datadir << "/" << "fhnw-binpack4-48.mps.gz";
-        //filename << datadir << "/" << "hanoi5.mps.gz";
-        //filename << datadir << "/" << "b1c1s1.mps.gz";
-        
-        
-        env.out() << "reading " << filename.str() << endl;
+        env.out() << "reading " << input_path << endl;
 
         //import main problem from file
-        cplex.importModel(master_model, filename.str().c_str(), obj, vars, rngs);
+        cplex.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
         //import data to the relaxed model
         relaxed_model.add(master_model);
@@ -169,30 +165,36 @@ int main(int argc, char** argv)
 
         //initialization of cuts generator and setting og its parameters
         cuts_gen.Init();
-        cuts_gen.tolerance = 0.000001;
-        cuts_gen.err_tolerance = 0.001;
-        cuts_gen.cone_limit_per_direction = 6;
-        cuts_gen.threads = 1;
+        cuts_gen.tolerance = tolerance;
+        cuts_gen.err_tolerance = err_tolerance;
+        cuts_gen.cone_limit_per_direction = cone_limit_per_direction;
+        cuts_gen.threads = threads;
 
         //set strategies for cutting generation
-        //std::mt19937 engine;
-        //using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
-        //cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, 5));
-        //cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
+        std::mt19937 engine;
+        using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
+        if (rand_directions > 0) {
+            cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+        }
+        if(some_direction)
+            cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
-        //generate cuts from relaxed model
-        env.out() << "cutting generation:" << endl;
-        cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+        if (baseline == false) {
+            //generate cuts from relaxed model
+            env.out() << "cutting generation:" << endl;
+            cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+        }
 
         //put the original model to the solver
         cplex.extract(master_model);
 
-        //adding our cuts to the solver
-        cuts_gen.add_cuts(cplex, vars);
-
+        if (baseline == false) {
+            //adding our cuts to the solver
+            cuts_gen.add_cuts(cplex, vars);
+        }
 
         //setting parameters for solving in integer variables
-        cplex.setParam(IloCplex::Param::Threads, 7);
+        cplex.setParam(IloCplex::Param::Threads, threads);
         /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
@@ -220,7 +222,7 @@ int main(int argc, char** argv)
     catch (IloException& e) {
         cerr << "Concert exception caught: " << e << endl;
     }
-    catch (std::exception & ex) {
+    catch (std::exception& ex) {
         cerr << ex.what() << endl;
     }
     catch (...) {
@@ -228,8 +230,79 @@ int main(int argc, char** argv)
     }
 
     env.end();
+}
+
+int main(int argc, char** argv)
+{
+    argparse::ArgumentParser program("IPLCutsCLI");
+
+    program.add_argument("-i", "--input")
+        .default_value(std::string("-"))
+        .required()
+        .help("specify the input file.");
+
+    program.add_argument("-o", "--output")
+        .default_value(std::string(""))
+        .help("specify the output file. (not implemented yet)");
+
+    program.add_argument("-t", "--tolerance")
+        .default_value(0.000001)
+        .help("ILPCuts algorithm tolerance")
+        .scan<'g', double>();
+
+    program.add_argument("-e", "--err_tolerance")
+        .default_value(0.001)
+        .help("ILPCuts algorithm error tolerance")
+        .scan<'g', double>();
+
+    program.add_argument("-c", "--cone_limit")
+        .default_value(size_t(1))
+        .help("cone limit per direction")
+        .scan<'i', size_t>();
+
+    program.add_argument("-r", "--rand_strategy")
+        .default_value(size_t(0))
+        .help("cone limit in random cone strategy")
+        .scan<'i', size_t>();
+
+    program.add_argument("-s", "--some_strategy")
+        .default_value(false)
+        .help("use of some cone strategy ")
+        .implicit_value(true);
+
+    program.add_argument("-w", "--workers", "--threads")
+        .default_value(size_t(1))
+        .help("number of threads")
+        .scan<'i', size_t>();
+
+    program.add_argument("-b", "--baseline")
+        .default_value(false)
+        .help("use baseline solver only")
+        .implicit_value(true);
+
+    try {
+        program.parse_args(argc, argv);
+    }
+    catch (const std::runtime_error& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        std::exit(1);
+    }
+
+    run_cplex_experiment(
+        program.get<std::string>("--input"),
+        program.get<double>("--tolerance"),
+        program.get<double>("--err_tolerance"),
+        program.get<size_t>("--cone_limit"),
+        program.get<std::string>("--output"),
+        program.get<size_t>("--rand_strategy"),
+        program.get<bool>("--some_strategy"),
+        program.get<size_t>("--threads"),
+        program.get<bool>("--baseline")
+    );
 
     return 0;
+
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
