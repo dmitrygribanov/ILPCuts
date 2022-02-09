@@ -147,7 +147,7 @@ namespace ILPCuts {
 			std::vector<std::vector<cone_traits>> next_layers(dynamic_threads, std::vector<cone_traits>());
 			omp_set_num_threads(dynamic_threads);
 
-#pragma omp parallel for default(none)
+//#pragma omp parallel for
 			for (int i = 0; i < current_layer.size(); ++i) {
 				const cone_traits& node = current_layer[i];
 				std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, directions_evaluation_counter));
