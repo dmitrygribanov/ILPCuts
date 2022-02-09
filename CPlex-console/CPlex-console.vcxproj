@@ -74,7 +74,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(MPIR_HEADERS);$(EIGEN_HEADERS);$(CPLEX_STUDIO_DIR201)\cplex\include;$(SolutionDir)ILPCuts-lib;$(CPLEX_STUDIO_DIR201)\concert\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(MPIR_DYNAMIC_LIB)\x64\Debug;$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mdd;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mdd;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(MPIR_DYNAMIC_LIB)\x64\$(Configuration);$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mdd;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mdd;$(LibraryPath)</LibraryPath>
     <ExecutablePath>$(VC_ExecutablePath_x64);$(CommonExecutablePath);$(MPIR_DYNAMIC_LIB)\x64\Debug</ExecutablePath>
     <ReferencePath>$(MPIR_DYNAMIC_LIB)\x64\Debug;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
@@ -87,7 +87,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>$(SolutionDir)headers;$(MPIR_HEADERS);$(EIGEN_HEADERS);$(CPLEX_STUDIO_DIR201)\cplex\include;$(SolutionDir)ILPCuts-lib;$(CPLEX_STUDIO_DIR201)\concert\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(MPIR_DYNAMIC_LIB)\x64\Release;$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mda;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mda;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(MPIR_DYNAMIC_LIB)\x64\$(Configuration);$(CPLEX_STUDIO_DIR201)\concert\lib\x64_windows_msvc14\stat_mda;$(CPLEX_STUDIO_DIR201)\cplex\lib\x64_windows_msvc14\stat_mda;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
