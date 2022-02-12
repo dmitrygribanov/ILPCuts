@@ -4,186 +4,201 @@
 
 namespace ILPCuts {
 
-    template<typename cutsGeneratorT>
-    class CPlexAdapter :public cutsGeneratorT {
-    public:
+	template<typename cutsGeneratorT>
+	class CPlexAdapter :public cutsGeneratorT {
+	public:
 
-        using base = cutsGeneratorT;
+		using base = cutsGeneratorT;
 
-        using typename base::int_type;
-        using typename base::rational_type;
-        using typename base::is_mat;
-        using typename base::rs_mat;
-        using typename base::is_vec;
-        using typename base::rs_vec;
+		using typename base::int_type;
+		using typename base::rational_type;
+		using typename base::is_mat;
+		using typename base::rs_mat;
+		using typename base::is_vec;
+		using typename base::rs_vec;
 
-        using base::tolerance;
-        using base::_rat_to_int;
-        using base::adjust_normal_cone;
+		using base::tolerance;
+		using base::adjust_normal_cone;
+		using base::base;
 
-        std::vector<is_vec> cuts_Eigen;
+		bool lazy_constraints_on = false;
 
-        CPlexAdapter(std::ostream* outs, std::ostream* errs)
-            :base(outs, errs) {}
+		/*CPlexAdapter(std::ostream* outs, std::ostream* errs)
+			:base(outs, errs) {}
 
-        CPlexAdapter() :base() {}
+		CPlexAdapter() :base() {}*/
+	private:
+		std::vector<is_vec> cuts_Eigen;
+		using base::_rat_to_int;
 
-        void add_cuts(IloCplex cplex, IloNumVarArray vars) {
-            IloEnv env = cplex.getEnv();
+		std::tuple<is_mat, is_vec, rs_vec>
+			transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
-            IloConstraintArray ilo_cuts(env);
+	public:
 
-            size_t n = vars.getSize();
+		void add_cuts(IloCplex cplex, IloNumVarArray vars);
+		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+	};
 
-            for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
-                IloExpr lhs = IloExpr(env);
-                IloNum rhs = 0;
+	template<typename cutsGeneratorT>
+	std::tuple<typename CPlexAdapter<cutsGeneratorT>::is_mat, typename  CPlexAdapter<cutsGeneratorT>::is_vec, typename  CPlexAdapter<cutsGeneratorT>::rs_vec> 
+		CPlexAdapter<cutsGeneratorT>::transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
+		size_t n = vars.getSize();
 
-                for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it) {
-                    if (it.index() < n)
-                        lhs += vars[it.index()] * it.value().get_si();
-                    else
-                        rhs = it.value().get_si();
-                }
+		typename base::is_mat A_basis(n, n);
+		rs_vec optLP(n), c(n);
 
-                ilo_cuts.add(IloRange(env, lhs, rhs));
-            }
+		std::map<IloInt, size_t> var_index_map;
+		for (size_t i = 0; i < n; ++i) {
+			var_index_map[vars[i].getId()] = i;
+		}
 
-            cplex.addUserCuts(ilo_cuts);
-            //cplex.addLazyConstraints(ilo_cuts);
+		{
+			IloExpr::LinearIterator iter = obj.getLinearIterator();
+			if (obj.getSense() == IloObjective::Sense::Maximize)
+			{
+				//cout << "Max " << endl;
+				while (iter.ok()) {
+					//cout << iter.getCoef() << endl;
+					c.insertBack(var_index_map[iter.getVar().getId()]) = iter.getCoef();
+					++iter;
+				}
+			}
+			else {
+				//cout << "Min " << endl; 
+				while (iter.ok()) {
+					//cout << iter.getCoef() << endl;
+					c.insertBack(var_index_map[iter.getVar().getId()]) = -iter.getCoef();
+					++iter;
+				}
+			}
 
-            ilo_cuts.end();
-        }
+			/*cout << c << endl;
+			cin.ignore();
+			*/
+		}
 
-        void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
-            is_mat A;
-            rs_vec optLP;
-            is_vec c;
+		{
+			IloCplex::BasisStatusArray vars_basis(cplex.getEnv());
+			IloCplex::BasisStatusArray constrs_basis(cplex.getEnv());
+			cplex.getBasisStatuses(vars_basis, vars, constrs_basis, constrs);
+			size_t basis_i = 0;
 
-            tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+			using Trilpl = Triplet<rational_type>;
+			std::vector<Trilpl> triplets;
 
-            base::direction_strategies.push_back(std::make_unique<typename base::GreadyDirection>(c));
+			for (size_t i = 0; i < constrs.getSize(); ++i) {
+				IloRange constr = constrs[i];
+				//cout << "LB, UB" << constr.getLB() << ", " << constr.getUB() << endl;
+				/*if (constr.getLB() == constr.getUB()) {
+					cout << "LB = UB" << endl;
+					cin.ignore();
+				}*/
 
-            cuts_Eigen = std::move(base::generate_cuts(A, optLP));
-        }
+				if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper) {
+					IloExpr::LinearIterator iter = constr.getLinearIterator();
+					while (iter.ok()) {
+						//cout << "AtUpper Row" << endl;
+						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], iter.getCoef()));
+						//A_basis(basis_i, var_index_map[iter.getVar().getId()]) = iter.getCoef();
+						++iter;
+					}
+					++basis_i;
+				}
+				else if (constrs_basis[i] == IloCplex::BasisStatus::AtLower) {
+					IloExpr::LinearIterator iter = constr.getLinearIterator();
+					while (iter.ok()) {
+						//cout << "AtLower Row" << endl;
+						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], -iter.getCoef()));
+						//A_basis(basis_i, var_index_map[iter.getVar().getId()]) = -iter.getCoef();
+						++iter;
+					}
+					++basis_i;
+				}
+			}
+			//cin.ignore();
 
-        std::tuple<is_mat, is_vec, rs_vec>
-            transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
-            size_t n = vars.getSize();
+			for (size_t i = 0; i < vars.getSize(); ++i) {
+				IloNumVar var = vars[i];
+				//cout << "LB, UB" << var.getLB() << ", " << var.getUB() << endl;
+				if (vars_basis[i] == IloCplex::BasisStatus::AtUpper) {
+					//cout << "AtUpper Var" << endl;
+					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
+					//A_basis(basis_i, var_index_map[var.getId()]) = 1;
+					++basis_i;
+				}
+				else if (vars_basis[i] == IloCplex::BasisStatus::AtLower) {
+					//cout << "AtLower Var" << endl;
+					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
+					//A_basis(basis_i, var_index_map[var.getId()]) = -1;
+					++basis_i;
+				}
+			}
 
-            typename base::is_mat A_basis(n, n);
-            rs_vec optLP(n), c(n);
+			//cin.ignore();
 
-            std::map<IloInt, size_t> var_index_map;
-            for (size_t i = 0; i < n; ++i) {
-                var_index_map[vars[i].getId()] = i;
-            }
+			A_basis.setFromTriplets(triplets.begin(), triplets.end());
 
-            {
-                IloExpr::LinearIterator iter = obj.getLinearIterator();
-                if (obj.getSense() == IloObjective::Sense::Maximize)
-                {
-                    //cout << "Max " << endl;
-                    while (iter.ok()) {
-                        //cout << iter.getCoef() << endl;
-                        c.insertBack(var_index_map[iter.getVar().getId()]) = iter.getCoef();
-                        ++iter;
-                    }
-                }
-                else {
-                    //cout << "Min " << endl; 
-                    while (iter.ok()) {
-                        //cout << iter.getCoef() << endl;
-                        c.insertBack(var_index_map[iter.getVar().getId()]) = -iter.getCoef();
-                        ++iter;
-                    }
-                }
+			vars_basis.end();
+			constrs_basis.end();
+		}
 
-                /*cout << c << endl;
-                cin.ignore();
-                */
-            }
+		{
+			IloNumArray cplex_optLP(cplex.getEnv());
+			cplex.getValues(vars, cplex_optLP);
 
-            {
-                IloCplex::BasisStatusArray vars_basis(cplex.getEnv());
-                IloCplex::BasisStatusArray constrs_basis(cplex.getEnv());
-                cplex.getBasisStatuses(vars_basis, vars, constrs_basis, constrs);
-                size_t basis_i = 0;
+			for (size_t i = 0; i < n; ++i) {
+				if (cplex_optLP[i] != 0)
+					optLP.insertBack(i) = cplex_optLP[i];
+			}
 
-                using Trilpl = Triplet<rational_type>;
-                std::vector<Trilpl> triplets;
+			cplex_optLP.end();
+		}
 
-                for (size_t i = 0; i < constrs.getSize(); ++i) {
-                    IloRange constr = constrs[i];
-                    //cout << "LB, UB" << constr.getLB() << ", " << constr.getUB() << endl;
-                    /*if (constr.getLB() == constr.getUB()) {
-                        cout << "LB = UB" << endl;
-                        cin.ignore();
-                    }*/
+		A_basis = adjust_normal_cone(A_basis.transpose(), c);
 
-                    if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper) {
-                        IloExpr::LinearIterator iter = constr.getLinearIterator();
-                        while (iter.ok()) {
-                            //cout << "AtUpper Row" << endl;
-                            triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], iter.getCoef()));
-                            //A_basis(basis_i, var_index_map[iter.getVar().getId()]) = iter.getCoef();
-                            ++iter;
-                        }
-                        ++basis_i;
-                    }
-                    else if (constrs_basis[i] == IloCplex::BasisStatus::AtLower) {
-                        IloExpr::LinearIterator iter = constr.getLinearIterator();
-                        while (iter.ok()) {
-                            //cout << "AtLower Row" << endl;
-                            triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], -iter.getCoef()));
-                            //A_basis(basis_i, var_index_map[iter.getVar().getId()]) = -iter.getCoef();
-                            ++iter;
-                        }
-                        ++basis_i;
-                    }
-                }
-                //cin.ignore();
+		return std::move(std::make_tuple(A_basis, c, optLP));
+	}
 
-                for (size_t i = 0; i < vars.getSize(); ++i) {
-                    IloNumVar var = vars[i];
-                    //cout << "LB, UB" << var.getLB() << ", " << var.getUB() << endl;
-                    if (vars_basis[i] == IloCplex::BasisStatus::AtUpper) {
-                        //cout << "AtUpper Var" << endl;
-                        triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
-                        //A_basis(basis_i, var_index_map[var.getId()]) = 1;
-                        ++basis_i;
-                    }
-                    else if (vars_basis[i] == IloCplex::BasisStatus::AtLower) {
-                        //cout << "AtLower Var" << endl;
-                        triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
-                        //A_basis(basis_i, var_index_map[var.getId()]) = -1;
-                        ++basis_i;
-                    }
-                }
+	template<typename cutsGeneratorT>
+	void CPlexAdapter<cutsGeneratorT>::add_cuts(IloCplex cplex, IloNumVarArray vars) {
+		IloEnv env = cplex.getEnv();
 
-                //cin.ignore();
+		IloConstraintArray ilo_cuts(env);
 
-                A_basis.setFromTriplets(triplets.begin(), triplets.end());
+		size_t n = vars.getSize();
 
-                vars_basis.end();
-                constrs_basis.end();
-            }
+		for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
+			IloExpr lhs = IloExpr(env);
+			IloNum rhs = 0;
 
-            {
-                IloNumArray cplex_optLP(cplex.getEnv());
-                cplex.getValues(vars, cplex_optLP);
+			for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it) {
+				if (it.index() < n)
+					lhs += vars[it.index()] * it.value().get_si();
+				else
+					rhs = it.value().get_si();
+			}
 
-                for (size_t i = 0; i < n; ++i) {
-                    if (cplex_optLP[i] != 0)
-                        optLP.insertBack(i) = cplex_optLP[i];
-                }
+			ilo_cuts.add(IloRange(env, lhs, rhs));
+		}
 
-                cplex_optLP.end();
-            }
+		cplex.addUserCuts(ilo_cuts);
+		if (lazy_constraints_on)
+			cplex.addLazyConstraints(ilo_cuts);
 
-            A_basis = adjust_normal_cone(A_basis.transpose(), c);
+		ilo_cuts.end();
+	}
 
-            return std::move(std::make_tuple(A_basis, c, optLP));
-        }
-    };
+	template<typename cutsGeneratorT>
+	void CPlexAdapter<cutsGeneratorT>::generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
+		is_mat A;
+		rs_vec optLP;
+		is_vec c;
+
+		tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+
+		base::direction_strategies.push_back(std::make_unique<typename base::GreadyDirection>(c));
+
+		cuts_Eigen = std::move(base::generate_cuts(A, optLP));
+	}
 }

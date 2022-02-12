@@ -184,14 +184,53 @@ namespace ILPCuts {
 		template<typename rationalT>
 		static SparseMatrix<rationalT> adjust_normal_cone(const SparseMatrix<rationalT>& A, const SparseVector<rationalT>& c, const rationalT& tolerance);*/
 
+		template <typename T>
+		T euclid_bezout
+		(
+			const T& a,
+			const T& b,
+			T& u,
+			T& v
+		)
+		{
+			u = 1;
+			v = 0;
+			T u_new = v;
+			T v_new = u;
+			T r = abs(a);
+			T r_new = abs(b);
+
+			while (r_new != 0)
+			{
+				T q = r / r_new;
+
+				T aux = u_new;
+				u_new = u - q * u_new;
+				u = aux;
+
+				aux = v_new;
+				v_new = v - q * v_new;
+				v = aux;
+
+				aux = r_new;
+				r_new = r - q * r_new;
+				r = aux;
+			}
+
+			return r;
+		}
+
 		template<typename intT>
-		intT mod_equation_solve(const intT& a, const intT& b, const intT& mod) {
+		intT mod_equation_solve(const intT& a, const intT& b, const intT& mod);
+
+		template<>
+		mpz_class mod_equation_solve(const mpz_class& a, const mpz_class& b, const mpz_class& mod) {
 #ifdef _DEBUG
 			assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
 #endif
 
-			intT x = 0, y = 0;
-			intT gcd_a_mod = 0; // = Internal::euclid_bezout(a, mod, x, y);
+			mpz_class x = 0, y = 0;
+			mpz_class gcd_a_mod = 0; // = Internal::euclid_bezout(a, mod, x, y);
 
 			mpz_gcdext(gcd_a_mod.get_mpz_t(), x.get_mpz_t(), y.get_mpz_t(), a.get_mpz_t(), mod.get_mpz_t());
 
@@ -311,7 +350,7 @@ namespace ILPCuts {
 			GreadyDirection(const rs_vec& c)
 				:_c(c) {}
 
-			std::vector<rs_vec> generate_directons(const is_mat& A) {
+			std::vector<rs_vec> generate_directons(const is_mat& A) override {
 				std::vector<rs_vec> res(1);
 				res[0] = _c;
 				return std::move(res);
@@ -321,7 +360,7 @@ namespace ILPCuts {
 		class SomeDirection :public DirectionsStrategyBase {
 		public:
 
-			std::vector<rs_vec> generate_directons(const is_mat& A) {
+			std::vector<rs_vec> generate_directons(const is_mat& A) override {
 				size_t n = A.cols();
 				rs_vec direction(n);
 				direction.setZero();
@@ -351,7 +390,7 @@ namespace ILPCuts {
 			ConvUniform(gen_type& gen, size_t rand_dir_num = 3)
 				:DirectionsStrategyBase(), _gen(gen), _rand_dir_num(rand_dir_num) {}
 
-			std::vector<rs_vec> generate_directons(const is_mat& A) {
+			std::vector<rs_vec> generate_directons(const is_mat& A) override {
 				std::vector<rs_vec> result_directions;
 				size_t n = A.cols();
 
@@ -394,83 +433,8 @@ namespace ILPCuts {
 				}
 			}
 
-			/*out() << t.transpose() << std::endl;
-			out() << A << std::endl;
-			out() << "--------------------------------------" << std::endl;
-			out() << resA << std::endl;
-
-			std::tie(adjA, det) = compute_adjugate_and_absdet(resA);
-			t = adjA.cast<rational_type>() * c;
-
-			out() << t.transpose() << std::endl;
-			out() << c.transpose() << std::endl;*/
-
 			return std::move(resA);
 		}
 
 	};
-
-	namespace Internal {
-		/*template <typename T>
-		T euclid_bezout
-		(
-			const T& a,
-			const T& b,
-			T& u,
-			T& v
-		)
-		{
-			u = 1;
-			v = 0;
-			T u_new = v;
-			T v_new = u;
-			T r = abs(a);
-			T r_new = abs(b);
-
-			while (r_new != 0)
-			{
-				T q = r / r_new;
-
-				T aux = u_new;
-				u_new = u - q * u_new;
-				u = aux;
-
-				aux = v_new;
-				v_new = v - q * v_new;
-				v = aux;
-
-				aux = r_new;
-				r_new = r - q * r_new;
-				r = aux;
-			}
-
-			return r;
-		}*/
-	}
-
-	/*template<typename intT>
-	intT gcd(const intT& a, const intT& b) {
-		return std::gcd(a, b);
-	}*/
-
-	/*template <typename T>
-	T euclid(T a, T b)
-	{
-		while ((a %= b) != 0)
-		{
-			std::swap(a, b);
-		}
-		return b;
-	}
-
-	template <typename T>
-	inline T gcd
-	(
-		const T& a,
-		const T& b
-	)
-	{
-		return euclid(a, b);
-	}*/
-
 }

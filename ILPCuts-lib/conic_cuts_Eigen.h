@@ -148,7 +148,7 @@ namespace ILPCuts {
 			std::vector<std::vector<cone_traits>> next_layers(dynamic_threads, std::vector<cone_traits>());
 			omp_set_num_threads(dynamic_threads);
 
-//#pragma omp parallel for
+#pragma omp parallel for
 			for (int i = 0; i < current_layer.size(); ++i) {
 				const cone_traits& node = current_layer[i];
 				std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, directions_evaluation_counter));
@@ -224,7 +224,7 @@ namespace ILPCuts {
 
 			typename rs_vec::InnerIterator diff_it(diff_b);
 			//rs_vec::InnerIterator floor_it(floor_b);
-			size_t jjjj = 0;
+			//size_t jjjj = 0;
 			while(diff_it) {
 				/*if (diff_it.value() != 0)
 				{
@@ -233,7 +233,7 @@ namespace ILPCuts {
 				}*/
 				if (diff_it.value() > tolerance) {
 					is_vec cut = uni_mat.row(diff_it.index());
-					cut.reserve(1);
+					//cut.reserve(1);
 					cut.insert(cut.size()) = floor_b.coeff(diff_it.index());
 					//cout << cut << endl;
 					//out() << "cut has been added: (" << cut.transpose() << ")\n";
@@ -271,8 +271,6 @@ namespace ILPCuts {
 	std::vector<typename ConicCutsGenerator<intT, ratT>::is_vec>
 		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const rs_vec& optLP) {
 
-		//SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
-
 		rational_type det = 0;
 		rs_mat adjA;
 
@@ -294,18 +292,6 @@ namespace ILPCuts {
 			out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
 			err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
 		}
-
-		//try {
-		//	is_mat adjA = compute_inverse();
-		//	// = (decomp_LU.inverse().array() * det).unaryExpr(RatToInt_Unary(err_tolerance));
-
-		//	return std::move(generate_cuts(A, adjA, optLP, directions_strategy,
-		//		det, tolerance, err_tolerance));
-		//}
-		//catch (ToleranceErrorException exc) {
-		//	out() << "Root: inverse tolerance error: " << exc.what() << '\n';
-		//	err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
-		//}
 	}
 
 	template<typename intT, typename ratT>
@@ -345,8 +331,6 @@ namespace ILPCuts {
 				err() << "b-column construction tolerance error: " << exc.what() << '\n';
 			}
 
-			//PartialPivLU<rat_mat> decomp_LU(new_cone.A.cast<rational_type>());
-
 			try {
 
 				int_type ti = t.coeff(i);
@@ -376,27 +360,11 @@ namespace ILPCuts {
 
 				new_cone.adjA = ((MM * adjA).cast<rational_type>() / div).unaryExpr(*_rat_to_int);
 
-
-				//std::tie(new_cone.adjA, new_cone.det) = compute_adjugate_and_absdet(new_cone.A);
-				/*if (det % 2 == 0) {
-					cout << "old det:" << det << endl;
-					cout << "new det:" << new_cone.det << endl;
-				}*/
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
 				err() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
 			}
-
-			/*try {
-				new_cone.adjA = (decomp_LU.inverse().array() * new_cone.det)
-					.round()
-					.cast<int_type>();
-			}
-			catch (ToleranceErrorException exc) {
-				out() << "Inversion tolerance error: " << exc.what() << '\n';
-				err() << "Inversion tolerance error: " << exc.what() << '\n';
-			}*/
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
 				//cout << "direction: " << directions_pool.col(i).transpose() << endl;
@@ -472,10 +440,6 @@ namespace ILPCuts {
 				if (it.value() > 0)
 					process_new_candidate(it.index(), pivot, 2);
 			}
-			/*for (size_t i = 0; i < n; ++i) {
-				if (pivot[i] != 0)
-					process_new_candidate(i, pivot, 2);
-			}*/
 
 		}
 		else {

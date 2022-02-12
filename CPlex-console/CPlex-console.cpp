@@ -93,14 +93,15 @@ using namespace ILPCuts;
 
 void run_cplex_experiment(
     std::string input_path,
-    double tolerance = 0.000001, 
-    double err_tolerance = 0.001,
-    size_t cone_limit_per_direction = 1, 
-    std::string output_path = "output.csv",
-    size_t rand_directions = 0,
-    bool some_direction = false,
-    size_t threads = 7,
-    bool baseline = false) {
+    double tolerance, 
+    double err_tolerance,
+    size_t cone_limit_per_direction, 
+    std::string output_path,
+    size_t rand_directions,
+    bool some_direction,
+    size_t threads,
+    bool baseline,
+    bool lazy_constraints_on) {
     //TO DO: дописать сохраниение в формат csv
     //create CPLEX envirement
     IloEnv env;
@@ -169,11 +170,12 @@ void run_cplex_experiment(
         cuts_gen.err_tolerance = err_tolerance;
         cuts_gen.cone_limit_per_direction = cone_limit_per_direction;
         cuts_gen.threads = threads;
+        cuts_gen.lazy_constraints_on = lazy_constraints_on;
 
         //set strategies for cutting generation
-        std::mt19937 engine;
-        using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
         if (rand_directions > 0) {
+            std::mt19937 engine;
+            using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
             cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
         }
         if(some_direction)
@@ -280,6 +282,11 @@ int main(int argc, char** argv)
         .help("use baseline solver only")
         .implicit_value(true);
 
+    program.add_argument("-b", "--lazy")
+        .default_value(false)
+        .help("turns on addition of CPlex lazy constraints")
+        .implicit_value(true);
+
     try {
         program.parse_args(argc, argv);
     }
@@ -298,11 +305,11 @@ int main(int argc, char** argv)
         program.get<size_t>("--rand_strategy"),
         program.get<bool>("--some_strategy"),
         program.get<size_t>("--threads"),
-        program.get<bool>("--baseline")
+        program.get<bool>("--baseline"),
+        program.get<bool>("--lazy")
     );
 
     return 0;
-
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
