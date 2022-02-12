@@ -282,7 +282,7 @@ int main(int argc, char** argv)
         .help("use baseline solver only")
         .implicit_value(true);
 
-    program.add_argument("-b", "--lazy")
+    program.add_argument("-lz", "--lazy")
         .default_value(false)
         .help("turns on addition of CPlex lazy constraints")
         .implicit_value(true);
