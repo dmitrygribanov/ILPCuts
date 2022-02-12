@@ -101,7 +101,8 @@ void run_cplex_experiment(
     bool some_direction,
     size_t threads,
     bool baseline,
-    bool lazy_constraints_on) {
+    bool lazy_constraints_on,
+    size_t iterations_number) {
     //TO DO: дописать сохраниение в формат csv
     //create CPLEX envirement
     IloEnv env;
@@ -150,8 +151,6 @@ void run_cplex_experiment(
         cplex.extract(relaxed_model);
         env.out() << "solving relaxed model ...\n";
 
-        //cplex.use(myCutsCallback(env, cplex, obj, vars, rngs));
-
         //run solver
         if (!cplex.solve()) {
             env.error() << "Failed to optimize." << endl;
@@ -164,7 +163,7 @@ void run_cplex_experiment(
         using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
         CutsGen cuts_gen(&env.out(), &env.out());
 
-        //initialization of cuts generator and setting og its parameters
+        //initialization of cuts generator and setting of its parameters
         cuts_gen.Init();
         cuts_gen.tolerance = tolerance;
         cuts_gen.err_tolerance = err_tolerance;
@@ -178,13 +177,64 @@ void run_cplex_experiment(
             using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
             cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
         }
-        if(some_direction)
+        if (some_direction)
             cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
         if (baseline == false) {
-            //generate cuts from relaxed model
-            env.out() << "cutting generation:" << endl;
+            env.out() << "cutting generation started:" << endl;
+
+            //IloModel boosted_model(env);
+            //IloRangeArray boosted_rngs(env);
+            //boosted_model.add(relaxed_model);
+            //boosted_rngs.add(rngs);
+
+            ////put relaxed model to the solver
+            //cplex.extract(boosted_model);
+            //env.out() << "solving boosted model ...\n";
+
+            ////run solver
+            //if (!cplex.solve()) {
+            //    env.error() << "Failed to optimize." << endl;
+            //    throw(-1);
+            //}
+
+            //env.out() << "solution status is " << cplex.getStatus() << endl;
+            //env.out() << "solution value  is " << cplex.getObjValue() << endl;
+
+            for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx) {
+                env.out() << "root node boosting iteration " << iteration_idx << " is started :" << endl;
+                cin.ignore();
+
+                //generate cuts from relaxed model
+                env.out() << "constraints generation ..." << endl;
+                cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+
+                env.out() << "adding constraints to relaxed model ..." << endl;
+                /*boosted_model.remove(boosted_rngs);  
+                boosted_rngs.clear(); 
+                boosted_rngs.add(rngs);
+                boosted_model.add(relaxed_model);*/
+                cuts_gen.add_cuts_as_constraints(cplex, relaxed_model, rngs, vars);
+
+                //put relaxed model to the solver
+                cplex.extract(relaxed_model);
+                env.out() << "solving boosted model ...\n";
+
+                //run solver
+                if (!cplex.solve()) {
+                    env.error() << "Failed to optimize." << endl;
+                    throw(-1);
+                }
+
+                env.out() << "solution status is " << cplex.getStatus() << endl;
+                env.out() << "solution value  is " << cplex.getObjValue() << endl;
+            }
+            if(iterations_number > 0)
+                env.out() << "root node boosting finished." << endl;
+
             cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+
+            env.out() << "cutting generation finished:" << endl;
         }
 
         //put the original model to the solver
@@ -193,10 +243,11 @@ void run_cplex_experiment(
         if (baseline == false) {
             //adding our cuts to the solver
             cuts_gen.add_cuts(cplex, vars);
+            cplex.addUserCuts(rngs);
         }
 
         //setting parameters for solving in integer variables
-        cplex.setParam(IloCplex::Param::Threads, threads);
+        cplex.setParam(IloCplex::Param::Threads, 15);
         /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
         cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
@@ -282,32 +333,38 @@ int main(int argc, char** argv)
         .help("use baseline solver only")
         .implicit_value(true);
 
-    program.add_argument("-b", "--lazy")
+    program.add_argument("--lazy")
         .default_value(false)
         .help("turns on addition of CPlex lazy constraints")
         .implicit_value(true);
 
+    program.add_argument("-it", "--iterations")
+        .default_value(size_t(0))
+        .help("number of iterations in the root-node")
+        .scan<'i', size_t>();
+
     try {
         program.parse_args(argc, argv);
+
+        run_cplex_experiment(
+            program.get<std::string>("--input"),
+            program.get<double>("--tolerance"),
+            program.get<double>("--err_tolerance"),
+            program.get<size_t>("--cone_limit"),
+            program.get<std::string>("--output"),
+            program.get<size_t>("--rand_strategy"),
+            program.get<bool>("--some_strategy"),
+            program.get<size_t>("--threads"),
+            program.get<bool>("--baseline"),
+            program.get<bool>("--lazy"),
+            program.get<size_t>("--iterations")
+        );
     }
-    catch (const std::runtime_error& err) {
+    catch (const std::exception& err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
         std::exit(1);
     }
-
-    run_cplex_experiment(
-        program.get<std::string>("--input"),
-        program.get<double>("--tolerance"),
-        program.get<double>("--err_tolerance"),
-        program.get<size_t>("--cone_limit"),
-        program.get<std::string>("--output"),
-        program.get<size_t>("--rand_strategy"),
-        program.get<bool>("--some_strategy"),
-        program.get<size_t>("--threads"),
-        program.get<bool>("--baseline"),
-        program.get<bool>("--lazy")
-    );
 
     return 0;
 }
