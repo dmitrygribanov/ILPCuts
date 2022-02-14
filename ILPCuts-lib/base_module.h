@@ -13,6 +13,8 @@
 #include<random>
 #include<chrono>
 
+#include "mpir_eigen_supp.h"
+
 namespace ILPCuts {
 
 	using namespace Eigen;
@@ -308,12 +310,51 @@ namespace ILPCuts {
 		template<typename rationalT>
 		SparseVector<rationalT> system_solve(const SparseMatrix<rationalT>& A, const SparseVector<rationalT>& b);
 
+		template<typename rationalT, typename solverT>
+		SparseVector<rationalT> system_solve(const SparseVector<rationalT>& b, solverT & solver);
+
 		template<typename intT, typename randGenT>
 		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT& rgen);
 
 		template<typename intT>
 		void prune_zeroes_int(SparseMatrix<intT>& A) {
-			A.prune(1/2, 1/4);
+			A.prune(0, 1/2);
+		}
+
+		template<typename intT>
+		void prune_zeroes_int(SparseVector<intT>& A) {
+			A.prune(0, 1 / 2);
+		}
+
+		template<typename intT>
+		intT vec_max2pow(const SparseVector<intT>& vec);
+
+		template<>
+		mpz_class vec_max2pow(const SparseVector<mpz_class> & vec) {
+			using int_type = mpz_class;
+			using is_vec = SparseVector<mpz_class>;
+
+			int_type res = 0;
+
+			mp_bitcnt_t min_bit_index = std::numeric_limits<mp_bitcnt_t>::max();
+			for (typename is_vec::InnerIterator it(vec); it; ++it) {
+				if (it.value() != 0) {
+					mp_bitcnt_t bit_index = mpz_scan1(it.value().get_mpz_t(), 0);
+
+					//std::cout << it.index() <<", " << it.value() << std::endl;
+					min_bit_index = std::min(min_bit_index, bit_index);
+				}
+			}
+			/*while (
+				(vec_copy.unaryExpr(std::ref(mod2_unaryop)) == 0).all()
+				) {
+				res *= 2;
+				vec_copy /= 2;
+			}*/
+
+			mpz_setbit(res.get_mpz_t(), min_bit_index);
+
+			return std::move(res);
 		}
 	};
 
@@ -378,7 +419,16 @@ namespace ILPCuts {
 
 		SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
 
-		return std::move(decomp_LU.solve(b));
+		return std::move(system_solve(b, decomp_LU));
+	}
+
+	template<typename rationalT, typename solverT>
+	SparseVector<rationalT> Utility::system_solve(const SparseVector<rationalT>& b, solverT& solver) {
+		using rat_type = rationalT;
+		using rat_vec = SparseVector<rationalT>;
+		using solver_type = solverT;
+
+		return std::move(solver.solve(b));
 	}
 
 	template<typename intT, typename randGenT>
@@ -432,23 +482,25 @@ namespace ILPCuts {
 		size_t cone_limit_per_direction;
 		size_t threads;
 		std::vector<std::unique_ptr<DirectionsStrategyBase> > direction_strategies;
+		std::mt19937 * rgen;
 
 		ConicCutsGenerator_Base(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:_out(outs), _err(errs), cone_limit_per_direction(0),
-			tolerance(0), err_tolerance(0), threads(0), _rat_to_int() 
+			tolerance(0), err_tolerance(0), threads(0), _rat_to_int(), rgen(nullptr)
 		{}
 
 		void Init(const rational_type& a_tolerance = 0.000001,
 			const rational_type& a_err_tolerance = 0.001,
 			size_t a_cone_limit_per_direction = 1,
-			size_t a_threads = 8) {
+			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) {
 			tolerance = a_tolerance;
 			err_tolerance = a_err_tolerance;
 			cone_limit_per_direction = a_cone_limit_per_direction;
 			direction_strategies.push_back(std::make_unique<SomeDirection>());
 			threads = a_threads;
+			rgen = a_rgen;
 
-			_rat_to_int = std::make_unique<RatToInt_Unary>(RatToInt_Unary(err_tolerance));
+			_rat_to_int = std::make_unique<RatToInt_Unary>(err_tolerance);
 		}
 
 		std::ostream& out() { return *_out; }

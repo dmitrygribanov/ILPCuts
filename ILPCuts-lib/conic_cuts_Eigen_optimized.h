@@ -39,13 +39,28 @@ namespace ILPCuts {
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
 		using base::_rat_to_int;
+		using base::rgen;
 
 		using base::base;
 
 	private:
-		template<typename randGenT>
-		is_vec even_system_solve(const is_mat& A, const lint_type& det, randGenT& rgen) {
-			size_t n = A.cols();
+
+		struct cone_traits {
+			using decomp_type = SparseLU<rs_mat, COLAMDOrdering<int>>;
+			is_mat A;
+			lint_type det;
+			std::unique_ptr<decomp_type> decomp;
+			/*cone_traits(cone_traits&& a_cone) = default;
+			cone_traits() = default;
+			cone_traits(const cone_traits& a_cone) = default;*/
+			
+			//cone_traits& operator=(cone_traits&&) = default;
+			//cone_traits(const cone_traits&) = delete;
+			//cone_traits& operator=(const cone_traits&) = delete;
+		};
+
+		is_vec even_system_solve(const cone_traits& C) {
+			size_t n = C.A.cols();
 
 			is_vec res(n);
 
@@ -53,27 +68,50 @@ namespace ILPCuts {
 			while (!odd_component_generated) {
 
 				//generation of a random rhs
-				rs_vec rhs = Utility::bernouly_vec_generate<rational_type, randGenT>(n, rgen);
+				rs_vec rhs = Utility::bernouly_vec_generate<int_type>(n, *rgen);
+
+				/*cout << rhs << endl;
+				cin.ignore();*/
 
 				//solve the system
-				rs_vec x = std::move(Utility::system_solve<rational_type>(A, rhs));
+				rs_vec x = std::move(Utility::system_solve(rhs, *C.decomp));
+
+				/*cout << x << endl;
+				cin.ignore();*/
 
 				//create long integer solution
-				lis_vec int_x = (x.cast<lrational_type>() * det).unaryExpr(_rat_to_int).cast<lint_type>();
+				lis_vec int_x = (x.cast<lrational_type>() * C.det).unaryExpr(Utility::RatToInt_Unary<lint_type, lrational_type>(err_tolerance));
 
-				//find odd solutions and convert them to 1 in result vector
-				res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<int_type>)).cast<int_type>();
-				Utility::prune_zeroes_int(res);
+				lint_type max_2_pow = Utility::vec_max2pow(int_x);
+				if ((static_cast<lint_type>(C.det) / max_2_pow) % 2 == 0) {
+					int_x /= max_2_pow;
+					//out() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
+					odd_component_generated = true;
 
-				if (res.nonZeroes() > 0) odd_component_generated = true;
+					/*cout << int_x << endl;
+					cin.ignore();*/
+
+					//find odd solutions and convert them to 1 in result vector
+					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).cast<int_type>();
+
+					/*cout << res << endl;
+					cin.ignore();*/
+
+					Utility::prune_zeroes_int(res);
+					/*rs_vec Z = (A * res) / 2;
+					cout << Z << endl;
+					cin.ignore();*/
+
+					/*cout << res << endl;
+					cin.ignore();*/
+				}
 			}
 
 			return std::move(res);
 		}
 
-		template<typename funT, typename randGenT>
-		lis_vec odd_system_solve(const is_mat& A, const lint_type& det, randGenT& rgen) {
-			size_t n = A.cols();
+		lis_vec odd_system_solve(const cone_traits& C) {
+			size_t n = C.A.cols();
 
 			lis_vec res(n);
 
@@ -81,60 +119,66 @@ namespace ILPCuts {
 			while (!nonzero_component_generated) {
 
 				//generation of a random rhs
-				rs_vec rhs = Utility::bernouly_vec_generate<rational_type, randGenT>(n, rgen);
+				rs_vec rhs = Utility::bernouly_vec_generate<int_type>(n, *rgen);
 
 				//solve the system
-				rs_vec x = std::move(Utility::system_solve<rational_type>(A, rhs));
+				rs_vec x = std::move(Utility::system_solve(rhs, *C.decomp));
 
 				//create long integer solution
-				res = (x.cast<lrational_type>() * det).unaryExpr(_rat_to_int).cast<lint_type>();
+				res = (x.cast<lrational_type>() * C.det).unaryExpr(Utility::RatToInt_Unary<lint_type, lrational_type>(err_tolerance)).cast<lint_type>();
 
 				//transform modulo det
-				res = res.unaryExpr(Utility::mod_unaryop<lint_type>(det));
+				res = res.unaryExpr(Utility::mod_unaryop<lint_type>(C.det));
 				Utility::prune_zeroes_int(res);
 
-				if (res.nonZeroes() > 0) nonzero_component_generated = true;
+				if (res.nonZeros() > 0) nonzero_component_generated = true;
 			}
 
 			return std::move(res);
 		}
 
-		template<typename funT, typename randGenT>
-		void process_even_case(const is_mat& A, const lint_type& det, funT process_fun, randGenT& rgen) {
-			lis_vec x = even_system_solve(A,det,rgen).cast<lint_type>();
+		template<typename funT>
+		void process_even_case(const cone_traits& C, funT process_fun) {
+			lis_vec x = even_system_solve(C).cast<lint_type>();
 			for (typename lis_vec::InnerIterator it(x); it; ++it)
 				if (it.value() > 0)
 					process_fun(it.index(), x, 2);
 		}
 
-		template<typename funT, typename randGenT>
-		void process_odd_case(const is_mat& A, const lint_type& det, funT process_fun, randGenT& rgen) {
-			lis_vec x = odd_system_solve(A, det, rgen);
+		template<typename funT>
+		void process_odd_case(const cone_traits& C, funT process_fun) {
+			lis_vec x = odd_system_solve(C);
 			for (typename lis_vec::InnerIterator it(x); it; ++it)
 				if (it.value() > 0) {
-					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), det - gcd(det, it.value()), det);
-					lis_vec t = (x * lambda).unaryExpr(Utility::mod_unaryop(det));
+					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), C.det - gcd(C.det, it.value()), C.det);
+					lis_vec t = (x * lambda).unaryExpr(Utility::mod_unaryop(C.det));
 
-					process_fun(it.index(), t, det);
+					process_fun(it.index(), t, C.det);
 				}
 		}
-
-		struct cone_traits {
-			is_mat A;
-			lint_type det;
-		};
 
 		class ProcessFunctor {
 		private:
 			my_type* _this;
 			std::vector<cone_traits>& _res_cones;
+			std::vector<Atomic<size_t>>& _directions_evaluation_counter;
+			const cone_traits& _cone;
+			const std::vector<rs_vec>& _directions_pool;
 
 		public:
-			ProcessFunctor(my_type* a_this, std::vector<cone_traits>& a_res_cones)
-				:_this(a_this), _res_cones(a_res_cones)
+			ProcessFunctor(my_type* a_this, const cone_traits& a_cone, const std::vector<rs_vec>& a_directions_pool,
+				std::vector<cone_traits>& a_res_cones, std::vector<Atomic<size_t>>& a_directions_evaluation_counter)
+				:_this(a_this), _cone(a_cone), _directions_pool(a_directions_pool),
+				_res_cones(a_res_cones), _directions_evaluation_counter(a_directions_evaluation_counter)
 			{}
 
-			void operator()(size_t idx, const lis_vec& t, const lint_type &denum) {
+			void operator()(size_t idx, const lis_vec& t, const lint_type& denum) {
+
+				const is_mat& A = _cone.A;
+				const lint_type& det = _cone.det;
+				const auto & decomp = _cone.decomp;
+				size_t n = A.cols();
+
 				cone_traits new_cone;
 
 				try {
@@ -142,8 +186,12 @@ namespace ILPCuts {
 						std::cin.ignore();*/
 
 					new_cone.A = A;
-					new_cone.A.col(idx) = ((A.cast<lint_type>() * t).cast<lrational_type>() / div)
+					new_cone.A.col(idx) = ((A.cast<lint_type>() * t).cast<lrational_type>() / denum)
 						.unaryExpr(Utility::RatToInt_Unary<int_type, lrational_type>(_this->err_tolerance));
+
+					Utility::prune_zeroes_int(new_cone.A);
+
+					new_cone.decomp = std::make_unique<cone_traits::decomp_type>(new_cone.A.cast<rational_type>());
 
 					//std::cout << A << std::endl;
 					//std::cout << new_cone.A << std::endl;
@@ -151,15 +199,15 @@ namespace ILPCuts {
 					//.cast<int_type>();
 				}
 				catch (ToleranceErrorException exc) {
-					out() << "b-column construction tolerance error: " << exc.what() << '\n';
-					err() << "b-column construction tolerance error: " << exc.what() << '\n';
+					_this->out() << "b-column construction tolerance error: " << exc.what() << '\n';
+					_this->err() << "b-column construction tolerance error: " << exc.what() << '\n';
 				}
 
 				try {
 
 					lint_type ti = t.coeff(idx);
-					new_cone.det = Utility::rat_to_int<lint_type,lrational_type>
-						(static_cast<lrational_type>(det * ti) / div, _this->err_tolerance);
+					new_cone.det = Utility::rat_to_int<lint_type, lrational_type>
+						(static_cast<lrational_type>(det * ti) / denum, _this->err_tolerance );
 
 					/*if (new_cone.det == 0) {
 						out() << det <<", "<< ti << std::endl;
@@ -168,17 +216,18 @@ namespace ILPCuts {
 
 				}
 				catch (ToleranceErrorException exc) {
-					out() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
-					err() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
+					_this->out() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
+					_this->err() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
 				}
 
-				for (size_t i = 0; i < directions_pool.size(); ++i) {
+				for (size_t i = 0; i < _directions_pool.size(); ++i) {
 
-					if (directions_evaluation_counter[i] < cone_limit_per_direction) {
+					if (_directions_evaluation_counter[i] < _this->cone_limit_per_direction) {
 
-						rs_vec duals = Utility::system_solve(new_cone.A.cast<rational_type>(), directions_pool[i]);
+						rs_vec duals = Utility::system_solve(_directions_pool[i], *new_cone.decomp);
 						//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
-						//cout << "duals: " << duals << endl;
+						/*cout << "duals: " << duals << endl;
+						cin.ignore();*/
 
 						/*int_mat I = A * adjA;
 						cout << I << endl;
@@ -186,21 +235,21 @@ namespace ILPCuts {
 
 						bool is_nontrivial_nonnegative = false;
 						for (typename rs_vec::InnerIterator it(duals); it; ++it) {
-							if (it.value() + tolerance < 0) {
+							if (it.value() + _this->tolerance < 0) {
 								is_nontrivial_nonnegative = false;
 								break;
 							}
-							else if (it.value() + tolerance > 0) {
+							else if (it.value() + _this->tolerance > 0) {
 								is_nontrivial_nonnegative = true;
 							}
 						}
 
 						if (is_nontrivial_nonnegative) {
-							if (directions_evaluation_counter[i] >= cone_limit_per_direction)
+							if (_directions_evaluation_counter[i] >= _this->cone_limit_per_direction)
 								break;
-							++directions_evaluation_counter[i];
+							++_directions_evaluation_counter[i];
 							_res_cones.push_back(std::move(new_cone));
-							out() << "adding step done" << std::endl;
+							_this->out() << "adding step done" << std::endl;
 							break;
 						}
 					}
@@ -216,9 +265,8 @@ namespace ILPCuts {
 
 		friend class ProcessFunctor;
 
-		template<typename randGenT>
 		std::vector<cone_traits> process_cone(const cone_traits& cone, const std::vector<rs_vec>& directions_pool,
-			std::vector<Atomic<size_t>>& directions_evaluation_counter, randGenT& rgen) {
+			std::vector<Atomic<size_t>>& directions_evaluation_counter) {
 			std::vector<cone_traits> res_cones;
 
 			const is_mat& A = cone.A;
@@ -228,26 +276,32 @@ namespace ILPCuts {
 			out() << "Current determinant: " << det << std::endl;
 			out() << "Nonzeros: " << A.nonZeros() << std::endl;
 
+			ProcessFunctor process_functor(this, cone, directions_pool, res_cones, directions_evaluation_counter);
 			if (det % 2 == 0) {
-				process_even_case(A, det, ProcessFunctor(this, res_cones), rgen);
+				out() << "even step..." << endl;
+				process_even_case(cone, process_functor);
 			}
 			else {
-				process_odd_case(A, det, ProcessFunctor(this, res_cones), rgen);
+				out() << "odd step..." << endl;
+				process_odd_case(cone, process_functor);
 			}
+
+			/*cout << res_cones.size() << endl;
+			cin.ignore();*/
 
 			return std::move(res_cones);
 		}
 
-		template<typename randGenT>
 		std::vector<is_mat> partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
-			const lint_type& det, randGenT& rgen) {
+			const lint_type& det) {
 
 			omp_set_dynamic(max(threads, size_t(1)));
 			std::vector<cone_traits> current_layer;
 			std::vector<std::vector<is_mat>> result(threads, std::vector<is_mat>());
 
-			current_layer.push_back(std::move(cone_traits{ A, det }));
+			current_layer.emplace_back(cone_traits{ A, det, 
+				std::make_unique<cone_traits::decomp_type>(A.cast<rational_type>()) });
 
 			while (!current_layer.empty()) {
 
@@ -258,19 +312,20 @@ namespace ILPCuts {
 
 				int dynamic_threads = std::min(threads, current_layer.size());
 
-				std::vector<std::vector<cone_traits>> next_layers(dynamic_threads, std::vector<cone_traits>());
+				std::vector<std::vector<cone_traits>> next_layers(dynamic_threads);
 				omp_set_num_threads(dynamic_threads);
 
 #pragma omp parallel for
 				for (int i = 0; i < current_layer.size(); ++i) {
 					const cone_traits& node = current_layer[i];
-					std::vector<cone_traits> next_node_layer = std::move(compute_layer(node, directions_pool, directions_evaluation_counter, rgen));
+					std::vector<cone_traits> next_node_layer = std::move(process_cone(node, directions_pool, directions_evaluation_counter));
 					int tid = omp_get_thread_num();
 					for (cone_traits& next_node : next_node_layer) {
-						if (next_node.det == 1)
+						if (next_node.det == 1) {
 							result[tid].push_back(std::move(next_node.A));
-						else
+						} else {
 							next_layers[tid].push_back(std::move(next_node));
+						}
 					}
 				}
 
@@ -282,22 +337,23 @@ namespace ILPCuts {
 						std::make_move_iterator(next_layers[i].end())
 					);
 				}
-
-				std::vector<is_mat>& concatenated_result = result[0];
-				for (int i = 1; i < result.size(); ++i) {
-					concatenated_result.insert(
-						concatenated_result.end(),
-						std::make_move_iterator(result[i].begin()),
-						std::make_move_iterator(result[i].end())
-					);
-				}
-
-				return std::move(concatenated_result);
 			}
+
+			std::vector<is_mat>& concatenated_result = result[0];
+			for (int i = 1; i < result.size(); ++i) {
+				concatenated_result.insert(
+					concatenated_result.end(),
+					std::make_move_iterator(result[i].begin()),
+					std::make_move_iterator(result[i].end())
+				);
+			}
+
+			return std::move(concatenated_result);
 		}
 
-		template<typename randGenT>
-		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP, const lint_type& det, randGenT& rgen) {
+	public:
+
+		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP, const lint_type& det) {
 
 			auto start = std::chrono::steady_clock::now();
 
@@ -312,7 +368,7 @@ namespace ILPCuts {
 
 			//auto directions_pool = std::move(directions_strategy.generate_directons(A));
 
-			std::vector<is_mat> uni_mat_pool = std::move(partial_uni_decomp(A, directions_pool, det, rgen));
+			std::vector<is_mat> uni_mat_pool = std::move(partial_uni_decomp(A, directions_pool, det));
 
 			for (is_mat& uni_mat : uni_mat_pool) {
 				uni_mat = uni_mat.transpose();
@@ -367,11 +423,10 @@ namespace ILPCuts {
 			return std::move(res_cuts);
 		}
 
-		template<typename randGenT>
-		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP, randGenT& rgen) {
+		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) {
 			lint_type det = Utility::compute_abs_det(A);
 
-			return std::move(generate_cuts(A, optLP, det, rgen));
+			return std::move(generate_cuts(A, optLP, det));
 		}
 	};
 }

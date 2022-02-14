@@ -55,8 +55,6 @@ namespace ILPCuts {
 
 		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<Atomic<size_t>>& directions_evaluation_counter);
 
-		int_type vec_max2pow(const is_vec& vec) const;
-
 	public:
 
 		/*ConicCutsGenerator(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
@@ -356,7 +354,7 @@ namespace ILPCuts {
 			is_vec pivot;
 			for (size_t i = 0; i < n; ++i) {
 				pivot = adjA.col(i);
-				int_type adj_col_2pow = vec_max2pow(pivot);
+				int_type adj_col_2pow = Utility::vec_max2pow(pivot);
 				if ((static_cast<int_type>(det) / adj_col_2pow) % 2 == 0) {
 					pivot /= adj_col_2pow;
 					//out() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
@@ -417,32 +415,5 @@ namespace ILPCuts {
 		}
 
 		return std::move(result);
-	}
-
-	template<typename intT, typename ratT>
-	typename ConicCutsGenerator<intT, ratT>::int_type 
-		ConicCutsGenerator<intT, ratT>::vec_max2pow(const is_vec& vec) const {
-
-		int_type res = 0;
-
-		mp_bitcnt_t min_bit_index = std::numeric_limits<mp_bitcnt_t>::max();
-		for (typename is_vec::InnerIterator it(vec); it; ++it) {
-			if (it.value() != 0) {
-				mp_bitcnt_t bit_index = mpz_scan1(it.value().get_mpz_t(), 0);
-				
-					//std::cout << it.index() <<", " << it.value() << std::endl;
-				min_bit_index = std::min(min_bit_index, bit_index);
-			}
-		}
-		/*while (
-			(vec_copy.unaryExpr(std::ref(mod2_unaryop)) == 0).all()
-			) {
-			res *= 2;
-			vec_copy /= 2;
-		}*/
-
-		mpz_setbit(res.get_mpz_t(), min_bit_index);
-
-		return std::move(res);
 	}
 }

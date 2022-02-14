@@ -7,12 +7,11 @@ ILOSTLBEGIN
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
 #include "conic_cuts_Eigen_optimized.h"
-#include "mpir_eigen_supp.h"
 #include "../headers/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
-using CutsGenOpt = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
+//using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
+using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -168,16 +167,17 @@ void run_cplex_experiment(
         CutsGen cuts_gen(&env.out(), &env.out());
 
         //initialization of cuts generator and setting og its parameters
+        std::mt19937 engine;
         cuts_gen.Init();
         cuts_gen.tolerance = tolerance;
         cuts_gen.err_tolerance = err_tolerance;
         cuts_gen.cone_limit_per_direction = cone_limit_per_direction;
         cuts_gen.threads = threads;
         cuts_gen.lazy_constraints_on = lazy_constraints_on;
+        cuts_gen.rgen = &engine;
 
         //set strategies for cutting generation
         if (rand_directions > 0) {
-            std::mt19937 engine;
             using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
             cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
         }

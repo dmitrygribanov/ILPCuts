@@ -1,7 +1,5 @@
 #pragma once
 
-#include"base_module.h"
-
 #include <mpirxx.h>
 
 #include <Eigen/Core>
