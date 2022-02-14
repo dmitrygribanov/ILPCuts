@@ -17,6 +17,63 @@ namespace ILPCuts {
 
 	using namespace Eigen;
 
+	template <typename T>
+	class Atomic
+	{
+		std::atomic<T> _a;
+
+	public:
+		Atomic()
+			:_a()
+		{}
+
+		Atomic(const std::atomic<T>& a)
+			:_a(a.load())
+		{}
+
+		Atomic(const Atomic& other)
+			:_a(other._a.load())
+		{}
+
+		Atomic& operator=(const Atomic& other) {
+			_a.store(other._a.load());
+		}
+
+		Atomic& operator++() {
+			++_a;
+			return *this;
+		}
+
+		// Define prefix decrement operator.
+		Atomic& operator--() {
+			--_a;
+			return *this;
+		}
+
+		bool operator <(T& a) {
+			return _a < a;
+		}
+
+		bool operator >(T& a) {
+			return _a > a;
+		}
+
+		bool operator ==(T& a) {
+			return _a == a;
+		}
+
+		bool operator !=(T& a) {
+			return _a != a;
+		}
+
+		bool operator >=(T& a) {
+			return _a >= a;
+		}
+		bool operator <=(T& a) {
+			return _a <= a;
+		}
+	};
+
 	class ToleranceErrorException : public std::exception {
 	public:
 		ToleranceErrorException()
@@ -178,6 +235,9 @@ namespace ILPCuts {
 		template<typename rationalT>
 		std::tuple<SparseMatrix<rationalT>, rationalT> compute_abs_adjugate_and_det(const SparseMatrix<rationalT>& A);
 
+		template<typename rationalT>
+		rationalT compute_abs_det(const SparseMatrix<rationalT>& A);
+
 		/*template<typename ratVectorT, typename ratMatrixT>
 		static ratMatrixT adjust_normal_cone(const ratMatrixT& A, const ratVectorT& c);
 
@@ -244,6 +304,17 @@ namespace ILPCuts {
 
 			return x;
 		}
+
+		template<typename rationalT>
+		SparseVector<rationalT> system_solve(const SparseMatrix<rationalT>& A, const SparseVector<rationalT>& b);
+
+		template<typename intT, typename randGenT>
+		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT& rgen);
+
+		template<typename intT>
+		void prune_zeroes_int(SparseMatrix<intT>& A) {
+			A.prune(1/2, 1/4);
+		}
 	};
 
 	template<typename rationalT, typename solverT>
@@ -284,6 +355,48 @@ namespace ILPCuts {
 			I.insert(i, i) = det;*/
 
 		return std::make_tuple( std::move(adjA), std::move(det) );
+	}
+
+	template<typename rationalT>
+	rationalT Utility::compute_abs_det(const SparseMatrix<rationalT>& A) {
+		using rat_type = rationalT;
+		using rat_mat = SparseMatrix<rat_type>;
+
+		//SparseLU<rs_mat> decomp_LU(A.cast<rational_type>());
+		SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
+
+		rat_type det = abs(decomp_LU.determinant());
+		
+		return std::move(det);
+	}
+
+	template<typename rationalT>
+	SparseVector<rationalT> Utility::system_solve(const SparseMatrix<rationalT>& A, const SparseVector<rationalT>& b) {
+		using rat_type = rationalT;
+		using rat_mat = SparseMatrix<rat_type>;
+		using rat_vec = SparseVector<rationalT>;
+
+		SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
+
+		return std::move(decomp_LU.solve(b));
+	}
+
+	template<typename intT, typename randGenT>
+	SparseVector<intT> Utility::bernouly_vec_generate(size_t n, randGenT& rgen) {
+		using int_type = intT;
+		using is_vec = SparseVector<int_type>;
+
+		std::bernoulli_distribution bd(0.5);
+
+		//generation of a random rhs
+		is_vec res(n);
+		res.reserve((2*n) / 3);
+		for (size_t i = 0; i < n; ++i) {
+			bool flip = bd(rgen);
+			if (flip) res.insert(i) = 1.0;
+		}
+
+		return std::move(res);
 	}
 
 	template<typename intT, typename rationalT>

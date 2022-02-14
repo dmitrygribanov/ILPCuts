@@ -9,63 +9,6 @@ namespace ILPCuts {
 
 	using namespace Eigen;
 
-	template <typename T>
-	class Atomic
-	{
-		std::atomic<T> _a;
-
-		public:
-			Atomic()
-				:_a()
-			{}
-
-			Atomic(const std::atomic<T>& a)
-				:_a(a.load())
-			{}
-
-			Atomic(const Atomic& other)
-				:_a(other._a.load())
-			{}
-
-			Atomic& operator=(const Atomic& other){
-				_a.store(other._a.load());
-			}
-
-			Atomic& operator++(){
-				++_a;
-				return *this;
-			}
-
-			// Define prefix decrement operator.
-			Atomic& operator--(){
-				--_a;
-				return *this;
-			}
-
-			bool operator <(T& a){
-				return _a < a;
-			}
-
-			bool operator >(T& a) {
-				return _a > a;
-			}
-
-			bool operator ==(T& a) {
-				return _a == a;
-			}
-
-			bool operator !=(T& a) {
-				return _a != a;
-			}
-
-			bool operator >=(T& a) {
-				return _a >= a;
-			}
-			bool operator <=(T& a) {
-				return _a <= a;
-			}
-	};
-
 	template<typename intT, typename rationalT>
 	class ConicCutsGenerator :public ConicCutsGenerator_Base<intT,rationalT> {
 	private:
@@ -132,7 +75,7 @@ namespace ILPCuts {
 		//Задаю глобальную параллельность openmp
 		omp_set_dynamic(max(threads, size_t(1)));
 		std::vector<cone_traits> current_layer;
-		std::vector<vector<is_mat>> result(threads, std::vector<is_mat>());
+		std::vector<std::vector<is_mat>> result(threads, std::vector<is_mat>());
 
 		current_layer.push_back(std::move(cone_traits{ A,adjA,det }));
 
@@ -367,12 +310,7 @@ namespace ILPCuts {
 			}
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
-				//cout << "direction: " << directions_pool.col(i).transpose() << endl;
-				/*if (directions_evaluation_counter[i] >= 3)
-				{
-					out() << directions_evaluation_counter[i] << std::endl;
-					std::cin.ignore();
-				}*/
+
 				if (directions_evaluation_counter[i] < cone_limit_per_direction) {
 
 					rs_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool[i];

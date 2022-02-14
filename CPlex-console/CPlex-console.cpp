@@ -6,9 +6,13 @@ ILOSTLBEGIN
 
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
+#include "conic_cuts_Eigen_optimized.h"
 #include "mpir_eigen_supp.h"
 #include "../headers/argparse/argparse.hpp"
 using namespace ILPCuts;
+
+using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
+using CutsGenOpt = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -161,7 +165,6 @@ void run_cplex_experiment(
         env.out() << "solution value  is " << cplex.getObjValue() << endl;
 
         //createing cuts generator object
-        using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
         CutsGen cuts_gen(&env.out(), &env.out());
 
         //initialization of cuts generator and setting og its parameters

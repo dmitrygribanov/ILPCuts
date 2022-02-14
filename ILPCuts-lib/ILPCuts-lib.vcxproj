@@ -148,6 +148,7 @@
     <ClInclude Include="conic_cuts_arageli.h" />
     <ClInclude Include="conic_cuts_Eigen_dence.h" />
     <ClInclude Include="conic_cuts_Eigen.h" />
+    <ClInclude Include="conic_cuts_Eigen_optimized.h" />
     <ClInclude Include="cplex_adapter.h" />
     <ClInclude Include="mpir_eigen_supp.h" />
   </ItemGroup>
