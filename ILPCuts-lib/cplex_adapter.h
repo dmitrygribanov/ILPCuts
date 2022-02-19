@@ -4,6 +4,13 @@
 
 namespace ILPCuts {
 
+	/*namespace Utility {
+		template<>
+		IloInt to_single(const mpz_class& input) {
+			return input.get_si();
+		}
+	}*/
+
 	template<typename cutsGeneratorT>
 	class CPlexAdapter :public cutsGeneratorT {
 	public:
@@ -30,6 +37,8 @@ namespace ILPCuts {
 	private:
 		std::vector<is_vec> cuts_Eigen;
 		using base::_rat_to_int;
+
+		Utility::ToSingle<int_type, IloInt> to_IloInt;
 
 		std::tuple<is_mat, is_vec, rs_vec>
 			transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
@@ -174,9 +183,9 @@ namespace ILPCuts {
 
 			for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it) {
 				if (it.index() < n)
-					lhs += vars[it.index()] * it.value().get_si();
+					lhs += vars[it.index()] * to_IloInt(it.value());
 				else
-					rhs = it.value().get_si();
+					rhs = to_IloInt(it.value());
 			}
 
 			ilo_cuts.add(IloRange(env, lhs, rhs));

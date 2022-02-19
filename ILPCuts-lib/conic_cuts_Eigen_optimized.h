@@ -45,18 +45,14 @@ namespace ILPCuts {
 
 	private:
 
+		Utility::ToSingle<lint_type, int_type> to_single_int;
+		Utility::ToSingle<lrational_type, rational_type> to_single_rat;
+
 		struct cone_traits {
 			using decomp_type = SparseLU<rs_mat, COLAMDOrdering<int>>;
 			is_mat A;
 			lint_type det;
 			std::unique_ptr<decomp_type> decomp;
-			/*cone_traits(cone_traits&& a_cone) = default;
-			cone_traits() = default;
-			cone_traits(const cone_traits& a_cone) = default;*/
-			
-			//cone_traits& operator=(cone_traits&&) = default;
-			//cone_traits(const cone_traits&) = delete;
-			//cone_traits& operator=(const cone_traits&) = delete;
 		};
 
 		is_vec even_system_solve(const cone_traits& C) {
@@ -76,11 +72,22 @@ namespace ILPCuts {
 				//solve the system
 				rs_vec x = std::move(Utility::system_solve(rhs, *C.decomp));
 
+				//cout << "rhs : " << rhs << endl;
+				//cout << "X : " << x << endl;
+
+				rs_vec Z = C.A.cast<rational_type>() * x - rhs;
+				//cout <<"Z : " << Z << endl;
+				cout << "Z norm : " << Z.norm() << endl;
+
 				/*cout << x << endl;
 				cin.ignore();*/
 
 				//create long integer solution
+				//cout << "11111111111111111" << endl;
+				cout << "non zeros: " << C.A.nonZeros() << endl;
+				cout << "max elem C.A: " << Utility::max_norm(C.A) << endl;
 				lis_vec int_x = (x.cast<lrational_type>() * C.det).unaryExpr(Utility::RatToInt_Unary<lint_type, lrational_type>(err_tolerance));
+				//cout << "22222222222222222" << endl;
 
 				lint_type max_2_pow = Utility::vec_max2pow(int_x);
 				if ((static_cast<lint_type>(C.det) / max_2_pow) % 2 == 0) {
@@ -92,7 +99,7 @@ namespace ILPCuts {
 					cin.ignore();*/
 
 					//find odd solutions and convert them to 1 in result vector
-					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).cast<int_type>();
+					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(to_single_int);
 
 					/*cout << res << endl;
 					cin.ignore();*/
@@ -125,7 +132,7 @@ namespace ILPCuts {
 				rs_vec x = std::move(Utility::system_solve(rhs, *C.decomp));
 
 				//create long integer solution
-				res = (x.cast<lrational_type>() * C.det).unaryExpr(Utility::RatToInt_Unary<lint_type, lrational_type>(err_tolerance)).cast<lint_type>();
+				res = (x.cast<lrational_type>() * C.det).unaryExpr(Utility::RatToInt_Unary<lint_type, lrational_type>(err_tolerance));
 
 				//transform modulo det
 				res = res.unaryExpr(Utility::mod_unaryop<lint_type>(C.det));
@@ -186,8 +193,14 @@ namespace ILPCuts {
 						std::cin.ignore();*/
 
 					new_cone.A = A;
+					//TODO: need check on size of integer
+					//cout << "11111111111" << endl;
 					new_cone.A.col(idx) = ((A.cast<lint_type>() * t).cast<lrational_type>() / denum)
-						.unaryExpr(Utility::RatToInt_Unary<int_type, lrational_type>(_this->err_tolerance));
+						.unaryExpr(Utility::RatToInt_Unary<lint_type,lrational_type>(_this->err_tolerance)).unaryExpr(_this->to_single_int);
+
+					/*Utility::RatToInt_Unary<int_type, lrational_type>(
+						lrational_type(_this->err_tolerance)
+						)*/
 
 					Utility::prune_zeroes_int(new_cone.A);
 
@@ -205,6 +218,7 @@ namespace ILPCuts {
 
 				try {
 
+					//cout << "222222222222222" << endl;
 					lint_type ti = t.coeff(idx);
 					new_cone.det = Utility::rat_to_int<lint_type, lrational_type>
 						(static_cast<lrational_type>(det * ti) / denum, _this->err_tolerance );
@@ -220,45 +234,51 @@ namespace ILPCuts {
 					_this->err() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
 				}
 
-				for (size_t i = 0; i < _directions_pool.size(); ++i) {
+				try {
+					for (size_t i = 0; i < _directions_pool.size(); ++i) {
 
-					if (_directions_evaluation_counter[i] < _this->cone_limit_per_direction) {
+						if (_directions_evaluation_counter[i] < _this->cone_limit_per_direction) {
 
-						rs_vec duals = Utility::system_solve(_directions_pool[i], *new_cone.decomp);
-						//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
-						/*cout << "duals: " << duals << endl;
-						cin.ignore();*/
+							rs_vec duals = Utility::system_solve(_directions_pool[i], *new_cone.decomp);
+							//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
+							/*cout << "duals: " << duals << endl;
+							cin.ignore();*/
 
-						/*int_mat I = A * adjA;
-						cout << I << endl;
-						cin.ignore();*/
+							/*int_mat I = A * adjA;
+							cout << I << endl;
+							cin.ignore();*/
 
-						bool is_nontrivial_nonnegative = false;
-						for (typename rs_vec::InnerIterator it(duals); it; ++it) {
-							if (it.value() + _this->tolerance < 0) {
-								is_nontrivial_nonnegative = false;
-								break;
+							bool is_nontrivial_nonnegative = false;
+							for (typename rs_vec::InnerIterator it(duals); it; ++it) {
+								if (it.value() + _this->tolerance < 0) {
+									is_nontrivial_nonnegative = false;
+									break;
+								}
+								else if (it.value() + _this->tolerance > 0) {
+									is_nontrivial_nonnegative = true;
+								}
 							}
-							else if (it.value() + _this->tolerance > 0) {
-								is_nontrivial_nonnegative = true;
+
+							if (is_nontrivial_nonnegative) {
+								if (_directions_evaluation_counter[i] >= _this->cone_limit_per_direction)
+									break;
+								++_directions_evaluation_counter[i];
+								_res_cones.push_back(std::move(new_cone));
+								_this->out() << "adding step done" << std::endl;
+								break;
 							}
 						}
 
-						if (is_nontrivial_nonnegative) {
-							if (_directions_evaluation_counter[i] >= _this->cone_limit_per_direction)
-								break;
-							++_directions_evaluation_counter[i];
-							_res_cones.push_back(std::move(new_cone));
-							_this->out() << "adding step done" << std::endl;
-							break;
-						}
+						//if (((duals + rational_type(tolerance)) > 0).all()) {
+						//	result.push_back(std::move(new_cone));
+						//	out() << "adding step done" << std::endl;
+						//	//cin.ignore();
+						//}
 					}
-
-					//if (((duals + rational_type(tolerance)) > 0).all()) {
-					//	result.push_back(std::move(new_cone));
-					//	out() << "adding step done" << std::endl;
-					//	//cin.ignore();
-					//}
+				}
+				catch (ToleranceErrorException exc) {
+					_this->out() << "new cones computing tolerance error: " << exc.what() << '\n';
+					_this->err() << "new cones computing tolerance error: " << exc.what() << '\n';
 				}
 			}
 		};
@@ -315,7 +335,7 @@ namespace ILPCuts {
 				std::vector<std::vector<cone_traits>> next_layers(dynamic_threads);
 				omp_set_num_threads(dynamic_threads);
 
-#pragma omp parallel for
+//#pragma omp parallel for
 				for (int i = 0; i < current_layer.size(); ++i) {
 					const cone_traits& node = current_layer[i];
 					std::vector<cone_traits> next_node_layer = std::move(process_cone(node, directions_pool, directions_evaluation_counter));
@@ -424,7 +444,7 @@ namespace ILPCuts {
 		}
 
 		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) {
-			lint_type det = Utility::compute_abs_det(A);
+			lint_type det = Utility::rat_to_int<lint_type,lrational_type>( Utility::compute_abs_det(A.cast<lrational_type>().eval()), err_tolerance );
 
 			return std::move(generate_cuts(A, optLP, det));
 		}

@@ -11,7 +11,8 @@ ILOSTLBEGIN
 using namespace ILPCuts;
 
 //using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
-using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
+//using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
+using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<int64_t, double, mpz_class, mpf_class> >;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -292,25 +293,25 @@ int main(int argc, char** argv)
 
     try {
         program.parse_args(argc, argv);
+
+        run_cplex_experiment(
+            program.get<std::string>("--input"),
+            program.get<double>("--tolerance"),
+            program.get<double>("--err_tolerance"),
+            program.get<size_t>("--cone_limit"),
+            program.get<std::string>("--output"),
+            program.get<size_t>("--rand_strategy"),
+            program.get<bool>("--some_strategy"),
+            program.get<size_t>("--threads"),
+            program.get<bool>("--baseline"),
+            program.get<bool>("--lazy")
+        );
     }
-    catch (const std::runtime_error& err) {
+    catch (const std::exception& err) {
         std::cerr << err.what() << std::endl;
         std::cerr << program;
         std::exit(1);
     }
-
-    run_cplex_experiment(
-        program.get<std::string>("--input"),
-        program.get<double>("--tolerance"),
-        program.get<double>("--err_tolerance"),
-        program.get<size_t>("--cone_limit"),
-        program.get<std::string>("--output"),
-        program.get<size_t>("--rand_strategy"),
-        program.get<bool>("--some_strategy"),
-        program.get<size_t>("--threads"),
-        program.get<bool>("--baseline"),
-        program.get<bool>("--lazy")
-    );
 
     return 0;
 }

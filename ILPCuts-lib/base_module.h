@@ -86,6 +86,43 @@ namespace ILPCuts {
 	};
 
 	namespace Utility {
+
+		/*template<typename inT, typename outT>
+		outT to_single(const inT& input) {
+			return input;
+		}
+
+		template<typename outT>
+		outT to_single(const mpz_class& input) {
+			input.get_si();
+		}
+
+		template<typename outT>
+		outT to_single(const mpf_class& input) {
+			input.get_si();
+		}*/
+
+		template<typename inT, typename outT>
+		struct ToSingle {
+			outT operator()(const inT& input) const {
+				return outT(input);
+			}
+		};
+
+		template<typename outT>
+		struct ToSingle<mpz_class, outT> {
+			outT operator()(const mpz_class& input) const {
+				return outT(input.get_si());
+			}
+		};
+
+		template<typename outT>
+		struct ToSingle<mpf_class, outT> {
+			outT operator()(const mpf_class& input) const {
+				return outT(input.get_si());
+			}
+		};
+
 		template<typename intT, typename ratT>
 		intT rat_to_int(const ratT& rat_x, const ratT& err_tolerance) {
 			//std::cout << rat_x << std::endl;
@@ -103,6 +140,24 @@ namespace ILPCuts {
 			}
 			return 0;
 		}
+
+		//template<>
+		//uint64_t rat_to_int<uint64_t,mpf_class>(const mpf_class& rat_x, const mpf_class& err_tolerance) {
+		//	//std::cout << rat_x << std::endl;
+		//	uint64_t int_x = static_cast<uint64_t>(round(rat_x).get_si());
+		//	/*std::cout << int_x << std::endl;
+		//	std::cout << abs(rat_x - int_x) << std::endl;*/
+		//	if (abs(rat_x - int_x) <= err_tolerance) {
+		//		return int_x;
+		//	}
+		//	else {
+		//		std::stringstream msg;
+		//		msg << "rat_to_int tolerance error (" << abs(rat_x - int_x) << ")";
+		//		//std::cout << abs(rat_x - int_x) << std::endl;
+		//		throw ToleranceErrorException(msg.str());
+		//	}
+		//	return 0;
+		//}
 
 		template<typename intT>
 		intT mod2_unaryop(const intT& x) {
@@ -326,6 +381,22 @@ namespace ILPCuts {
 			A.prune(0, 1 / 2);
 		}
 
+		template<typename valT>
+		valT max_norm(const SparseMatrix<valT>& A) {
+			using value_type = valT;
+			using mat_type = SparseMatrix<valT>;
+
+			valT res = 0;
+
+			for (size_t k = 0; k < A.outerSize(); ++k)
+				for (typename mat_type::InnerIterator it(A, k); it; ++it)
+				{
+					res = max(res, abs(it.value()));
+				}
+
+			return std::move(res);
+		}
+
 		template<typename intT>
 		intT vec_max2pow(const SparseVector<intT>& vec);
 
@@ -477,8 +548,8 @@ namespace ILPCuts {
 			virtual std::vector<rs_vec> generate_directons(const is_mat& A) = 0;
 		};
 
-		rational_type tolerance;
-		rational_type err_tolerance;
+		double tolerance;
+		double err_tolerance;
 		size_t cone_limit_per_direction;
 		size_t threads;
 		std::vector<std::unique_ptr<DirectionsStrategyBase> > direction_strategies;
