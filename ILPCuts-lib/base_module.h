@@ -391,7 +391,7 @@ namespace ILPCuts {
 			for (size_t k = 0; k < A.outerSize(); ++k)
 				for (typename mat_type::InnerIterator it(A, k); it; ++it)
 				{
-					res = max(res, abs(it.value()));
+					res = max( res, static_cast<valT>(abs(it.value())) );
 				}
 
 			return std::move(res);
@@ -560,10 +560,11 @@ namespace ILPCuts {
 			tolerance(0), err_tolerance(0), threads(0), _rat_to_int(), rgen(nullptr)
 		{}
 
-		void Init(const rational_type& a_tolerance = 0.000001,
-			const rational_type& a_err_tolerance = 0.001,
+		void Init(double a_tolerance = 0.000001,
+			double a_err_tolerance = 0.001,
 			size_t a_cone_limit_per_direction = 1,
 			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) {
+
 			tolerance = a_tolerance;
 			err_tolerance = a_err_tolerance;
 			cone_limit_per_direction = a_cone_limit_per_direction;

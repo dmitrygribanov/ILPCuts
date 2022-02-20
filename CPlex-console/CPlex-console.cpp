@@ -11,8 +11,8 @@ ILOSTLBEGIN
 using namespace ILPCuts;
 
 //using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
-//using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
-using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<int64_t, double, mpz_class, mpf_class> >;
+using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
+//using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<int64_t, double, mpz_class, mpf_class> >;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -252,12 +252,12 @@ int main(int argc, char** argv)
         .help("specify the output file. (not implemented yet)");
 
     program.add_argument("-t", "--tolerance")
-        .default_value(0.000001)
+        .default_value(0.0000001)
         .help("ILPCuts algorithm tolerance")
         .scan<'g', double>();
 
     program.add_argument("-e", "--err_tolerance")
-        .default_value(0.001)
+        .default_value(0.0001)
         .help("ILPCuts algorithm error tolerance")
         .scan<'g', double>();
 
