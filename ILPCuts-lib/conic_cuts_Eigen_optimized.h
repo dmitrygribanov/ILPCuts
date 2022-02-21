@@ -45,8 +45,8 @@ namespace ILPCuts {
 
 	private:
 
-		Utility::ToSingle<lint_type, int_type> to_single_int;
-		Utility::ToSingle<lrational_type, rational_type> to_single_rat;
+		Utility::ToSingle<lint_type, int_type> _to_single_int;
+		Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
 
 		using LRatToLInt_Unary = typename Utility::RatToInt_Unary<lint_type, lrational_type>;
 		std::unique_ptr<LRatToLInt_Unary> _lrat_to_lint;
@@ -133,7 +133,7 @@ namespace ILPCuts {
 					cin.ignore();*/
 
 					//find odd solutions and convert them to 1 in result vector
-					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(to_single_int);
+					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(_to_single_int);
 
 					/*cout << res << endl;
 					cin.ignore();*/
@@ -233,7 +233,7 @@ namespace ILPCuts {
 					//TODO: need check on size of integer
 					//cout << "11111111111" << endl;
 					new_cone.A.col(idx) = ((A.cast<lint_type>() * t).cast<lrational_type>() / denum)
-						.unaryExpr(*_this->_lrat_to_lint).unaryExpr(_this->to_single_int);
+						.unaryExpr(*_this->_lrat_to_lint).unaryExpr(_this->_to_single_int);
 
 					/*Utility::RatToInt_Unary<int_type, lrational_type>(
 						lrational_type(_this->err_tolerance)
@@ -277,7 +277,7 @@ namespace ILPCuts {
 						if (_directions_evaluation_counter[i] < _this->cone_limit_per_direction) {
 
 							rs_vec duals = Utility::system_solve(_directions_pool[i].cast<lrational_type>().eval(), *new_cone.decomp)
-								.unaryExpr(_this->to_single_rat);
+								.unaryExpr(_this->_to_single_rat);
 							//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
 							//cout << "duals: " << duals << endl;
 							//cin.ignore();
@@ -288,6 +288,7 @@ namespace ILPCuts {
 
 							bool is_nontrivial_nonnegative = false;
 							for (typename rs_vec::InnerIterator it(duals); it; ++it) {
+								//maybe {it.value() < 0 && abs(it.value()) > tolerance} is better
 								if (it.value() + _this->tolerance < 0) {
 									is_nontrivial_nonnegative = false;
 									break;
@@ -306,12 +307,6 @@ namespace ILPCuts {
 								break;
 							}
 						}
-
-						//if (((duals + rational_type(tolerance)) > 0).all()) {
-						//	result.push_back(std::move(new_cone));
-						//	out() << "adding step done" << std::endl;
-						//	//cin.ignore();
-						//}
 					}
 				}
 				catch (ToleranceErrorException exc) {

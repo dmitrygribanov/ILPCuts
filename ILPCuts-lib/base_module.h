@@ -117,39 +117,17 @@ namespace ILPCuts {
 
 		template<typename intT, typename ratT>
 		intT rat_to_int(const ratT& rat_x, const ratT& err_tolerance) {
-			//std::cout << rat_x << std::endl;
 			intT int_x = static_cast<intT>(round(rat_x));
-			/*std::cout << int_x << std::endl;
-			std::cout << abs(rat_x - int_x) << std::endl;*/
 			if (abs(rat_x - int_x) <= err_tolerance) {
 				return int_x;
 			}
 			else {
 				std::stringstream msg;
 				msg << "rat_to_int tolerance error (" << abs(rat_x - int_x) << ")";
-				//std::cout << abs(rat_x - int_x) << std::endl;
 				throw ToleranceErrorException(msg.str());
 			}
 			return 0;
 		}
-
-		//template<>
-		//uint64_t rat_to_int<uint64_t,mpf_class>(const mpf_class& rat_x, const mpf_class& err_tolerance) {
-		//	//std::cout << rat_x << std::endl;
-		//	uint64_t int_x = static_cast<uint64_t>(round(rat_x).get_si());
-		//	/*std::cout << int_x << std::endl;
-		//	std::cout << abs(rat_x - int_x) << std::endl;*/
-		//	if (abs(rat_x - int_x) <= err_tolerance) {
-		//		return int_x;
-		//	}
-		//	else {
-		//		std::stringstream msg;
-		//		msg << "rat_to_int tolerance error (" << abs(rat_x - int_x) << ")";
-		//		//std::cout << abs(rat_x - int_x) << std::endl;
-		//		throw ToleranceErrorException(msg.str());
-		//	}
-		//	return 0;
-		//}
 
 		template<typename intT>
 		intT mod2_unaryop(const intT& x) {
@@ -278,20 +256,11 @@ namespace ILPCuts {
 		template<typename rationalT, typename solverT>
 		SparseMatrix<rationalT> compute_inverse(const SparseMatrix<rationalT>& A, solverT& solver);
 
-		/*template<typename rationalT, typename ratMatrixT>
-		static std::tuple<ratMatrixT, rationalT> compute_adjugate_and_absdet(const ratMatrixT& A);*/
-
 		template<typename rationalT>
 		std::tuple<SparseMatrix<rationalT>, rationalT> compute_abs_adjugate_and_det(const SparseMatrix<rationalT>& A);
 
 		template<typename rationalT>
 		rationalT compute_abs_det(const SparseMatrix<rationalT>& A);
-
-		/*template<typename ratVectorT, typename ratMatrixT>
-		static ratMatrixT adjust_normal_cone(const ratMatrixT& A, const ratVectorT& c);
-
-		template<typename rationalT>
-		static SparseMatrix<rationalT> adjust_normal_cone(const SparseMatrix<rationalT>& A, const SparseVector<rationalT>& c, const rationalT& tolerance);*/
 
 		template <typename T>
 		T euclid_bezout
@@ -446,17 +415,10 @@ namespace ILPCuts {
 		using rat_type = rationalT;
 		using rat_mat = SparseMatrix<rat_type>;
 
-		//SparseLU<rs_mat> decomp_LU(A.cast<rational_type>());
 		SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
 
 		rat_type det = abs(decomp_LU.determinant());
 		rat_mat adjA = compute_inverse<rat_type>(A, decomp_LU) * det;
-
-		/*size_t n = A.cols();
-		rat_mat I(n, n);
-		I.reserve(VectorXi::Constant(n, 2));
-		for (size_t i = 0; i < n; ++i)
-			I.insert(i, i) = det;*/
 
 		return std::make_tuple( std::move(adjA), std::move(det) );
 	}
@@ -466,7 +428,6 @@ namespace ILPCuts {
 		using rat_type = rationalT;
 		using rat_mat = SparseMatrix<rat_type>;
 
-		//SparseLU<rs_mat> decomp_LU(A.cast<rational_type>());
 		SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
 
 		rat_type det = abs(decomp_LU.determinant());
@@ -643,12 +604,7 @@ namespace ILPCuts {
 		is_mat adjust_normal_cone(const is_mat& A, const is_vec& c) {
 			is_mat resA = A;
 
-			rs_mat adjA;
-			rational_type det;
-
-			std::tie(adjA, det) = Utility::compute_abs_adjugate_and_det<rational_type>(A.cast<rational_type>());
-
-			rs_vec t = adjA * c.cast<rational_type>();
+			rs_vec t = Utility::system_solve(A.cast<rational_type>().eval(), c.cast<rational_type>().eval() );
 			/*cout << c << endl << endl;
 			cout << t << endl;
 			cin.ignore();*/

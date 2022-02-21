@@ -96,224 +96,212 @@ using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_cla
 //}
 
 void run_cplex_experiment(
-    std::string input_path,
-    double tolerance, 
-    double err_tolerance,
-    size_t cone_limit_per_direction, 
-    std::string output_path,
-    size_t rand_directions,
-    bool some_direction,
-    size_t threads,
-    bool baseline,
-    bool lazy_constraints_on) {
-    //TO DO: дописать сохраниение в формат csv
-    //create CPLEX envirement
-    IloEnv env;
+	std::string input_path,
+	double tolerance,
+	double err_tolerance,
+	size_t cone_limit_per_direction,
+	std::string output_path,
+	size_t rand_directions,
+	bool some_direction,
+	size_t threads,
+	bool baseline,
+	bool lazy_constraints_on) {
+	//TO DO: дописать сохраниение в формат csv
+	//create CPLEX envirement
+	IloEnv env;
 
-    //set global presision for long arithmetics
-    mpf_set_default_prec(200);
+	//set global presision for long arithmetics
+	mpf_set_default_prec(200);
 
+	//create main model object
+	IloModel master_model(env);
 
-    try {
-        //create main model object
-        IloModel master_model(env);
+	//create relaxed model object
+	IloModel relaxed_model(env);
 
-        //create relaxed model object
-        IloModel relaxed_model(env);
+	//create solver object
+	IloCplex cplex(env);
 
-        //create solver object
-        IloCplex cplex(env);
+	//create objective function object
+	IloObjective   obj;
 
-        //create objective function object
-        IloObjective   obj;
+	//object for variables
+	IloNumVarArray vars(env);
 
-        //object for variables
-        IloNumVarArray vars(env);
+	//object for inequalities
+	IloRangeArray  rngs(env);
 
-        //object for inequalities
-        IloRangeArray  rngs(env);
+	env.out() << "reading " << input_path << endl;
 
-        env.out() << "reading " << input_path << endl;
+	//import main problem from file
+	cplex.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
-        //import main problem from file
-        cplex.importModel(master_model, input_path.c_str(), obj, vars, rngs);
+	//import data to the relaxed model
+	relaxed_model.add(master_model);
 
-        //import data to the relaxed model
-        relaxed_model.add(master_model);
+	//make all variables of the relaxed model to be rational
+	for (size_t i = 0; i < vars.getSize(); ++i) {
+		relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
+	}
 
-        //make all variables of the relaxed model to be rational
-        for (size_t i = 0; i < vars.getSize(); ++i) {
-            relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
-        }
+	//setting parameters to solve relaxed model
+	cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
+	cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-        //setting parameters to solve relaxed model
-        cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-        cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+	//put relaxed model to the solver
+	cplex.extract(relaxed_model);
+	env.out() << "solving relaxed model ...\n";
 
-        //put relaxed model to the solver
-        cplex.extract(relaxed_model);
-        env.out() << "solving relaxed model ...\n";
+	//cplex.use(myCutsCallback(env, cplex, obj, vars, rngs));
 
-        //cplex.use(myCutsCallback(env, cplex, obj, vars, rngs));
+	//run solver
+	if (!cplex.solve()) {
+		env.error() << "Failed to optimize." << endl;
+		throw(-1);
+	}
+	env.out() << "solution status is " << cplex.getStatus() << endl;
+	env.out() << "solution value  is " << cplex.getObjValue() << endl;
 
-        //run solver
-        if (!cplex.solve()) {
-            env.error() << "Failed to optimize." << endl;
-            throw(-1);
-        }
-        env.out() << "solution status is " << cplex.getStatus() << endl;
-        env.out() << "solution value  is " << cplex.getObjValue() << endl;
+	//createing cuts generator object
+	CutsGen cuts_gen(&env.out(), &env.out());
 
-        //createing cuts generator object
-        CutsGen cuts_gen(&env.out(), &env.out());
+	//initialization of cuts generator and setting og its parameters
+	std::mt19937 engine;
+	cuts_gen.Init();
+	cuts_gen.tolerance = tolerance;
+	cuts_gen.err_tolerance = err_tolerance;
+	cuts_gen.cone_limit_per_direction = cone_limit_per_direction;
+	cuts_gen.threads = threads;
+	cuts_gen.lazy_constraints_on = lazy_constraints_on;
+	cuts_gen.rgen = &engine;
 
-        //initialization of cuts generator and setting og its parameters
-        std::mt19937 engine;
-        cuts_gen.Init();
-        cuts_gen.tolerance = tolerance;
-        cuts_gen.err_tolerance = err_tolerance;
-        cuts_gen.cone_limit_per_direction = cone_limit_per_direction;
-        cuts_gen.threads = threads;
-        cuts_gen.lazy_constraints_on = lazy_constraints_on;
-        cuts_gen.rgen = &engine;
+	//set strategies for cutting generation
+	if (rand_directions > 0) {
+		using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
+		cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+	}
+	if (some_direction)
+		cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
-        //set strategies for cutting generation
-        if (rand_directions > 0) {
-            using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
-            cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
-        }
-        if(some_direction)
-            cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
+	if (baseline == false) {
+		//generate cuts from relaxed model
+		env.out() << "cutting generation:" << endl;
+		cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
+	}
 
-        if (baseline == false) {
-            //generate cuts from relaxed model
-            env.out() << "cutting generation:" << endl;
-            cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
-        }
+	//put the original model to the solver
+	cplex.extract(master_model);
 
-        //put the original model to the solver
-        cplex.extract(master_model);
+	if (baseline == false) {
+		//adding our cuts to the solver
+		cuts_gen.add_cuts(cplex, vars);
+	}
 
-        if (baseline == false) {
-            //adding our cuts to the solver
-            cuts_gen.add_cuts(cplex, vars);
-        }
+	//setting parameters for solving in integer variables
+	cplex.setParam(IloCplex::Param::Threads, threads);
+	/*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
+	cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
+	//cin.ignore();
 
-        //setting parameters for solving in integer variables
-        cplex.setParam(IloCplex::Param::Threads, threads);
-        /*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
-        cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
-        //cin.ignore();
+	//cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
+	//cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-        //cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-        //cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+	//solve the ILP model
+	if (!cplex.solve()) {
+		env.error() << "Failed to optimize." << endl;
+		throw(-1);
+	}
 
-        //solve the ILP model
-        if (!cplex.solve()) {
-            env.error() << "Failed to optimize." << endl;
-            throw(-1);
-        }
+	env.out() << "solution status is " << cplex.getStatus() << endl;
+	env.out() << "solution value  is " << cplex.getObjValue() << endl;
 
-        env.out() << "solution status is " << cplex.getStatus() << endl;
-        env.out() << "solution value  is " << cplex.getObjValue() << endl;
-    }
-    catch (IloException& e) {
-        cerr << "Concert exception caught: " << e << endl;
-    }
-    catch (std::exception& ex) {
-        cerr << ex.what() << endl;
-    }
-    catch (...) {
-        cerr << "Unknown exception caught" << endl;
-    }
-
-    env.end();
+	env.end();
 }
 
 int main(int argc, char** argv)
 {
-    argparse::ArgumentParser program("IPLCutsCLI");
+	argparse::ArgumentParser program("IPLCutsCLI");
 
-    program.add_argument("-i", "--input")
-        .default_value(std::string("-"))
-        .required()
-        .help("specify the input file.");
+	program.add_argument("-i", "--input")
+		.default_value(std::string("-"))
+		.required()
+		.help("specify the input file.");
 
-    program.add_argument("-o", "--output")
-        .default_value(std::string(""))
-        .help("specify the output file. (not implemented yet)");
+	program.add_argument("-o", "--output")
+		.default_value(std::string(""))
+		.help("specify the output file. (not implemented yet)");
 
-    program.add_argument("-t", "--tolerance")
-        .default_value(0.0000001)
-        .help("ILPCuts algorithm tolerance")
-        .scan<'g', double>();
+	program.add_argument("-t", "--tolerance")
+		.default_value(0.0000001)
+		.help("ILPCuts algorithm tolerance")
+		.scan<'g', double>();
 
-    program.add_argument("-e", "--err_tolerance")
-        .default_value(0.0001)
-        .help("ILPCuts algorithm error tolerance")
-        .scan<'g', double>();
+	program.add_argument("-e", "--err_tolerance")
+		.default_value(0.0001)
+		.help("ILPCuts algorithm error tolerance")
+		.scan<'g', double>();
 
-    program.add_argument("-c", "--cone_limit")
-        .default_value(size_t(1))
-        .help("cone limit per direction")
-        .scan<'i', size_t>();
+	program.add_argument("-c", "--cone_limit")
+		.default_value(size_t(1))
+		.help("cone limit per direction")
+		.scan<'i', size_t>();
 
-    program.add_argument("-r", "--rand_strategy")
-        .default_value(size_t(0))
-        .help("cone limit in random cone strategy")
-        .scan<'i', size_t>();
+	program.add_argument("-r", "--rand_strategy")
+		.default_value(size_t(0))
+		.help("cone limit in random cone strategy")
+		.scan<'i', size_t>();
 
-    program.add_argument("-s", "--some_strategy")
-        .default_value(false)
-        .help("use of some cone strategy ")
-        .implicit_value(true);
+	program.add_argument("-s", "--some_strategy")
+		.default_value(false)
+		.help("use of some cone strategy ")
+		.implicit_value(true);
 
-    program.add_argument("-w", "--workers", "--threads")
-        .default_value(size_t(1))
-        .help("number of threads")
-        .scan<'i', size_t>();
+	program.add_argument("-w", "--workers", "--threads")
+		.default_value(size_t(1))
+		.help("number of threads")
+		.scan<'i', size_t>();
 
-    program.add_argument("-b", "--baseline")
-        .default_value(false)
-        .help("use baseline solver only")
-        .implicit_value(true);
+	program.add_argument("-b", "--baseline")
+		.default_value(false)
+		.help("use baseline solver only")
+		.implicit_value(true);
 
-    program.add_argument("-lz", "--lazy")
-        .default_value(false)
-        .help("turns on addition of CPlex lazy constraints")
-        .implicit_value(true);
+	program.add_argument("-lz", "--lazy")
+		.default_value(false)
+		.help("turns on addition of CPlex lazy constraints")
+		.implicit_value(true);
 
-    try {
-        program.parse_args(argc, argv);
+	try {
+		program.parse_args(argc, argv);
 
-        run_cplex_experiment(
-            program.get<std::string>("--input"),
-            program.get<double>("--tolerance"),
-            program.get<double>("--err_tolerance"),
-            program.get<size_t>("--cone_limit"),
-            program.get<std::string>("--output"),
-            program.get<size_t>("--rand_strategy"),
-            program.get<bool>("--some_strategy"),
-            program.get<size_t>("--threads"),
-            program.get<bool>("--baseline"),
-            program.get<bool>("--lazy")
-        );
-    }
-    catch (const std::exception& err) {
-        std::cerr << err.what() << std::endl;
-        std::cerr << program;
-        std::exit(1);
-    }
+		run_cplex_experiment(
+			program.get<std::string>("--input"),
+			program.get<double>("--tolerance"),
+			program.get<double>("--err_tolerance"),
+			program.get<size_t>("--cone_limit"),
+			program.get<std::string>("--output"),
+			program.get<size_t>("--rand_strategy"),
+			program.get<bool>("--some_strategy"),
+			program.get<size_t>("--threads"),
+			program.get<bool>("--baseline"),
+			program.get<bool>("--lazy")
+		);
+	}
+	catch (const std::exception& err) {
+		std::cerr << err.what() << std::endl;
+		std::cerr << program;
+		std::exit(1);
+	}
 
-    return 0;
+	return 0;
 }
 
 // Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
