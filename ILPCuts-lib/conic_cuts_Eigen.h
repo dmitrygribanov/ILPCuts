@@ -132,6 +132,17 @@ namespace ILPCuts {
 
 		std::vector<is_vec> res_cuts;
 
+		/*cout << "size A: " << A.rows() << endl;
+		int_type max_elem = 0;
+		for (int k = 0; k < A.outerSize(); ++k) {
+			for (typename is_mat::InnerIterator it(A, k); it; ++it) {
+				cout << it.value() << " ";
+				max_elem = max((int_type)abs(it.value()), max_elem);
+			}
+		}
+		cout << "max elem A: " << max_elem << endl;
+		cin.ignore();*/
+
 		std::vector<rs_vec> directions_pool;
 		for (auto & strategy : direction_strategies) {
 			std::vector<rs_vec> strategy_directions = std::move(strategy->generate_directons(A));
@@ -218,6 +229,18 @@ namespace ILPCuts {
 		//std::cout << A << std::endl;
 
 		try {
+			/*cout << "size A: " << A.rows() << endl;
+			cout << "non zeros A: " << A.nonZeros() << endl;
+			int_type max_elem = 0;
+			for (int k = 0; k < A.outerSize(); ++k) {
+				for (typename is_mat::InnerIterator it(A, k); it; ++it) {
+					cout << it.value() << " ";
+					max_elem = max((int_type)abs(it.value()), max_elem);
+				}
+			}
+			cout << "max elem A: " << max_elem << endl;
+			cin.ignore();*/
+
 			//det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
 			auto start = std::chrono::steady_clock::now();
 			std::tie(adjA, det) = std::move(
@@ -226,6 +249,41 @@ namespace ILPCuts {
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
+
+			
+
+			//is_mat U = adjA.unaryExpr(*_rat_to_int);
+			//is_mat C = A * U;
+
+			////int_type zer = 0;
+
+			//cout << "size U: " << U.rows() << endl;
+			//cout << "non zeros U: " << U.nonZeros() << endl;
+			//U.prune(int_type(0));
+			//cout << "non zeros U: " << U.nonZeros() << endl;
+			//max_elem = 0;
+			//for (int k = 0; k < adjA.outerSize(); ++k) {
+			//	for (typename is_mat::InnerIterator it(U, k); it; ++it) {
+			//		//cout << it.value() << " ";
+			//		max_elem = max((int_type)abs(it.value()), max_elem);
+			//	}
+			//}
+			//cout << "max elem U: " << max_elem << endl;
+			//cin.ignore();
+
+			//cout << "size C: " << C.rows() << endl;
+			//cout << "non zeros C: " << C.nonZeros() << endl;
+			//C.prune(int_type(0));
+			//cout << "non zeros C: " << C.nonZeros() << endl;
+			//max_elem = 0;
+			//for (int k = 0; k < C.outerSize(); ++k) {
+			//	for (typename is_mat::InnerIterator it(C, k); it; ++it) {
+			//		//cout << it.value() << " ";
+			//		max_elem = max((int_type)abs(it.value()), max_elem);
+			//	}
+			//}
+			//cout << "max elem C: " << max_elem << endl;
+			//cin.ignore();
 
 			return std::move(generate_cuts(A, adjA.unaryExpr(*_rat_to_int), optLP, (*_rat_to_int)(det) ));
 		}
