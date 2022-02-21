@@ -49,6 +49,8 @@ namespace ILPCuts {
 
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
 		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+		void transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr);
+		void add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars);
 	};
 
 	template<typename cutsGeneratorT>
@@ -175,23 +177,9 @@ namespace ILPCuts {
 	void CPlexAdapter<cutsGeneratorT>::add_cuts(IloCplex cplex, IloNumVarArray vars) {
 		IloEnv env = cplex.getEnv();
 
-		IloConstraintArray ilo_cuts(env);
+		IloRangeArray ilo_cuts(env);
 
-		size_t n = vars.getSize();
-
-		for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
-			IloExpr lhs = IloExpr(env);
-			IloNum rhs = 0;
-
-			for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it) {
-				if (it.index() < n)
-					lhs += vars[it.index()] * to_IloInt(it.value());
-				else
-					rhs = to_IloInt(it.value());
-			}
-
-			ilo_cuts.add(IloRange(env, lhs, rhs));
-		}
+		transform_cuts_to_ilo_constraints(cplex, vars, ilo_cuts);
 
 		cplex.addUserCuts(ilo_cuts);
 		if (lazy_constraints_on)
@@ -206,10 +194,51 @@ namespace ILPCuts {
 		rs_vec optLP;
 		is_vec c;
 
+		//cout << "!!!!!!!!!!!!!!" << endl;
+
 		tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+
+		//cout << "!!!!!!!!!!!!!!" << endl;
 
 		base::direction_strategies.push_back(std::make_unique<typename base::GreadyDirection>(c));
 
 		cuts_Eigen = std::move(base::generate_cuts(A, optLP));
+
+		base::direction_strategies.pop_back();
+	}
+
+	template<typename cutsGeneratorT>
+	void CPlexAdapter<cutsGeneratorT>::transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr) {
+		IloEnv env = cplex.getEnv();
+
+		size_t n = vars.getSize();
+
+		for (size_t i = 0; i < cuts_Eigen.size(); ++i) {
+			IloExpr lhs = IloExpr(env);
+			IloNum rhs = 0;
+
+			for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it) {
+				if (it.index() < n)
+					lhs += vars[it.index()] * to_IloInt(it.value());
+				else
+					rhs = to_IloInt(it.value());
+			}
+
+			ilo_constr.add(IloRange(env, lhs, rhs));
+		}
+	}
+
+	template<typename cutsGeneratorT>
+	void CPlexAdapter<cutsGeneratorT>::add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars) {
+		IloEnv env = cplex.getEnv();
+
+		IloRangeArray ilo_constraints(env);
+
+		transform_cuts_to_ilo_constraints(cplex, vars, ilo_constraints);
+
+		constrs.add(ilo_constraints);
+		model.add(ilo_constraints);
+
+		ilo_constraints.end();
 	}
 }

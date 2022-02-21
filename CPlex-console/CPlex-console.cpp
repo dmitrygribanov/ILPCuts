@@ -96,19 +96,20 @@ using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_cla
 //}
 
 void run_cplex_experiment(
-	std::string input_path,
-	double tolerance,
-	double err_tolerance,
-	size_t cone_limit_per_direction,
-	std::string output_path,
-	size_t rand_directions,
-	bool some_direction,
-	size_t threads,
-	bool baseline,
-	bool lazy_constraints_on) {
-	//TO DO: дописать сохраниение в формат csv
-	//create CPLEX envirement
-	IloEnv env;
+    std::string input_path,
+    double tolerance, 
+    double err_tolerance,
+    size_t cone_limit_per_direction, 
+    std::string output_path,
+    size_t rand_directions,
+    bool some_direction,
+    size_t threads,
+    bool baseline,
+    bool lazy_constraints_on,
+    size_t iterations_number) {
+    //TO DO: дописать сохраниение в формат csv
+    //create CPLEX envirement
+    IloEnv env;
 
 	//set global presision for long arithmetics
 	mpf_set_default_prec(200);
@@ -119,11 +120,14 @@ void run_cplex_experiment(
 	//create relaxed model object
 	IloModel relaxed_model(env);
 
-	//create solver object
-	IloCplex cplex(env);
+        //create solver object
+        IloCplex cplex_main(env);
 
-	//create objective function object
-	IloObjective   obj;
+        //solver object to solve relaxed model
+        IloCplex cplex_relaxed(env);
+
+        //create objective function object
+        IloObjective   obj;
 
 	//object for variables
 	IloNumVarArray vars(env);
@@ -133,8 +137,8 @@ void run_cplex_experiment(
 
 	env.out() << "reading " << input_path << endl;
 
-	//import main problem from file
-	cplex.importModel(master_model, input_path.c_str(), obj, vars, rngs);
+        //import main problem from file
+        cplex_main.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
 	//import data to the relaxed model
 	relaxed_model.add(master_model);
@@ -144,26 +148,27 @@ void run_cplex_experiment(
 		relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
 	}
 
-	//setting parameters to solve relaxed model
-	cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-	cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+        //setting parameters to solve relaxed model
+        cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
+        cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	//put relaxed model to the solver
-	cplex.extract(relaxed_model);
-	env.out() << "solving relaxed model ...\n";
+        //put relaxed model to the solver
+        cplex_relaxed.extract(relaxed_model);
+        env.out() << "solving relaxed model ...\n";
 
-	//cplex.use(myCutsCallback(env, cplex, obj, vars, rngs));
+        //run solver
+        if (!cplex_relaxed.solve()) {
+            env.error() << "Failed to optimize." << endl;
+            throw(-1);
+        }
+        env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
+        env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
 
-	//run solver
-	if (!cplex.solve()) {
-		env.error() << "Failed to optimize." << endl;
-		throw(-1);
-	}
-	env.out() << "solution status is " << cplex.getStatus() << endl;
-	env.out() << "solution value  is " << cplex.getObjValue() << endl;
+        //return to the original model
+        cplex_main.extract(master_model);
 
-	//createing cuts generator object
-	CutsGen cuts_gen(&env.out(), &env.out());
+        //createing cuts generator object
+        CutsGen cuts_gen(&env.out(), &env.out());
 
 	//initialization of cuts generator and setting og its parameters
 	std::mt19937 engine;
@@ -183,45 +188,69 @@ void run_cplex_experiment(
 	if (some_direction)
 		cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
 
-	if (baseline == false) {
-		//generate cuts from relaxed model
-		env.out() << "cutting generation:" << endl;
-		cuts_gen.generate_cuts(cplex, relaxed_model, obj, rngs, vars);
-	}
+        if (baseline == false) {
+            env.out() << "cutting generation started:" << endl;
 
-	//put the original model to the solver
-	cplex.extract(master_model);
+            for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx) {
+                env.out() << "root node boosting iteration " << iteration_idx << " is started :" << endl;
+                //cin.ignore();
 
-	if (baseline == false) {
-		//adding our cuts to the solver
-		cuts_gen.add_cuts(cplex, vars);
-	}
+                //generate cuts from relaxed model
+                env.out() << "constraints generation ..." << endl;
+                cuts_gen.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
 
-	//setting parameters for solving in integer variables
-	cplex.setParam(IloCplex::Param::Threads, threads);
-	/*cplex.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
-	cplex.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
-	//cin.ignore();
+                env.out() << "adding constraints to relaxed model ..." << endl;
+                cuts_gen.add_cuts_as_constraints(cplex_relaxed, relaxed_model, rngs, vars);
 
-	//cplex.setParam(IloCplex::Param::MIP::Interval, 1000);
-	//cplex.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+                env.out() << "adding cuts to original model ..." << endl;
+                cuts_gen.add_cuts(cplex_main, vars);
 
-	//solve the ILP model
-	if (!cplex.solve()) {
-		env.error() << "Failed to optimize." << endl;
-		throw(-1);
-	}
+                //put relaxed model to the solver
+                cplex_relaxed.extract(relaxed_model);
+                env.out() << "solving boosted model ...\n";
 
-	env.out() << "solution status is " << cplex.getStatus() << endl;
-	env.out() << "solution value  is " << cplex.getObjValue() << endl;
+                //run solver
+                if (!cplex_relaxed.solve()) {
+                    env.error() << "Failed to optimize." << endl;
+                    throw(-1);
+                }
+
+                env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
+                env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
+            }
+            if(iterations_number > 0)
+                env.out() << "root node boosting finished." << endl;
+
+            cuts_gen.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
+            cuts_gen.add_cuts(cplex_main, vars);
+
+            env.out() << "cutting generation finished:" << endl;
+        }
+
+        //setting parameters for solving in integer variables
+        cplex_main.setParam(IloCplex::Param::Threads, threads);
+        /*cplex_main.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
+        cplex_main.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
+
+        //cplex_main.setParam(IloCplex::Param::MIP::Interval, 1000);
+        //cplex_main.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+
+        //solve the ILP model
+        if (!cplex_main.solve()) {
+            env.error() << "Failed to optimize." << endl;
+            throw(-1);
+        }
+
+	env.out() << "solution status is " << cplex_main.getStatus() << endl;
+	env.out() << "solution value  is " << cplex_main.getObjValue() << endl;
 
 	env.end();
 }
@@ -279,27 +308,33 @@ int main(int argc, char** argv)
 		.help("turns on addition of CPlex lazy constraints")
 		.implicit_value(true);
 
-	try {
-		program.parse_args(argc, argv);
+    program.add_argument("-it", "--iterations")
+        .default_value(size_t(0))
+        .help("number of iterations in the root-node")
+        .scan<'i', size_t>();
 
-		run_cplex_experiment(
-			program.get<std::string>("--input"),
-			program.get<double>("--tolerance"),
-			program.get<double>("--err_tolerance"),
-			program.get<size_t>("--cone_limit"),
-			program.get<std::string>("--output"),
-			program.get<size_t>("--rand_strategy"),
-			program.get<bool>("--some_strategy"),
-			program.get<size_t>("--threads"),
-			program.get<bool>("--baseline"),
-			program.get<bool>("--lazy")
-		);
-	}
-	catch (const std::exception& err) {
-		std::cerr << err.what() << std::endl;
-		std::cerr << program;
-		std::exit(1);
-	}
+    try {
+        program.parse_args(argc, argv);
+
+        run_cplex_experiment(
+            program.get<std::string>("--input"),
+            program.get<double>("--tolerance"),
+            program.get<double>("--err_tolerance"),
+            program.get<size_t>("--cone_limit"),
+            program.get<std::string>("--output"),
+            program.get<size_t>("--rand_strategy"),
+            program.get<bool>("--some_strategy"),
+            program.get<size_t>("--threads"),
+            program.get<bool>("--baseline"),
+            program.get<bool>("--lazy"),
+            program.get<size_t>("--iterations")
+        );
+    }
+    catch (const std::exception& err) {
+        std::cerr << err.what() << std::endl;
+        std::cerr << program;
+        std::exit(1);
+    }
 
 	return 0;
 }
