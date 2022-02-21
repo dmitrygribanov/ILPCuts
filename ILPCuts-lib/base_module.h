@@ -87,21 +87,6 @@ namespace ILPCuts {
 
 	namespace Utility {
 
-		/*template<typename inT, typename outT>
-		outT to_single(const inT& input) {
-			return input;
-		}
-
-		template<typename outT>
-		outT to_single(const mpz_class& input) {
-			input.get_si();
-		}
-
-		template<typename outT>
-		outT to_single(const mpf_class& input) {
-			input.get_si();
-		}*/
-
 		template<typename inT, typename outT>
 		struct ToSingle {
 			outT operator()(const inT& input) const {
@@ -109,17 +94,24 @@ namespace ILPCuts {
 			}
 		};
 
-		template<typename outT>
-		struct ToSingle<mpz_class, outT> {
-			outT operator()(const mpz_class& input) const {
-				return outT(input.get_si());
+		template<>
+		struct ToSingle<mpz_class, int64_t> {
+			int64_t operator()(const mpz_class& input) const {
+				return input.get_si();
 			}
 		};
 
-		template<typename outT>
-		struct ToSingle<mpf_class, outT> {
-			outT operator()(const mpf_class& input) const {
-				return outT(input.get_si());
+		template<>
+		struct ToSingle<mpz_class, int32_t> {
+			int32_t operator()(const mpz_class& input) const {
+				return input.get_si();
+			}
+		};
+
+		template<>
+		struct ToSingle<mpf_class, double> {
+			double operator()(const mpf_class& input) const {
+				return input.get_si();
 			}
 		};
 

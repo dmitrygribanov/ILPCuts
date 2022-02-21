@@ -4,12 +4,14 @@
 
 namespace ILPCuts {
 
-	/*namespace Utility {
-		template<>
-		IloInt to_single(const mpz_class& input) {
-			return input.get_si();
-		}
-	}*/
+	//namespace Utility {
+	//	template<>
+	//	struct ToSingle<mpz_class, IloInt> {
+	//		IloInt operator()(const mpz_class& input) const {
+	//			return input.get_si();
+	//		}
+	//	};
+	//}
 
 	template<typename cutsGeneratorT>
 	class CPlexAdapter :public cutsGeneratorT {
