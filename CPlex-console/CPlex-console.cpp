@@ -10,8 +10,8 @@ ILOSTLBEGIN
 #include "../headers/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-//using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
-using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
+using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
+//using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
 //using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<int64_t, double, mpz_class, mpf_class> >;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
