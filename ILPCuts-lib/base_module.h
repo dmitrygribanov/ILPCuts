@@ -473,64 +473,18 @@ namespace ILPCuts {
 		return std::move(res);
 	}
 
-	template<typename intT, typename rationalT>
-	class ConicCutsGenerator_Base {
-	public:
-		using rational_type = rationalT;
+	template<typename intT, typename ratT>
+	struct CutsGenStrategies {
 		using int_type = intT;
-
+		using rational_type = ratT;
 		using is_mat = SparseMatrix<int_type>;
-		using rs_mat = SparseMatrix<rational_type>;
-
 		using is_vec = SparseVector<int_type>;
 		using rs_vec = SparseVector<rational_type>;
-
-	private:
-
-		std::ostream* _out;
-		std::ostream* _err;
-
-	protected:
-		using RatToInt_Unary = typename Utility::RatToInt_Unary<int_type, rational_type>;
-		std::unique_ptr<RatToInt_Unary> _rat_to_int;
-
-	public:
 
 		class DirectionsStrategyBase {
 		public:
 			virtual std::vector<rs_vec> generate_directons(const is_mat& A) = 0;
 		};
-
-		double tolerance;
-		double err_tolerance;
-		size_t cone_limit_per_direction;
-		size_t threads;
-		std::vector<std::unique_ptr<DirectionsStrategyBase> > direction_strategies;
-		std::mt19937 * rgen;
-
-		ConicCutsGenerator_Base(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
-			:_out(outs), _err(errs), cone_limit_per_direction(0),
-			tolerance(0), err_tolerance(0), threads(0), _rat_to_int(), rgen(nullptr)
-		{}
-
-		void Init(double a_tolerance = 0.000001,
-			double a_err_tolerance = 0.001,
-			size_t a_cone_limit_per_direction = 1,
-			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) {
-
-			tolerance = a_tolerance;
-			err_tolerance = a_err_tolerance;
-			cone_limit_per_direction = a_cone_limit_per_direction;
-			direction_strategies.push_back(std::make_unique<SomeDirection>());
-			threads = a_threads;
-			rgen = a_rgen;
-
-			_rat_to_int = std::make_unique<RatToInt_Unary>(err_tolerance);
-		}
-
-		std::ostream& out() { return *_out; }
-
-		std::ostream& err() { return *_err; }
 
 		class GreadyDirection :public DirectionsStrategyBase {
 		private:
@@ -600,6 +554,62 @@ namespace ILPCuts {
 				return std::move(result_directions);
 			}
 		};
+	};
+
+	template<typename intT, typename rationalT>
+	class ConicCutsGenerator_Base {
+	public:
+		using rational_type = rationalT;
+		using int_type = intT;
+
+		using is_mat = SparseMatrix<int_type>;
+		using rs_mat = SparseMatrix<rational_type>;
+
+		using is_vec = SparseVector<int_type>;
+		using rs_vec = SparseVector<rational_type>;
+		using Strategies = typename CutsGenStrategies<int_type, rational_type>;
+
+	private:
+
+		std::ostream* _out;
+		std::ostream* _err;
+
+	protected:
+		using RatToInt_Unary = typename Utility::RatToInt_Unary<int_type, rational_type>;
+		std::unique_ptr<RatToInt_Unary> _rat_to_int;
+
+	public:
+
+		double tolerance;
+		double err_tolerance;
+		size_t cone_limit_per_direction;
+		size_t threads;
+		std::vector<std::unique_ptr<typename Strategies::DirectionsStrategyBase> > direction_strategies;
+		std::mt19937 * rgen;
+
+		ConicCutsGenerator_Base(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
+			:_out(outs), _err(errs), cone_limit_per_direction(0),
+			tolerance(0), err_tolerance(0), threads(0), _rat_to_int(), rgen(nullptr)
+		{}
+
+		virtual void Init(double a_tolerance = 0.000001,
+			double a_err_tolerance = 0.001,
+			size_t a_cone_limit_per_direction = 1,
+			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) {
+
+			tolerance = a_tolerance;
+			err_tolerance = a_err_tolerance;
+			cone_limit_per_direction = a_cone_limit_per_direction;
+			direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
+			threads = a_threads;
+			rgen = a_rgen;
+
+			_rat_to_int = std::make_unique<RatToInt_Unary>(err_tolerance);
+		}
+
+		std::ostream& out() { return *_out; }
+
+		std::ostream& err() { return *_err; }
 
 		is_mat adjust_normal_cone(const is_mat& A, const is_vec& c) {
 			is_mat resA = A;
@@ -620,6 +630,8 @@ namespace ILPCuts {
 
 			return std::move(resA);
 		}
+
+		virtual std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) =0;
 
 	};
 }

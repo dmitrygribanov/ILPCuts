@@ -410,7 +410,7 @@ namespace ILPCuts {
 		void Init(double a_tolerance = 0.000001,
 			double a_err_tolerance = 0.001,
 			size_t a_cone_limit_per_direction = 1,
-			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) {
+			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) override {
 
 			base::Init(a_tolerance, a_err_tolerance, a_cone_limit_per_direction, a_threads, a_rgen);
 
@@ -489,7 +489,7 @@ namespace ILPCuts {
 			return std::move(res_cuts);
 		}
 
-		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) {
+		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) override {
 			lint_type det = (*_lrat_to_lint)( Utility::compute_abs_det(A.cast<lrational_type>().eval()) );
 
 			return std::move(generate_cuts(A, optLP, det));

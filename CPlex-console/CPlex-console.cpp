@@ -10,9 +10,10 @@ ILOSTLBEGIN
 #include "../headers/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
-//using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class> >;
-//using CutsGen = CPlexAdapter<ConicCutsGeneratorOpt<int64_t, double, mpz_class, mpf_class> >;
+using Strategies = typename CutsGenStrategies<mpz_class, mpf_class>;
+using CutsGenAdapter = typename CPlexAdapter<mpz_class, mpf_class>;
+using CutsGen_Adj = typename ConicCutsGenerator<mpz_class, mpf_class>;
+using CutsGen_LU = typename ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class>;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -95,6 +96,8 @@ using CutsGen = CPlexAdapter<ConicCutsGenerator<mpz_class, mpf_class> >;
 //    //mod.end();
 //}
 
+//enum class SolverTypeEnum {Adj, LU};
+
 void run_cplex_experiment(
 	std::string input_path,
 	double tolerance,
@@ -106,7 +109,8 @@ void run_cplex_experiment(
 	size_t threads,
 	bool baseline,
 	bool lazy_constraints_on,
-	size_t iterations_number) {
+	size_t iterations_number,
+	std::string solver_type) {
 	//TO DO: дописать сохраниение в формат csv
 	//create CPLEX envirement
 	IloEnv env;
@@ -168,25 +172,34 @@ void run_cplex_experiment(
 	cplex_main.extract(master_model);
 
 	//createing cuts generator object
-	CutsGen cuts_gen(&env.out(), &env.out());
+	CutsGenAdapter cuts_gen_adapter;
+	if (solver_type == "adj")
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Adj>(&env.out(), &env.error());
+	else if (solver_type == "lu")
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(&env.out(), &env.error());
+	else {
+		env.error() << "Wrong value of the CLI parameter -cg(--cgen): " << solver_type << std::endl;
+		throw(-1);
+	}
+	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
 	//initialization of cuts generator and setting og its parameters
 	std::mt19937 engine;
-	cuts_gen.Init();
-	cuts_gen.tolerance = tolerance;
-	cuts_gen.err_tolerance = err_tolerance;
-	cuts_gen.cone_limit_per_direction = cone_limit_per_direction;
-	cuts_gen.threads = threads;
-	cuts_gen.lazy_constraints_on = lazy_constraints_on;
-	cuts_gen.rgen = &engine;
+	cuts_gen_ptr->Init();
+	cuts_gen_ptr->tolerance = tolerance;
+	cuts_gen_ptr->err_tolerance = err_tolerance;
+	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
+	cuts_gen_ptr->threads = threads;
+	cuts_gen_adapter.lazy_constraints_on = lazy_constraints_on;
+	cuts_gen_ptr->rgen = &engine;
 
 	//set strategies for cutting generation
 	if (rand_directions > 0) {
-		using RandStrategy = typename CutsGen::template ConvUniform<std::mt19937>;
-		cuts_gen.direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+		using RandStrategy = typename Strategies::ConvUniform<std::mt19937>;
+		cuts_gen_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
 	}
 	if (some_direction)
-		cuts_gen.direction_strategies.push_back(std::make_unique<typename CutsGen::SomeDirection>());
+		cuts_gen_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
 
 	if (baseline == false) {
 		env.out() << "cutting generation started:" << endl;
@@ -197,13 +210,13 @@ void run_cplex_experiment(
 
 			//generate cuts from relaxed model
 			env.out() << "constraints generation ..." << endl;
-			cuts_gen.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
+			cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
 
 			env.out() << "adding constraints to relaxed model ..." << endl;
-			cuts_gen.add_cuts_as_constraints(cplex_relaxed, relaxed_model, rngs, vars);
+			cuts_gen_adapter.add_cuts_as_constraints(cplex_relaxed, relaxed_model, rngs, vars);
 
 			env.out() << "adding cuts to original model ..." << endl;
-			cuts_gen.add_cuts(cplex_main, vars);
+			cuts_gen_adapter.add_cuts(cplex_main, vars);
 
 			//put relaxed model to the solver
 			cplex_relaxed.extract(relaxed_model);
@@ -221,8 +234,8 @@ void run_cplex_experiment(
 		if (iterations_number > 0)
 			env.out() << "root node boosting finished." << endl;
 
-		cuts_gen.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
-		cuts_gen.add_cuts(cplex_main, vars);
+		cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
+		cuts_gen_adapter.add_cuts(cplex_main, vars);
 
 		env.out() << "cutting generation finished:" << endl;
 	}
@@ -266,6 +279,10 @@ int main(int argc, char** argv)
 
 	program.add_argument("-o", "--output")
 		.default_value(std::string(""))
+		.help("specify the output file. (not implemented yet)");
+
+	program.add_argument("-cg", "--cgen")
+		.default_value(std::string("adj"))
 		.help("specify the output file. (not implemented yet)");
 
 	program.add_argument("-t", "--tolerance")
@@ -327,7 +344,8 @@ int main(int argc, char** argv)
 			program.get<size_t>("--threads"),
 			program.get<bool>("--baseline"),
 			program.get<bool>("--lazy"),
-			program.get<size_t>("--iterations")
+			program.get<size_t>("--iterations"),
+			program.get<std::string>("--cgen")
 		);
 	}
 	catch (const std::exception& err) {

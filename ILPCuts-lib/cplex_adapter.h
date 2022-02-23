@@ -12,33 +12,43 @@ namespace ILPCuts {
 	//		}
 	//	};
 	//}
+	/*class CPlexAdapterBase {
+	public:
+		virtual void add_cuts(IloCplex cplex, IloNumVarArray vars) =0;
+		virtual void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) =0;
+		virtual void transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr) =0;
+		virtual void add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars) =0;
+	};*/
 
-	template<typename cutsGeneratorT>
-	class CPlexAdapter :public cutsGeneratorT {
+	template<typename intT, typename ratT>
+	class CPlexAdapter {
 	public:
 
-		using base = cutsGeneratorT;
+		using generator_base = typename ConicCutsGenerator_Base<intT, ratT>;
 
-		using typename base::int_type;
-		using typename base::rational_type;
-		using typename base::is_mat;
-		using typename base::rs_mat;
-		using typename base::is_vec;
-		using typename base::rs_vec;
+		using int_type =  typename generator_base::int_type;
+		using rational_type = typename generator_base::rational_type;
+		using is_mat = typename generator_base::is_mat;
+		using rs_mat = typename generator_base::rs_mat;
+		using is_vec = typename generator_base::is_vec;
+		using rs_vec = typename generator_base::rs_vec;
+		using Strategies = typename generator_base::Strategies;
 
-		using base::tolerance;
+		/*using base::tolerance;
 		using base::adjust_normal_cone;
-		using base::base;
+		using base::base;*/
 
 		bool lazy_constraints_on = false;
+
+		std::unique_ptr<generator_base> generator_ptr;
 
 		/*CPlexAdapter(std::ostream* outs, std::ostream* errs)
 			:base(outs, errs) {}
 
 		CPlexAdapter() :base() {}*/
 	private:
+
 		std::vector<is_vec> cuts_Eigen;
-		using base::_rat_to_int;
 
 		Utility::ToSingle<int_type, IloInt> to_IloInt;
 
@@ -53,12 +63,12 @@ namespace ILPCuts {
 		void add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars);
 	};
 
-	template<typename cutsGeneratorT>
-	std::tuple<typename CPlexAdapter<cutsGeneratorT>::is_mat, typename  CPlexAdapter<cutsGeneratorT>::is_vec, typename  CPlexAdapter<cutsGeneratorT>::rs_vec> 
-		CPlexAdapter<cutsGeneratorT>::transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
+	template<typename intT, typename ratT>
+	std::tuple<typename CPlexAdapter<intT,ratT>::is_mat, typename CPlexAdapter<intT, ratT>::is_vec, typename  CPlexAdapter<intT, ratT>::rs_vec>
+		CPlexAdapter<intT, ratT>::transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
 		size_t n = vars.getSize();
 
-		typename base::is_mat A_basis(n, n);
+		is_mat A_basis(n, n);
 		rs_vec optLP(n), c(n);
 
 		std::map<IloInt, size_t> var_index_map;
@@ -139,8 +149,7 @@ namespace ILPCuts {
 					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
 					//A_basis(basis_i, var_index_map[var.getId()]) = 1;
 					++basis_i;
-				}
-				else if (vars_basis[i] == IloCplex::BasisStatus::AtLower) {
+				} else if (vars_basis[i] == IloCplex::BasisStatus::AtLower) {
 					//cout << "AtLower Var" << endl;
 					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
 					//A_basis(basis_i, var_index_map[var.getId()]) = -1;
@@ -168,13 +177,13 @@ namespace ILPCuts {
 			cplex_optLP.end();
 		}
 
-		A_basis = adjust_normal_cone(A_basis.transpose(), c);
+		A_basis = generator_ptr->adjust_normal_cone(A_basis.transpose(), c);
 
 		return std::move(std::make_tuple(A_basis, c, optLP));
 	}
 
-	template<typename cutsGeneratorT>
-	void CPlexAdapter<cutsGeneratorT>::add_cuts(IloCplex cplex, IloNumVarArray vars) {
+	template<typename intT, typename ratT>
+	void CPlexAdapter<intT, ratT>::add_cuts(IloCplex cplex, IloNumVarArray vars) {
 		IloEnv env = cplex.getEnv();
 
 		IloRangeArray ilo_cuts(env);
@@ -188,8 +197,8 @@ namespace ILPCuts {
 		ilo_cuts.end();
 	}
 
-	template<typename cutsGeneratorT>
-	void CPlexAdapter<cutsGeneratorT>::generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
+	template<typename intT, typename ratT>
+	void CPlexAdapter<intT, ratT>::generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) {
 		is_mat A;
 		rs_vec optLP;
 		is_vec c;
@@ -200,15 +209,15 @@ namespace ILPCuts {
 
 		//cout << "!!!!!!!!!!!!!!" << endl;
 
-		base::direction_strategies.push_back(std::make_unique<typename base::GreadyDirection>(c));
+		generator_ptr->direction_strategies.push_back(std::make_unique<Strategies::GreadyDirection>(c));
 
-		cuts_Eigen = std::move(base::generate_cuts(A, optLP));
+		cuts_Eigen = std::move(generator_ptr->generate_cuts(A, optLP));
 
-		base::direction_strategies.pop_back();
+		generator_ptr->direction_strategies.pop_back();
 	}
 
-	template<typename cutsGeneratorT>
-	void CPlexAdapter<cutsGeneratorT>::transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr) {
+	template<typename intT, typename ratT>
+	void CPlexAdapter<intT, ratT>::transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr) {
 		IloEnv env = cplex.getEnv();
 
 		size_t n = vars.getSize();
@@ -228,8 +237,8 @@ namespace ILPCuts {
 		}
 	}
 
-	template<typename cutsGeneratorT>
-	void CPlexAdapter<cutsGeneratorT>::add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars) {
+	template<typename intT, typename ratT>
+	void CPlexAdapter<intT, ratT>::add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars) {
 		IloEnv env = cplex.getEnv();
 
 		IloRangeArray ilo_constraints(env);

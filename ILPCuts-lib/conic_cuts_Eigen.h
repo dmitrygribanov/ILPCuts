@@ -62,7 +62,7 @@ namespace ILPCuts {
 
 		std::vector<is_vec> generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det);
 
-		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP);
+		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) override;
 	};
 
 	template<typename intT, typename ratT>
