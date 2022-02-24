@@ -10,10 +10,15 @@ ILOSTLBEGIN
 #include "../headers/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-using Strategies = typename CutsGenStrategies<mpz_class, mpf_class>;
-using CutsGenAdapter = typename CPlexAdapter<mpz_class, mpf_class>;
-using CutsGen_Adj = typename ConicCutsGenerator<mpz_class, mpf_class>;
-using CutsGen_LU = typename ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_class, mpf_class>;
+using int_type = mpz_class;
+using lint_type = mpz_class;
+using rational_type = mpf_class;
+using lrational_type = mpf_class;
+
+using Strategies = typename CutsGenStrategies<int_type, rational_type>;
+using CutsGenAdapter = typename CPlexAdapter<int_type, rational_type>;
+using CutsGen_Adj = typename ConicCutsGenerator<int_type, rational_type>;
+using CutsGen_LU = typename ConicCutsGeneratorOpt<int_type, rational_type, lint_type, lrational_type>;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //    IloEnv env = getEnv();
@@ -96,8 +101,6 @@ using CutsGen_LU = typename ConicCutsGeneratorOpt<mpz_class, mpf_class, mpz_clas
 //    //mod.end();
 //}
 
-//enum class SolverTypeEnum {Adj, LU};
-
 void run_cplex_experiment(
 	std::string input_path,
 	double tolerance,
@@ -156,7 +159,7 @@ void run_cplex_experiment(
 	cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
 	cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	//put relaxed model to the solver
+	//put the relaxed model into the solver
 	cplex_relaxed.extract(relaxed_model);
 	env.out() << "solving relaxed model ...\n";
 
@@ -168,11 +171,13 @@ void run_cplex_experiment(
 	env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
 	env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
 
-	//return to the original model
+	//put the original model into the solver
 	cplex_main.extract(master_model);
 
-	//createing cuts generator object
+	//createing adapter object
 	CutsGenAdapter cuts_gen_adapter;
+
+	//creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Adj>(&env.out(), &env.error());
 	else if (solver_type == "lu")
@@ -183,7 +188,7 @@ void run_cplex_experiment(
 	}
 	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
-	//initialization of cuts generator and setting og its parameters
+	//initialization of cuts generator and setting parameters
 	std::mt19937 engine;
 	cuts_gen_ptr->Init();
 	cuts_gen_ptr->tolerance = tolerance;
@@ -204,17 +209,20 @@ void run_cplex_experiment(
 	if (baseline == false) {
 		env.out() << "cutting generation started:" << endl;
 
+		//do some iterations to add cuts as constraints into the relaxed model
+		//simultaniously we add cuts to the main model
 		for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx) {
 			env.out() << "root node boosting iteration " << iteration_idx << " is started :" << endl;
-			//cin.ignore();
 
-			//generate cuts from relaxed model
+			//generate cuts from the relaxed model
 			env.out() << "constraints generation ..." << endl;
 			cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
 
+			//adding cuts to the relaxed model as constraints
 			env.out() << "adding constraints to relaxed model ..." << endl;
 			cuts_gen_adapter.add_cuts_as_constraints(cplex_relaxed, relaxed_model, rngs, vars);
 
+			//adding cuts to the original model
 			env.out() << "adding cuts to original model ..." << endl;
 			cuts_gen_adapter.add_cuts(cplex_main, vars);
 
@@ -222,7 +230,7 @@ void run_cplex_experiment(
 			cplex_relaxed.extract(relaxed_model);
 			env.out() << "solving boosted model ...\n";
 
-			//run solver
+			//solve relaxed model
 			if (!cplex_relaxed.solve()) {
 				env.error() << "Failed to optimize." << endl;
 				throw(-1);
@@ -234,6 +242,7 @@ void run_cplex_experiment(
 		if (iterations_number > 0)
 			env.out() << "root node boosting finished." << endl;
 
+		//final cuts generation
 		cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
 		cuts_gen_adapter.add_cuts(cplex_main, vars);
 

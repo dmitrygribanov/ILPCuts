@@ -12,13 +12,6 @@ namespace ILPCuts {
 	//		}
 	//	};
 	//}
-	/*class CPlexAdapterBase {
-	public:
-		virtual void add_cuts(IloCplex cplex, IloNumVarArray vars) =0;
-		virtual void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars) =0;
-		virtual void transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr) =0;
-		virtual void add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars) =0;
-	};*/
 
 	template<typename intT, typename ratT>
 	class CPlexAdapter {
