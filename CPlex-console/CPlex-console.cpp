@@ -4,6 +4,8 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
+//#define ILPCUTS_PARALLEL_OFF
+
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
 #include "conic_cuts_Eigen_optimized.h"
@@ -109,7 +111,8 @@ void run_cplex_experiment(
 	std::string output_path,
 	size_t rand_directions,
 	bool some_direction,
-	size_t threads,
+	size_t threads_cuts_gen,
+	size_t threads_cplex,
 	bool baseline,
 	bool lazy_constraints_on,
 	size_t iterations_number,
@@ -194,7 +197,7 @@ void run_cplex_experiment(
 	cuts_gen_ptr->tolerance = tolerance;
 	cuts_gen_ptr->err_tolerance = err_tolerance;
 	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
-	cuts_gen_ptr->threads = threads;
+	cuts_gen_ptr->threads = threads_cuts_gen;
 	cuts_gen_adapter.lazy_constraints_on = lazy_constraints_on;
 	cuts_gen_ptr->rgen = &engine;
 
@@ -250,7 +253,7 @@ void run_cplex_experiment(
 	}
 
 	//setting parameters for solving in integer variables
-	cplex_main.setParam(IloCplex::Param::Threads, threads);
+	cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
 	/*cplex_main.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
 	cplex_main.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
 	cplex_main.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
@@ -295,7 +298,7 @@ int main(int argc, char** argv)
 		.help("specify the output file. (not implemented yet)");
 
 	program.add_argument("-t", "--tolerance")
-		.default_value(0.0000001)
+		.default_value(0.000001)
 		.help("ILPCuts algorithm tolerance")
 		.scan<'g', double>();
 
@@ -324,6 +327,16 @@ int main(int argc, char** argv)
 		.help("number of threads")
 		.scan<'i', size_t>();
 
+	program.add_argument("-wcgn", "--workers_cuts", "--threads_cuts")
+		.default_value(size_t(0))
+		.help("number of threads")
+		.scan<'i', size_t>();
+
+	program.add_argument("-wcpl", "--workers_cplex", "--threads_cplex")
+		.default_value(size_t(0))
+		.help("number of threads")
+		.scan<'i', size_t>();
+
 	program.add_argument("-b", "--baseline")
 		.default_value(false)
 		.help("use baseline solver only")
@@ -342,6 +355,12 @@ int main(int argc, char** argv)
 	try {
 		program.parse_args(argc, argv);
 
+		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
+		size_t threads_cplex = program.get<size_t>("--threads_cplex");
+		size_t threads_global = program.get<size_t>("--threads");
+		if (threads_cuts_gen == 0) threads_cuts_gen = threads_global;
+		if (threads_cplex == 0) threads_cplex = threads_global;
+
 		run_cplex_experiment(
 			program.get<std::string>("--input"),
 			program.get<double>("--tolerance"),
@@ -350,7 +369,8 @@ int main(int argc, char** argv)
 			program.get<std::string>("--output"),
 			program.get<size_t>("--rand_strategy"),
 			program.get<bool>("--some_strategy"),
-			program.get<size_t>("--threads"),
+			threads_cuts_gen,
+			threads_cplex,
 			program.get<bool>("--baseline"),
 			program.get<bool>("--lazy"),
 			program.get<size_t>("--iterations"),
