@@ -52,26 +52,26 @@ namespace ILPCuts {
 			return *this;
 		}
 
-		bool operator <(T& a) {
+		bool operator <(T& a) const {
 			return _a < a;
 		}
 
-		bool operator >(T& a) {
+		bool operator >(T& a) const {
 			return _a > a;
 		}
 
-		bool operator ==(T& a) {
+		bool operator ==(T& a) const {
 			return _a == a;
 		}
 
-		bool operator !=(T& a) {
+		bool operator !=(T& a) const {
 			return _a != a;
 		}
 
-		bool operator >=(T& a) {
+		bool operator >=(T& a) const {
 			return _a >= a;
 		}
-		bool operator <=(T& a) {
+		bool operator <=(T& a) const {
 			return _a <= a;
 		}
 	};

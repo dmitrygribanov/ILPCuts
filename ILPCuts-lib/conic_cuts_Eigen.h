@@ -96,14 +96,14 @@ namespace ILPCuts {
 
 			rs_vec res;
 
-			const int_type& xi = trans.t[trans.i];
+			const int_type& xi = trans.t.coeff(trans.i);
 
 			if (xi == 0) {
 				res = coeffs;
 			}
 			else {
 				typename rs_vec::InnerIterator coeffs_it(coeffs);
-				typename rs_vec::InnerIterator t_it(trans.t);
+				typename is_vec::InnerIterator t_it(trans.t);
 				while (t_it && coeffs_it) {
 					rational_type y = 0;
 					if (t_it.index() < coeffs_it.index()) {
@@ -128,7 +128,7 @@ namespace ILPCuts {
 					++coeffs_it;
 				}
 
-				res[trans.i] = xi;
+				res.coeffRef(trans.i) = xi;
 			}
 
 			return std::move(res);
@@ -136,7 +136,7 @@ namespace ILPCuts {
 
 		std::vector<typename cone_traits::dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C, 
 			const sparce_transform & trans,
-			const std::vector<size_t>& directions_counter) {
+			const std::vector<Atomic<size_t>>& directions_counter) {
 
 			size_t n = C.A.cols();
 
@@ -148,9 +148,9 @@ namespace ILPCuts {
 					const rs_vec& coeffs = C.dir_coeffs_pull[i].coeffs;
 					rs_vec new_coeffs = std::move(compute_transformed_coeffs(coeffs, trans));
 					if (new_coeffs.size() == n) {
-						res.emplace_back(cone_traits::dir_coeffs(
+						res.emplace_back(typename cone_traits::dir_coeffs{
 							std::move(new_coeffs), dir_ID
-						));
+							});
 					}
 				}
 			}
@@ -159,17 +159,72 @@ namespace ILPCuts {
 		}
 
 		//we can run this method only if dir_coeffs_pull is not empty
-		cone_traits compute_dirr_coeffs_pull(const cone_traits& C,
+		cone_traits compute_cone_traits(const cone_traits& C,
 			const sparce_transform& trans,
-			std::vector<size_t> & directions_counter,
+			//std::vector<size_t> & directions_counter,
 			std::vector<typename cone_traits::dir_coeffs> dir_coeffs_pull) {
 
-			++directions_counter[dir_coeffs_pull[0].dir_ID];
+			//++directions_counter[dir_coeffs_pull[0].dir_ID];
 
-			cone_traits res;
-			res.dir_coeffs_pull = std::move(dir_coeffs_pull);
+			size_t n = C.A.cols();
+			const auto& t = trans.t;
+			size_t i = trans.i;
+			const auto& denum = trans.denum;
 
-			return std::move(res);
+			cone_traits new_cone;
+
+			new_cone.dir_coeffs_pull = std::move(dir_coeffs_pull);
+
+			try {
+				new_cone.A = C.A;
+				new_cone.A.col(i) = ((C.A * t).cast<rational_type>() / denum)
+					.unaryExpr(*_rat_to_int);
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "A-column construction tolerance error: " << exc.what() << '\n';
+				err() << "A-column construction tolerance error: " << exc.what() << '\n';
+			}
+
+			int_type ti = t.coeff(i);
+			try {
+				new_cone.det = (*_rat_to_int)(static_cast<rational_type>(C.det * ti) / denum);
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "Determinant recompute tolerance error: " << exc.what() << '\n';
+				err() << "Determinant recompute tolerance error: " << exc.what() << '\n';
+			}
+
+			/*if (new_cone.det == 0) {
+				out() << det <<", "<< ti << std::endl;
+				std::cin.ignore();
+			}*/
+
+			is_mat MM(n, n);
+			using Tripl = Triplet<int_type>;
+			std::vector<Tripl> triplets;
+			for (size_t j = 0; j < n; ++j) {
+				if (j != i)
+					triplets.push_back(Tripl(j, j, ti));
+				else
+					triplets.push_back(Tripl(j, j, denum));
+			}
+
+			for (typename is_vec::InnerIterator it(t); it; ++it) {
+				if (it.value() > 0 && it.index() != i)
+					triplets.push_back(Tripl(it.index(), i, -it.value()));
+			}
+
+			MM.setFromTriplets(triplets.begin(), triplets.end());
+
+			try {
+				new_cone.adjA = ((MM * C.adjA).cast<rational_type>() / denum).unaryExpr(*_rat_to_int);
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "Adj. recompute tolerance error: " << exc.what() << '\n';
+				err() << "Adj. recompute tolerance error: " << exc.what() << '\n';
+			}
+
+			return std::move(new_cone);
 		}
 
 		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<Atomic<size_t>>& directions_evaluation_counter);
@@ -346,22 +401,7 @@ namespace ILPCuts {
 		rational_type det = 0;
 		rs_mat adjA;
 
-		//std::cout << A << std::endl;
-
 		try {
-			/*cout << "size A: " << A.rows() << endl;
-			cout << "non zeros A: " << A.nonZeros() << endl;
-			int_type max_elem = 0;
-			for (int k = 0; k < A.outerSize(); ++k) {
-				for (typename is_mat::InnerIterator it(A, k); it; ++it) {
-					cout << it.value() << " ";
-					max_elem = max((int_type)abs(it.value()), max_elem);
-				}
-			}
-			cout << "max elem A: " << max_elem << endl;
-			cin.ignore();*/
-
-			//det = rat_to_int(abs(decomp_LU.determinant()), err_tolerance);
 			auto start = std::chrono::steady_clock::now();
 			std::tie(adjA, det) = std::move(
 				Utility::compute_abs_adjugate_and_det<rational_type>(A.cast<rational_type>())
@@ -369,41 +409,6 @@ namespace ILPCuts {
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
-
-			
-
-			//is_mat U = adjA.unaryExpr(*_rat_to_int);
-			//is_mat C = A * U;
-
-			////int_type zer = 0;
-
-			//cout << "size U: " << U.rows() << endl;
-			//cout << "non zeros U: " << U.nonZeros() << endl;
-			//U.prune(int_type(0));
-			//cout << "non zeros U: " << U.nonZeros() << endl;
-			//max_elem = 0;
-			//for (int k = 0; k < adjA.outerSize(); ++k) {
-			//	for (typename is_mat::InnerIterator it(U, k); it; ++it) {
-			//		//cout << it.value() << " ";
-			//		max_elem = max((int_type)abs(it.value()), max_elem);
-			//	}
-			//}
-			//cout << "max elem U: " << max_elem << endl;
-			//cin.ignore();
-
-			//cout << "size C: " << C.rows() << endl;
-			//cout << "non zeros C: " << C.nonZeros() << endl;
-			//C.prune(int_type(0));
-			//cout << "non zeros C: " << C.nonZeros() << endl;
-			//max_elem = 0;
-			//for (int k = 0; k < C.outerSize(); ++k) {
-			//	for (typename is_mat::InnerIterator it(C, k); it; ++it) {
-			//		//cout << it.value() << " ";
-			//		max_elem = max((int_type)abs(it.value()), max_elem);
-			//	}
-			//}
-			//cout << "max elem C: " << max_elem << endl;
-			//cin.ignore();
 
 			return std::move(generate_cuts(A, adjA.unaryExpr(*_rat_to_int), optLP, (*_rat_to_int)(det) ));
 		}
@@ -428,102 +433,62 @@ namespace ILPCuts {
 		out() << "current determinant: " << det << std::endl;
 		out() << "Nonzeros: " << A.nonZeros() << std::endl;
 
-		auto process_new_candidate = [&](size_t i, const is_vec& t, const int_type& div)
+		auto process_new_candidate = [&](const sparce_transform& trans)
 		{
-			cone_traits new_cone;
+			auto dirr_coeffs_pull = std::move(compute_dirr_coeffs_pull(
+				cone, trans, directions_evaluation_counter
+			));
 
-			try {
-				/*if (t.coeff(i) == 0)
-					std::cin.ignore();*/
+			if (!dirr_coeffs_pull.empty()) {
+				++directions_evaluation_counter[dirr_coeffs_pull[0].dir_ID];
 
-				new_cone.A = A;
-				new_cone.A.col(i) = ((A * t).cast<rational_type>() / div)
-					.unaryExpr(*_rat_to_int);
+				cone_traits new_cone = std::move(compute_cone_traits(
+					cone, trans, dirr_coeffs_pull
+				));
 
-				//std::cout << A << std::endl;
-				//std::cout << new_cone.A << std::endl;
-				//.round()
-				//.cast<int_type>();
-			}
-			catch (ToleranceErrorException exc) {
-				out() << "b-column construction tolerance error: " << exc.what() << '\n';
-				err() << "b-column construction tolerance error: " << exc.what() << '\n';
+				result.push_back(std::move(new_cone));
+				out() << "adding step done" << std::endl;
 			}
 
-			try {
+			//for (size_t i = 0; i < directions_pool.size(); ++i) {
 
-				int_type ti = t.coeff(i);
-				new_cone.det = (*_rat_to_int)(static_cast<rational_type>(det * ti) / div);
+			//	if (directions_evaluation_counter[i] < cone_limit_per_direction) {
 
-				/*if (new_cone.det == 0) {
-					out() << det <<", "<< ti << std::endl;
-					std::cin.ignore();
-				}*/
+			//		rs_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool[i];
+			//		//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
+			//		//cout << "duals: " << duals << endl;
 
-				is_mat MM(n,n);
-				using Tripl = Triplet<int_type>;
-				std::vector<Tripl> triplets;
-				for (size_t j = 0; j < n; ++j) {
-					if( j != i )
-						triplets.push_back(Tripl(j, j, ti));
-					else
-						triplets.push_back(Tripl(j, j, div));
-				}
+			//		/*int_mat I = A * adjA;
+			//		cout << I << endl;
+			//		cin.ignore();*/
 
-				for (typename is_vec::InnerIterator it(t); it; ++it) {
-					if( it.value() > 0 && it.index() != i)
-						triplets.push_back(Tripl(it.index(), i, -it.value()));
-				}
+			//		bool is_nontrivial_nonnegative = false;
+			//		for (typename rs_vec::InnerIterator it(duals); it; ++it) {
+			//			if (it.value() + tolerance < 0) {
+			//				is_nontrivial_nonnegative = false;
+			//				break;
+			//			}
+			//			else if (it.value() + tolerance > 0) {
+			//				is_nontrivial_nonnegative = true;
+			//			}
+			//		}
 
-				MM.setFromTriplets(triplets.begin(), triplets.end() );
+			//		if (is_nontrivial_nonnegative) {
+			//			if (directions_evaluation_counter[i] >= cone_limit_per_direction)
+			//				break;
+			//			++directions_evaluation_counter[i];
+			//			result.push_back(std::move(new_cone));
+			//			out() << "adding step done" << std::endl;
+			//			break;
+			//		}
+			//	}
 
-				new_cone.adjA = ((MM * adjA).cast<rational_type>() / div).unaryExpr(*_rat_to_int);
-
-			}
-			catch (ToleranceErrorException exc) {
-				out() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
-				err() << "Determinant/inverse computing tolerance error: " << exc.what() << '\n';
-			}
-
-			for (size_t i = 0; i < directions_pool.size(); ++i) {
-
-				if (directions_evaluation_counter[i] < cone_limit_per_direction) {
-
-					rs_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool[i];
-					//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
-					//cout << "duals: " << duals << endl;
-
-					/*int_mat I = A * adjA;
-					cout << I << endl;
-					cin.ignore();*/
-
-					bool is_nontrivial_nonnegative = false;
-					for (typename rs_vec::InnerIterator it(duals); it; ++it) {
-						if (it.value() + tolerance < 0) {
-							is_nontrivial_nonnegative = false;
-							break;
-						}
-						else if (it.value() + tolerance > 0 ) {
-							is_nontrivial_nonnegative = true;
-						}
-					}
-
-					if (is_nontrivial_nonnegative) {
-						if (directions_evaluation_counter[i] >= cone_limit_per_direction)
-							break;
-						++directions_evaluation_counter[i];
-						result.push_back(std::move(new_cone));
-						out() << "adding step done" << std::endl;
-						break;
-					}
-				}
-
-				//if (((duals + rational_type(tolerance)) > 0).all()) {
-				//	result.push_back(std::move(new_cone));
-				//	out() << "adding step done" << std::endl;
-				//	//cin.ignore();
-				//}
-			}
+			//	//if (((duals + rational_type(tolerance)) > 0).all()) {
+			//	//	result.push_back(std::move(new_cone));
+			//	//	out() << "adding step done" << std::endl;
+			//	//	//cin.ignore();
+			//	//}
+			//}
 		};
 
 		if (det % 2 == 0) {
@@ -535,7 +500,6 @@ namespace ILPCuts {
 				int_type adj_col_2pow = Utility::vec_max2pow(pivot);
 				if ((static_cast<int_type>(det) / adj_col_2pow) % 2 == 0) {
 					pivot /= adj_col_2pow;
-					//out() << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!";
 					break;
 				}
 
@@ -552,7 +516,7 @@ namespace ILPCuts {
 
 			for (typename is_vec::InnerIterator it(pivot); it; ++it) {
 				if (it.value() > 0)
-					process_new_candidate(it.index(), pivot, 2);
+					process_new_candidate(sparce_transform{ (size_t)it.index(), std::move(pivot), 2 });
 			}
 
 		}
@@ -563,7 +527,6 @@ namespace ILPCuts {
 			//out() << A * adjA << std::endl;
 			for (size_t i = 0; i < n; ++i) {
 				pivot = adjA.col(i).unaryExpr(Utility::mod_unaryop(det));
-				//out() << pivot.transpose() << std::endl;
 				bool is_any_nonzero = false;
 				for (typename is_vec::InnerIterator it(pivot); it; ++it) {
 					if (it.value() > 0) {
@@ -587,7 +550,7 @@ namespace ILPCuts {
 
 					//out() << t.transpose() << std::endl;
 
-					process_new_candidate(it.index(), t, det);
+					process_new_candidate(sparce_transform{ (size_t)it.index(), std::move(t), std::move(det) });
 				}
 			}
 		}
