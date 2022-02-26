@@ -51,7 +51,126 @@ namespace ILPCuts {
 			is_mat A;
 			is_mat adjA;
 			int_type det;
+			struct dir_coeffs {
+				rs_vec coeffs;
+				size_t dir_ID;
+			};
+			std::vector<dir_coeffs> dir_coeffs_pull;
 		};
+
+		cone_traits create_cone_traits(const is_mat& A, const is_mat& adjA, const int_type& det,
+			const std::vector<rs_vec> & directions_pool) {
+			cone_traits res;
+
+			res.A = A;
+			res.adjA = adjA;
+			res.det = det;
+
+			for (size_t i = 0; i < directions_pool.size(); ++i) {
+				res.dir_coeffs_pull.emplace_back(cone_traits::dir_coeffs(
+					adjA.cast<rational_type>() * directions_pool[i], 
+					i));
+			}
+
+			return std::move(res);
+		}
+
+		cone_traits create_cone_traits(const is_mat& A, const std::vector<rs_vec>& directions_pool) {
+			is_mat adjA;
+			int_type det;
+			std::tie(adjA, det) = std::move(
+				Utility::compute_abs_adjugate_and_det(A.cast<rational_type>().eval())
+			);
+
+			return std::move(create_cone_traits(A, adjA, det, directions_pool));
+		}
+
+		struct sparce_transform {
+			size_t i;
+			is_vec t;
+			int_type denum;
+		};
+
+		rs_vec compute_transformed_coeffs(const rs_vec& coeffs, const sparce_transform& trans) {
+			size_t n = coeffs.size();
+
+			rs_vec res;
+
+			const int_type& xi = trans.t[trans.i];
+
+			if (xi == 0) {
+				res = coeffs;
+			}
+			else {
+				typename rs_vec::InnerIterator coeffs_it(coeffs);
+				typename rs_vec::InnerIterator t_it(trans.t);
+				while (t_it && coeffs_it) {
+					rational_type y = 0;
+					if (t_it.index() < coeffs_it.index()) {
+						y = -static_cast<rational_type>(t_it.value() * xi) / trans.denum;
+						++t_it;
+					}
+					else {
+						y = coeffs_it.value() - static_cast<rational_type>(t_it.value() * xi) / trans.denum;
+						++coeffs_it;
+					}
+					if (y > tolerance) res.insert(t_it.index()) = y;
+				}
+
+				while (t_it) {
+					rational_type y = -static_cast<rational_type>(t_it.value() * xi) / trans.denum;
+					if (y > tolerance) res.insert(t_it.index()) = y;
+					++t_it;
+				}
+
+				while (coeffs_it) {
+					res.insert(coeffs_it.index()) = coeffs_it.value();
+					++coeffs_it;
+				}
+
+				res[trans.i] = xi;
+			}
+
+			return std::move(res);
+		}
+
+		std::vector<typename cone_traits::dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C, 
+			const sparce_transform & trans,
+			const std::vector<size_t>& directions_counter) {
+
+			size_t n = C.A.cols();
+
+			std::vector<cone_traits::dir_coeffs> res;
+
+			for (size_t i = 0; i < C.dir_coeffs_pull.size(); ++i) {
+				size_t dir_ID = C.dir_coeffs_pull[i].dir_ID;
+				if (directions_counter[dir_ID] < cone_limit_per_direction) {
+					const rs_vec& coeffs = C.dir_coeffs_pull[i].coeffs;
+					rs_vec new_coeffs = std::move(compute_transformed_coeffs(coeffs, trans));
+					if (new_coeffs.size() == n) {
+						res.emplace_back(cone_traits::dir_coeffs(
+							std::move(new_coeffs), dir_ID
+						));
+					}
+				}
+			}
+
+			return std::move(res);
+		}
+
+		//we can run this method only if dir_coeffs_pull is not empty
+		cone_traits compute_dirr_coeffs_pull(const cone_traits& C,
+			const sparce_transform& trans,
+			std::vector<size_t> & directions_counter,
+			std::vector<typename cone_traits::dir_coeffs> dir_coeffs_pull) {
+
+			++directions_counter[dir_coeffs_pull[0].dir_ID];
+
+			cone_traits res;
+			res.dir_coeffs_pull = std::move(dir_coeffs_pull);
+
+			return std::move(res);
+		}
 
 		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<Atomic<size_t>>& directions_evaluation_counter);
 
