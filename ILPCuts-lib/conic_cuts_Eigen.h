@@ -67,9 +67,9 @@ namespace ILPCuts {
 			res.det = det;
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
-				res.dir_coeffs_pull.emplace_back(cone_traits::dir_coeffs(
-					adjA.cast<rational_type>() * directions_pool[i], 
-					i));
+				res.dir_coeffs_pull.emplace_back(typename cone_traits::dir_coeffs{
+					adjA.cast<rational_type>() * directions_pool[i], i
+				});
 			}
 
 			return std::move(res);
@@ -91,44 +91,64 @@ namespace ILPCuts {
 			int_type denum;
 		};
 
-		rs_vec compute_transformed_coeffs(const rs_vec& coeffs, const sparce_transform& trans) {
-			size_t n = coeffs.size();
+		rs_vec compute_transformed_coeffs(const rs_vec& x, const sparce_transform& trans) {
+			size_t n = x.rows();
 
-			rs_vec res;
+		/*	cout << "N:   " << n << endl;
+			cin.ignore();*/
 
-			const int_type& xi = trans.t.coeff(trans.i);
+			rs_vec res(n);
+
+			int_type ti = trans.t.coeff(trans.i);
+			rational_type xi = x.coeff(trans.i);
 
 			if (xi == 0) {
-				res = coeffs;
-			}
-			else {
-				typename rs_vec::InnerIterator coeffs_it(coeffs);
+				res = x * ti / trans.denum;
+			} else {
+				typename rs_vec::InnerIterator x_it(x);
 				typename is_vec::InnerIterator t_it(trans.t);
-				while (t_it && coeffs_it) {
-					rational_type y = 0;
-					if (t_it.index() < coeffs_it.index()) {
-						y = -static_cast<rational_type>(t_it.value() * xi) / trans.denum;
-						++t_it;
+				bool negative_solution_found = false;
+
+				while (t_it && x_it && !negative_solution_found) {
+					if (t_it.index() < x_it.index()) {
+						negative_solution_found = true;
+					}
+					else if (x_it.index() < t_it.index()) {
+						rational_type y = x_it.value() * ti / trans.denum;
+						res.insert(x_it.index()) = std::move(y);
+						++x_it;
 					}
 					else {
-						y = coeffs_it.value() - static_cast<rational_type>(t_it.value() * xi) / trans.denum;
-						++coeffs_it;
+						rational_type y = (x_it.value() * ti - static_cast<rational_type>(t_it.value())*xi) / trans.denum;
+						if(y < -tolerance) 
+							negative_solution_found = true;
+						else 
+							res.insert(t_it.index()) = std::move(y);
+						/*if (y > tolerance)
+							res.insert(t_it.index()) = std::move(y);
+						else if (y < -tolerance)
+							negative_solution_found = true;*/
+						++x_it;
+						++t_it;
 					}
-					if (y > tolerance) res.insert(t_it.index()) = y;
 				}
 
-				while (t_it) {
-					rational_type y = -static_cast<rational_type>(t_it.value() * xi) / trans.denum;
-					if (y > tolerance) res.insert(t_it.index()) = y;
-					++t_it;
+				if (!negative_solution_found) {
+					if (t_it) {
+						negative_solution_found = true;
+					}
+					else {
+						while (x_it) {
+							rational_type y = x_it.value() * ti / trans.denum;
+							res.insert(x_it.index()) = std::move(y);
+							++x_it;
+						}
+
+						res.coeffRef(trans.i) = xi;
+					}
 				}
 
-				while (coeffs_it) {
-					res.insert(coeffs_it.index()) = coeffs_it.value();
-					++coeffs_it;
-				}
-
-				res.coeffRef(trans.i) = xi;
+				if (negative_solution_found) res.resize(0);
 			}
 
 			return std::move(res);
@@ -249,7 +269,9 @@ namespace ILPCuts {
 		std::vector<cone_traits> current_layer;
 		std::vector<std::vector<is_mat>> result(threads, std::vector<is_mat>());
 
-		current_layer.push_back(std::move(cone_traits{ A,adjA,det }));
+		current_layer.push_back(std::move(create_cone_traits(
+			A, adjA, det, directions_pool
+		) ));
 
 		while (!current_layer.empty()) {
 
@@ -306,17 +328,6 @@ namespace ILPCuts {
 		auto start = std::chrono::steady_clock::now();
 
 		std::vector<is_vec> res_cuts;
-
-		/*cout << "size A: " << A.rows() << endl;
-		int_type max_elem = 0;
-		for (int k = 0; k < A.outerSize(); ++k) {
-			for (typename is_mat::InnerIterator it(A, k); it; ++it) {
-				cout << it.value() << " ";
-				max_elem = max((int_type)abs(it.value()), max_elem);
-			}
-		}
-		cout << "max elem A: " << max_elem << endl;
-		cin.ignore();*/
 
 		std::vector<rs_vec> directions_pool;
 		for (auto & strategy : direction_strategies) {
@@ -430,7 +441,7 @@ namespace ILPCuts {
 		const int_type& det = cone.det;
 		size_t n = A.cols();
 
-		out() << "current determinant: " << det << std::endl;
+		out() << "Current determinant: " << det << std::endl;
 		out() << "Nonzeros: " << A.nonZeros() << std::endl;
 
 		auto process_new_candidate = [&](const sparce_transform& trans)
@@ -447,7 +458,7 @@ namespace ILPCuts {
 				));
 
 				result.push_back(std::move(new_cone));
-				out() << "adding step done" << std::endl;
+				out() << "Adding step done..." << std::endl;
 			}
 
 			//for (size_t i = 0; i < directions_pool.size(); ++i) {
@@ -502,9 +513,7 @@ namespace ILPCuts {
 					pivot /= adj_col_2pow;
 					break;
 				}
-
 			}
-
 
 			pivot = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<int_type>)).eval();
 
@@ -516,7 +525,9 @@ namespace ILPCuts {
 
 			for (typename is_vec::InnerIterator it(pivot); it; ++it) {
 				if (it.value() > 0)
-					process_new_candidate(sparce_transform{ (size_t)it.index(), std::move(pivot), 2 });
+					process_new_candidate(sparce_transform{ 
+						static_cast<size_t>(it.index()), std::move(pivot), 2 
+					});
 			}
 
 		}
@@ -540,17 +551,14 @@ namespace ILPCuts {
 					break;
 			}
 
-			//out() << pivot.transpose() << std::endl;
-
-			//std::cout << pivot << std::endl;
 			for (typename is_vec::InnerIterator it(pivot); it; ++it) {
 				if (it.value() > 0) {
 					int_type lambda = Utility::mod_equation_solve<int_type>(it.value(), det - gcd(det, it.value()), det);
 					is_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
 
-					//out() << t.transpose() << std::endl;
-
-					process_new_candidate(sparce_transform{ (size_t)it.index(), std::move(t), std::move(det) });
+					process_new_candidate(sparce_transform{ 
+						static_cast<size_t>(it.index()), std::move(t), std::move(det) 
+					});
 				}
 			}
 		}

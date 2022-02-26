@@ -4,7 +4,7 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-//#define ILPCUTS_PARALLEL_OFF
+#define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
