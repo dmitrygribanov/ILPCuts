@@ -402,9 +402,10 @@ namespace ILPCuts {
 			I.insert(i, i) = 1;
 
 		rat_mat res(n, n);
-		for (size_t i = 0; i < n; ++i) {
+		/*for (size_t i = 0; i < n; ++i) {
 			res.col(i) = solver.solve(I.col(i));
-		}
+		}*/
+		res = std::move(solver.solve(I));
 
 		return std::move(res);
 	}

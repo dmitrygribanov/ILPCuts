@@ -81,6 +81,7 @@ namespace ILPCuts {
 			std::tie(adjA, det) = std::move(
 				Utility::compute_abs_adjugate_and_det(A.cast<rational_type>().eval())
 			);
+			Utility::prune_zeroes_int(adjA);
 
 			return std::move(create_cone_traits(A, adjA, det, directions_pool));
 		}
@@ -199,6 +200,7 @@ namespace ILPCuts {
 				new_cone.A = C.A;
 				new_cone.A.col(i) = ((C.A * t).cast<rational_type>() / denum)
 					.unaryExpr(*_rat_to_int);
+				Utility::prune_zeroes_int(new_cone.A);
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "A-column construction tolerance error: " << exc.what() << '\n';
@@ -238,6 +240,7 @@ namespace ILPCuts {
 
 			try {
 				new_cone.adjA = ((MM * C.adjA).cast<rational_type>() / denum).unaryExpr(*_rat_to_int);
+				Utility::prune_zeroes_int(new_cone.adjA);
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Adj. recompute tolerance error: " << exc.what() << '\n';
