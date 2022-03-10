@@ -146,6 +146,7 @@
   <ItemGroup>
     <ClInclude Include="base_module.h" />
     <ClInclude Include="conic_cuts_arageli.h" />
+    <ClInclude Include="conic_cuts_base.h" />
     <ClInclude Include="conic_cuts_Eigen_dence.h" />
     <ClInclude Include="conic_cuts_Eigen.h" />
     <ClInclude Include="conic_cuts_Eigen_optimized.h" />

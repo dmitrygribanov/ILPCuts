@@ -18,8 +18,9 @@ using rational_type = mpf_class;
 using lrational_type = mpf_class;
 
 using Strategies = typename CutsGenStrategies<int_type, rational_type>;
-using CutsGenAdapter = typename CPlexAdapter<int_type, rational_type>;
-using CutsGen_Adj = typename ConicCutsGenerator<int_type, rational_type>;
+using CutsGen_Base = typename ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
+using CutsGenAdapter = typename CPlexAdapter<CutsGen_Base>;
+using CutsGen_Adj = typename ConicCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_LU = typename ConicCutsGeneratorOpt<int_type, rational_type, lint_type, lrational_type>;
 
 //ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {

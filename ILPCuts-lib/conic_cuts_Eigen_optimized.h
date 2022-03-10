@@ -1,35 +1,31 @@
 #pragma once
 
-#include"base_module.h"
+#include"conic_cuts_base.h"
 
 namespace ILPCuts {
 
-	using namespace Eigen;
-
 	template<typename intT, typename ratT, typename lintT, typename lratT>
-	class ConicCutsGeneratorOpt :public ConicCutsGenerator_Base<intT, ratT> {
+	class ConicCutsGeneratorOpt 
+		:public ConicCutsGenerator_Base<intT, ratT, lintT, lratT> {
 	private:
-		using base = typename ConicCutsGenerator_Base<intT, ratT>;
+		using base = typename ConicCutsGenerator_Base<intT, ratT, lintT, lratT>;
 		using my_type = typename ConicCutsGeneratorOpt<intT, ratT, lintT, lratT>;
 
 	public:
 		using typename base::rational_type;
 		using typename base::int_type;
+		using typename base::lrational_type;
+		using typename base::lint_type;
 
 		using typename base::is_mat;
 		using typename base::rs_mat;
+		using typename base::lis_mat;
+		using typename base::lrs_mat;
 
 		using typename base::is_vec;
 		using typename base::rs_vec;
-
-		using lint_type = lintT;
-		using lrational_type = lratT;
-
-		using lis_mat = SparseMatrix<lint_type>;
-		using lrs_mat = SparseMatrix<lrational_type>;
-
-		using lis_vec = SparseVector<lint_type>;
-		using lrs_vec = SparseVector<lrational_type>;
+		using typename base::lis_vec;
+		using typename base::lrs_vec;
 
 		using base::tolerance;
 		using base::threads;
@@ -39,17 +35,14 @@ namespace ILPCuts {
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
 		using base::_rat_to_int;
+		using base::_lrat_to_lint;
 		using base::rgen;
+		using base::_to_single_int;
+		using base::_to_single_rat;
 
 		using base::base;
 
-	private:
-
-		Utility::ToSingle<lint_type, int_type> _to_single_int;
-		Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
-
-		using LRatToLInt_Unary = typename Utility::RatToInt_Unary<lint_type, lrational_type>;
-		std::unique_ptr<LRatToLInt_Unary> _lrat_to_lint;
+	private:		
 
 		using perm_mat = SparseMatrix<int>;
 		using LU_mat_value_type = lrational_type;
@@ -409,7 +402,7 @@ namespace ILPCuts {
 
 	public:
 
-		void Init(double a_tolerance = 0.000001,
+		/*void Init(double a_tolerance = 0.000001,
 			double a_err_tolerance = 0.001,
 			size_t a_cone_limit_per_direction = 1,
 			size_t a_threads = 8, std::mt19937* a_rgen = nullptr) override {
@@ -417,7 +410,7 @@ namespace ILPCuts {
 			base::Init(a_tolerance, a_err_tolerance, a_cone_limit_per_direction, a_threads, a_rgen);
 
 			_lrat_to_lint = std::make_unique<LRatToLInt_Unary>(err_tolerance);
-		}
+		}*/
 
 		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP, const lint_type& det) {
 

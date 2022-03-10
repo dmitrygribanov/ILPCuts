@@ -1,37 +1,45 @@
 #pragma once
 
-#include"base_module.h"
+#include"conic_cuts_base.h"
 
 #include <omp.h>
 #include <atomic>
 
 namespace ILPCuts {
 
-	using namespace Eigen;
-
-	template<typename intT, typename rationalT>
-	class ConicCutsGenerator :public ConicCutsGenerator_Base<intT,rationalT> {
+	template<typename intT, typename rationalT, typename lintT, typename lratT>
+	class ConicCutsGenerator :public ConicCutsGenerator_Base<intT,rationalT,lintT,lratT> {
 	private:
-		using base = typename ConicCutsGenerator_Base<intT, rationalT>;
+		using base = typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>;
 
 	public:
 		using typename base::rational_type;
 		using typename base::int_type;
+		using typename base::lrational_type;
+		using typename base::lint_type;
 
 		using typename base::is_mat;
 		using typename base::rs_mat;
+		using typename base::lis_mat;
+		using typename base::lrs_mat;
 
 		using typename base::is_vec;
 		using typename base::rs_vec;
+		using typename base::lis_vec;
+		using typename base::lrs_vec;
 
 		using base::tolerance;
+		using base::threads;
 		using base::out;
 		using base::err;
 		using base::err_tolerance;
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
 		using base::_rat_to_int;
-		using base::threads;
+		using base::_lrat_to_lint;
+		using base::rgen;
+		using base::_to_single_int;
+		using base::_to_single_rat;
 
 		using base::base;
 
@@ -203,9 +211,9 @@ namespace ILPCuts {
 		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) override;
 	};
 
-	template<typename intT, typename ratT>
-	std::vector<typename ConicCutsGenerator<intT, ratT>::is_mat> 
-		ConicCutsGenerator<intT, ratT>::partial_uni_decomp
+	template<typename intT, typename rationalT, typename lintT, typename lratT>
+	std::vector<typename ConicCutsGenerator<intT,rationalT,lintT,lratT>::is_mat> 
+		ConicCutsGenerator<intT, rationalT, lintT, lratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
 			const is_mat& adjA, const int_type& det) {
 		//Задаю глобальную параллельность openmp
@@ -265,9 +273,9 @@ namespace ILPCuts {
 		return std::move(concatenated_result);
 	}
 
-	template<typename intT, typename ratT>
-	std::vector<typename ConicCutsGenerator<intT, ratT>::is_vec>
-		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det) {
+	template<typename intT, typename rationalT, typename lintT, typename lratT>
+	std::vector<typename ConicCutsGenerator<intT, rationalT, lintT, lratT>::is_vec>
+		ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det) {
 
 		auto start = std::chrono::steady_clock::now();
 
@@ -349,9 +357,9 @@ namespace ILPCuts {
 		return std::move(res_cuts);
 	}
 
-	template<typename intT, typename ratT>
-	std::vector<typename ConicCutsGenerator<intT, ratT>::is_vec>
-		ConicCutsGenerator<intT, ratT>::generate_cuts(const is_mat& A, const rs_vec& optLP) {
+	template<typename intT, typename rationalT, typename lintT, typename lratT>
+	std::vector<typename ConicCutsGenerator<intT, rationalT, lintT, lratT>::is_vec>
+		ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat& A, const rs_vec& optLP) {
 
 		rational_type det = 0;
 		rs_mat adjA;
@@ -373,9 +381,9 @@ namespace ILPCuts {
 		}
 	}
 
-	template<typename intT, typename ratT>
-	std::vector<typename ConicCutsGenerator<intT, ratT>::cone_traits> 
-		ConicCutsGenerator<intT, ratT>::compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, 
+	template<typename intT, typename rationalT, typename lintT, typename lratT>
+	std::vector<typename ConicCutsGenerator<intT, rationalT, lintT, lratT>::cone_traits>
+		ConicCutsGenerator<intT, rationalT, lintT, lratT>::compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool,
 			std::vector<Atomic<size_t>> & directions_evaluation_counter) {
 
 		std::vector<cone_traits> result;
@@ -404,46 +412,6 @@ namespace ILPCuts {
 				result.push_back(std::move(new_cone));
 				out() << "Adding step done..." << std::endl;
 			}
-
-			//for (size_t i = 0; i < directions_pool.size(); ++i) {
-
-			//	if (directions_evaluation_counter[i] < cone_limit_per_direction) {
-
-			//		rs_vec duals = new_cone.adjA.cast<rational_type>() * directions_pool[i];
-			//		//rat_vec duals = adjA.cast<rational_type>() * directions_pool.col(i);
-			//		//cout << "duals: " << duals << endl;
-
-			//		/*int_mat I = A * adjA;
-			//		cout << I << endl;
-			//		cin.ignore();*/
-
-			//		bool is_nontrivial_nonnegative = false;
-			//		for (typename rs_vec::InnerIterator it(duals); it; ++it) {
-			//			if (it.value() + tolerance < 0) {
-			//				is_nontrivial_nonnegative = false;
-			//				break;
-			//			}
-			//			else if (it.value() + tolerance > 0) {
-			//				is_nontrivial_nonnegative = true;
-			//			}
-			//		}
-
-			//		if (is_nontrivial_nonnegative) {
-			//			if (directions_evaluation_counter[i] >= cone_limit_per_direction)
-			//				break;
-			//			++directions_evaluation_counter[i];
-			//			result.push_back(std::move(new_cone));
-			//			out() << "adding step done" << std::endl;
-			//			break;
-			//		}
-			//	}
-
-			//	//if (((duals + rational_type(tolerance)) > 0).all()) {
-			//	//	result.push_back(std::move(new_cone));
-			//	//	out() << "adding step done" << std::endl;
-			//	//	//cin.ignore();
-			//	//}
-			//}
 		};
 
 		if (det % 2 == 0) {
