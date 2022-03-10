@@ -78,7 +78,7 @@ namespace ILPCuts {
 			return std::move(res);
 		}
 
-		cone_traits create_cone_traits(const is_mat& A, const std::vector<rs_vec>& directions_pool) {
+		/*cone_traits create_cone_traits(const is_mat& A, const std::vector<rs_vec>& directions_pool) {
 			is_mat adjA;
 			int_type det;
 			std::tie(adjA, det) = std::move(
@@ -87,7 +87,7 @@ namespace ILPCuts {
 			Utility::prune_zeroes_int(adjA);
 
 			return std::move(create_cone_traits(A, adjA, det, directions_pool));
-		}
+		}*/
 
 		std::vector<dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C, 
 			const sparce_transform & trans,
