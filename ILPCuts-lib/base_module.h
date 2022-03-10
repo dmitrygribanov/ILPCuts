@@ -388,6 +388,85 @@ namespace ILPCuts {
 
 			return std::move(res);
 		}
+
+		template<typename intT>
+		struct sparce_transform {
+			using int_type = intT;
+
+			size_t i;
+			SparseVector<int_type> t;
+			int_type denum;
+		};
+
+		template<typename int_type, typename rational_type>
+		SparseVector<rational_type> compute_transformed_coeffs(const SparseVector<rational_type>& x, 
+			const sparce_transform<int_type>& trans, double tolerance) {
+
+			using rs_vec = SparseVector<rational_type>;
+			using is_vec = SparseVector<int_type>;
+
+			size_t n = x.rows();
+
+			/*	cout << "N:   " << n << endl;
+				cin.ignore();*/
+
+			rs_vec res(n);
+
+			int_type ti = trans.t.coeff(trans.i);
+			rational_type xi = x.coeff(trans.i);
+
+			if (xi == 0) {
+				res = x * ti / trans.denum;
+			}
+			else {
+				typename rs_vec::InnerIterator x_it(x);
+				typename is_vec::InnerIterator t_it(trans.t);
+				bool negative_solution_found = false;
+
+				while (t_it && x_it && !negative_solution_found) {
+					if (t_it.index() < x_it.index()) {
+						negative_solution_found = true;
+					}
+					else if (x_it.index() < t_it.index()) {
+						rational_type y = x_it.value() * ti / trans.denum;
+						res.insert(x_it.index()) = std::move(y);
+						++x_it;
+					}
+					else {
+						rational_type y = (x_it.value() * ti - static_cast<rational_type>(t_it.value()) * xi) / trans.denum;
+						if (y < -tolerance)
+							negative_solution_found = true;
+						else
+							res.insert(t_it.index()) = std::move(y);
+						/*if (y > tolerance)
+							res.insert(t_it.index()) = std::move(y);
+						else if (y < -tolerance)
+							negative_solution_found = true;*/
+						++x_it;
+						++t_it;
+					}
+				}
+
+				if (!negative_solution_found) {
+					if (t_it) {
+						negative_solution_found = true;
+					}
+					else {
+						while (x_it) {
+							rational_type y = x_it.value() * ti / trans.denum;
+							res.insert(x_it.index()) = std::move(y);
+							++x_it;
+						}
+
+						res.coeffRef(trans.i) = xi;
+					}
+				}
+
+				if (negative_solution_found) res.resize(0);
+			}
+
+			return std::move(res);
+		}
 	};
 
 	template<typename rationalT, typename solverT>

@@ -47,16 +47,19 @@ namespace ILPCuts {
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
 			const is_mat& adjA, const int_type& det);
 
+		struct dir_coeffs {
+			rs_vec coeffs;
+			size_t dir_ID;
+		};
+
 		struct cone_traits {
 			is_mat A;
 			is_mat adjA;
 			int_type det;
-			struct dir_coeffs {
-				rs_vec coeffs;
-				size_t dir_ID;
-			};
 			std::vector<dir_coeffs> dir_coeffs_pull;
 		};
+
+		using sparce_transform = Utility::sparce_transform<int_type>;
 
 		cone_traits create_cone_traits(const is_mat& A, const is_mat& adjA, const int_type& det,
 			const std::vector<rs_vec> & directions_pool) {
@@ -67,7 +70,7 @@ namespace ILPCuts {
 			res.det = det;
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
-				res.dir_coeffs_pull.emplace_back(typename cone_traits::dir_coeffs{
+				res.dir_coeffs_pull.emplace_back(dir_coeffs{
 					adjA.cast<rational_type>() * directions_pool[i], i
 				});
 			}
@@ -86,90 +89,28 @@ namespace ILPCuts {
 			return std::move(create_cone_traits(A, adjA, det, directions_pool));
 		}
 
-		struct sparce_transform {
-			size_t i;
-			is_vec t;
-			int_type denum;
-		};
-
-		rs_vec compute_transformed_coeffs(const rs_vec& x, const sparce_transform& trans) {
-			size_t n = x.rows();
-
-		/*	cout << "N:   " << n << endl;
-			cin.ignore();*/
-
-			rs_vec res(n);
-
-			int_type ti = trans.t.coeff(trans.i);
-			rational_type xi = x.coeff(trans.i);
-
-			if (xi == 0) {
-				res = x * ti / trans.denum;
-			} else {
-				typename rs_vec::InnerIterator x_it(x);
-				typename is_vec::InnerIterator t_it(trans.t);
-				bool negative_solution_found = false;
-
-				while (t_it && x_it && !negative_solution_found) {
-					if (t_it.index() < x_it.index()) {
-						negative_solution_found = true;
-					}
-					else if (x_it.index() < t_it.index()) {
-						rational_type y = x_it.value() * ti / trans.denum;
-						res.insert(x_it.index()) = std::move(y);
-						++x_it;
-					}
-					else {
-						rational_type y = (x_it.value() * ti - static_cast<rational_type>(t_it.value())*xi) / trans.denum;
-						if(y < -tolerance) 
-							negative_solution_found = true;
-						else 
-							res.insert(t_it.index()) = std::move(y);
-						/*if (y > tolerance)
-							res.insert(t_it.index()) = std::move(y);
-						else if (y < -tolerance)
-							negative_solution_found = true;*/
-						++x_it;
-						++t_it;
-					}
-				}
-
-				if (!negative_solution_found) {
-					if (t_it) {
-						negative_solution_found = true;
-					}
-					else {
-						while (x_it) {
-							rational_type y = x_it.value() * ti / trans.denum;
-							res.insert(x_it.index()) = std::move(y);
-							++x_it;
-						}
-
-						res.coeffRef(trans.i) = xi;
-					}
-				}
-
-				if (negative_solution_found) res.resize(0);
-			}
-
-			return std::move(res);
-		}
-
-		std::vector<typename cone_traits::dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C, 
+		std::vector<dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C, 
 			const sparce_transform & trans,
 			const std::vector<Atomic<size_t>>& directions_counter) {
 
 			size_t n = C.A.cols();
 
-			std::vector<cone_traits::dir_coeffs> res;
+			std::vector<dir_coeffs> res;
 
 			for (size_t i = 0; i < C.dir_coeffs_pull.size(); ++i) {
 				size_t dir_ID = C.dir_coeffs_pull[i].dir_ID;
 				if (directions_counter[dir_ID] < cone_limit_per_direction) {
+
 					const rs_vec& coeffs = C.dir_coeffs_pull[i].coeffs;
-					rs_vec new_coeffs = std::move(compute_transformed_coeffs(coeffs, trans));
+
+					rs_vec new_coeffs = std::move(Utility::compute_transformed_coeffs(
+						coeffs, 
+						trans, 
+						tolerance
+					));
+
 					if (new_coeffs.size() == n) {
-						res.emplace_back(typename cone_traits::dir_coeffs{
+						res.emplace_back(dir_coeffs{
 							std::move(new_coeffs), dir_ID
 							});
 					}
@@ -183,7 +124,7 @@ namespace ILPCuts {
 		cone_traits compute_cone_traits(const cone_traits& C,
 			const sparce_transform& trans,
 			//std::vector<size_t> & directions_counter,
-			std::vector<typename cone_traits::dir_coeffs> dir_coeffs_pull) {
+			std::vector<dir_coeffs> dir_coeffs_pull) {
 
 			//++directions_counter[dir_coeffs_pull[0].dir_ID];
 
