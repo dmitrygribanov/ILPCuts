@@ -172,8 +172,10 @@ void run_cplex_experiment(
 		env.error() << "Failed to optimize." << endl;
 		throw(-1);
 	}
+	double originalRelaxedObjVal = cplex_relaxed.getObjValue();
+	double boostedRelaxedObjVal = 0;
 	env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
-	env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
+	env.out() << "solution value  is " << originalRelaxedObjVal << endl;
 
 	//put the original model into the solver
 	cplex_main.extract(master_model);
@@ -213,6 +215,11 @@ void run_cplex_experiment(
 	if (baseline == false) {
 		env.out() << "cutting generation started:" << endl;
 
+		if (iterations_number < 1){
+			env.error() << "Wrong value of the CLI parameter -it(--iterations): " << iterations_number << std::endl;
+			throw(-1);
+		}
+
 		//do some iterations to add cuts as constraints into the relaxed model
 		//simultaniously we add cuts to the main model
 		for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx) {
@@ -239,16 +246,16 @@ void run_cplex_experiment(
 				env.error() << "Failed to optimize." << endl;
 				throw(-1);
 			}
+			boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 
 			env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
 			env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
 		}
-		if (iterations_number > 0)
-			env.out() << "root node boosting finished." << endl;
+		//env.out() << "root node boosting finished." << endl;
 
 		//final cuts generation
-		cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
-		cuts_gen_adapter.add_cuts(cplex_main, vars);
+		/*cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
+		cuts_gen_adapter.add_cuts(cplex_main, vars);*/
 
 		env.out() << "cutting generation finished:" << endl;
 	}
@@ -277,6 +284,10 @@ void run_cplex_experiment(
 
 	env.out() << "solution status is " << cplex_main.getStatus() << endl;
 	env.out() << "solution value  is " << cplex_main.getObjValue() << endl;
+	
+	if (baseline == false)
+		env.out() << "duality gap decrease: " << 
+		(originalRelaxedObjVal - boostedRelaxedObjVal)/(originalRelaxedObjVal - cplex_main.getObjValue()) << endl;
 
 	env.end();
 }
@@ -349,7 +360,7 @@ int main(int argc, char** argv)
 		.implicit_value(true);
 
 	program.add_argument("-it", "--iterations")
-		.default_value(size_t(0))
+		.default_value(size_t(1))
 		.help("number of iterations in the root-node")
 		.scan<'i', size_t>();
 
