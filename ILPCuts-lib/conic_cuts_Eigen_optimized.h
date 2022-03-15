@@ -27,6 +27,9 @@ namespace ILPCuts {
 		using typename base::lis_vec;
 		using typename base::lrs_vec;
 
+		using typename base::sparce_transform;
+		using typename base::dir_coeffs;
+
 		using base::tolerance;
 		using base::threads;
 		using base::out;

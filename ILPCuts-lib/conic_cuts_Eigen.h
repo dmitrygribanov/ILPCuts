@@ -28,6 +28,9 @@ namespace ILPCuts {
 		using typename base::lis_vec;
 		using typename base::lrs_vec;
 
+		using typename base::sparce_transform;
+		using typename base::dir_coeffs;
+
 		using base::tolerance;
 		using base::threads;
 		using base::out;
@@ -53,34 +56,25 @@ namespace ILPCuts {
 
 		std::vector<is_mat> partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
-			const is_mat& adjA, const int_type& det);
+			const lis_mat& adjA, const lint_type& det);
 
-		struct dir_coeffs {
-			rs_vec coeffs;
-			size_t dir_ID;
+		struct cone_traits
+			:public base::cone_traits {
+			lis_mat adjA;
 		};
 
-		struct cone_traits {
-			is_mat A;
-			is_mat adjA;
-			int_type det;
-			std::vector<dir_coeffs> dir_coeffs_pull;
-		};
-
-		using sparce_transform = Utility::sparce_transform<int_type>;
-
-		cone_traits create_cone_traits(const is_mat& A, const is_mat& adjA, const int_type& det,
-			const std::vector<rs_vec> & directions_pool) {
+		cone_traits create_cone_traits(const is_mat& A, const lis_mat& adjA, const lint_type& det,
+			const std::vector<rs_vec>& directions_pool) {
 			cone_traits res;
 
 			res.A = A;
-			res.adjA = adjA;
 			res.det = det;
+			res.adjA = adjA;
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
 				res.dir_coeffs_pull.emplace_back(dir_coeffs{
 					adjA.cast<rational_type>() * directions_pool[i], i
-				});
+					});
 			}
 
 			return std::move(res);
@@ -96,37 +90,6 @@ namespace ILPCuts {
 
 			return std::move(create_cone_traits(A, adjA, det, directions_pool));
 		}*/
-
-		std::vector<dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C, 
-			const sparce_transform & trans,
-			const std::vector<Atomic<size_t>>& directions_counter) {
-
-			size_t n = C.A.cols();
-
-			std::vector<dir_coeffs> res;
-
-			for (size_t i = 0; i < C.dir_coeffs_pull.size(); ++i) {
-				size_t dir_ID = C.dir_coeffs_pull[i].dir_ID;
-				if (directions_counter[dir_ID] < cone_limit_per_direction) {
-
-					const rs_vec& coeffs = C.dir_coeffs_pull[i].coeffs;
-
-					rs_vec new_coeffs = std::move(Utility::compute_transformed_coeffs(
-						coeffs, 
-						trans, 
-						tolerance
-					));
-
-					if (new_coeffs.size() == n) {
-						res.emplace_back(dir_coeffs{
-							std::move(new_coeffs), dir_ID
-							});
-					}
-				}
-			}
-
-			return std::move(res);
-		}
 
 		//we can run this method only if dir_coeffs_pull is not empty
 		cone_traits compute_cone_traits(const cone_traits& C,
@@ -147,8 +110,10 @@ namespace ILPCuts {
 
 			try {
 				new_cone.A = C.A;
-				new_cone.A.col(i) = ((C.A * t).cast<rational_type>() / denum)
-					.unaryExpr(*_rat_to_int);
+				/*new_cone.A.col(i) = ((C.A * t).cast<rational_type>() / denum)
+					.unaryExpr(*_rat_to_int);*/
+				new_cone.A.col(i) = ( (C.A.cast<lint_type>() * t).cast<lrational_type>() / denum)
+					.unaryExpr(*_lrat_to_lint).unaryExpr(_to_single_int);
 				Utility::prune_zeroes_int(new_cone.A);
 			}
 			catch (ToleranceErrorException exc) {
@@ -158,7 +123,7 @@ namespace ILPCuts {
 
 			int_type ti = t.coeff(i);
 			try {
-				new_cone.det = (*_rat_to_int)(static_cast<rational_type>(C.det * ti) / denum);
+				new_cone.det = (*_lrat_to_lint)(static_cast<lrational_type>(C.det * ti) / denum);
 			}
 			catch (ToleranceErrorException exc) {
 				out() << "Determinant recompute tolerance error: " << exc.what() << '\n';
@@ -170,8 +135,8 @@ namespace ILPCuts {
 				std::cin.ignore();
 			}*/
 
-			is_mat MM(n, n);
-			using Tripl = Triplet<int_type>;
+			lis_mat MM(n, n);
+			using Tripl = Triplet<lint_type>;
 			std::vector<Tripl> triplets;
 			for (size_t j = 0; j < n; ++j) {
 				if (j != i)
@@ -180,7 +145,7 @@ namespace ILPCuts {
 					triplets.push_back(Tripl(j, j, denum));
 			}
 
-			for (typename is_vec::InnerIterator it(t); it; ++it) {
+			for (typename lis_vec::InnerIterator it(t); it; ++it) {
 				if (it.value() > 0 && it.index() != i)
 					triplets.push_back(Tripl(it.index(), i, -it.value()));
 			}
@@ -188,7 +153,7 @@ namespace ILPCuts {
 			MM.setFromTriplets(triplets.begin(), triplets.end());
 
 			try {
-				new_cone.adjA = ((MM * C.adjA).cast<rational_type>() / denum).unaryExpr(*_rat_to_int);
+				new_cone.adjA = ((MM * C.adjA).cast<lrational_type>() / denum).unaryExpr(*_lrat_to_lint);
 				Utility::prune_zeroes_int(new_cone.adjA);
 			}
 			catch (ToleranceErrorException exc) {
@@ -199,14 +164,15 @@ namespace ILPCuts {
 			return std::move(new_cone);
 		}
 
-		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, std::vector<Atomic<size_t>>& directions_evaluation_counter);
+		std::vector<cone_traits> compute_layer(const cone_traits& cone, const std::vector<rs_vec>& directions_pool, 
+			std::vector<Atomic<size_t>>& directions_evaluation_counter);
 
 	public:
 
 		/*ConicCutsGenerator(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:base(outs, errs) {}*/
 
-		std::vector<is_vec> generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det);
+		std::vector<is_vec> generate_cuts(const is_mat& A, const lis_mat& adjA, const rs_vec& optLP, const lint_type& det);
 
 		std::vector<is_vec> generate_cuts(const is_mat& A, const rs_vec& optLP) override;
 	};
@@ -215,7 +181,7 @@ namespace ILPCuts {
 	std::vector<typename ConicCutsGenerator<intT,rationalT,lintT,lratT>::is_mat> 
 		ConicCutsGenerator<intT, rationalT, lintT, lratT>::partial_uni_decomp
 		(const is_mat& A, const std::vector<rs_vec>& directions_pool,
-			const is_mat& adjA, const int_type& det) {
+			const lis_mat& adjA, const lint_type& det) {
 		//Задаю глобальную параллельность openmp
 		omp_set_dynamic(max(threads, size_t(1)));
 		std::vector<cone_traits> current_layer;
@@ -275,7 +241,7 @@ namespace ILPCuts {
 
 	template<typename intT, typename rationalT, typename lintT, typename lratT>
 	std::vector<typename ConicCutsGenerator<intT, rationalT, lintT, lratT>::is_vec>
-		ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat& A, const is_mat& adjA, const rs_vec& optLP, const int_type& det) {
+		ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat& A, const lis_mat& adjA, const rs_vec& optLP, const lint_type& det) {
 
 		auto start = std::chrono::steady_clock::now();
 
@@ -398,7 +364,7 @@ namespace ILPCuts {
 
 		auto process_new_candidate = [&](const sparce_transform& trans)
 		{
-			auto dirr_coeffs_pull = std::move(compute_dirr_coeffs_pull(
+			auto dirr_coeffs_pull = std::move(base::compute_dirr_coeffs_pull(
 				cone, trans, directions_evaluation_counter
 			));
 

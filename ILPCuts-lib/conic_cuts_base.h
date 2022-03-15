@@ -124,6 +124,50 @@ namespace ILPCuts {
 		Utility::ToSingle<lint_type, int_type> _to_single_int;
 		Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
 
+		struct dir_coeffs {
+			rs_vec coeffs;
+			size_t dir_ID;
+		};
+
+		struct cone_traits {
+			is_mat A;
+			lint_type det;
+			std::vector<dir_coeffs> dir_coeffs_pull;
+		};
+
+		using sparce_transform = Utility::sparce_transform<lint_type>;
+
+		std::vector<dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C,
+			const sparce_transform& trans,
+			const std::vector<Atomic<size_t>>& directions_counter) {
+
+			size_t n = C.A.cols();
+
+			std::vector<dir_coeffs> res;
+
+			for (size_t i = 0; i < C.dir_coeffs_pull.size(); ++i) {
+				size_t dir_ID = C.dir_coeffs_pull[i].dir_ID;
+				if (directions_counter[dir_ID] < cone_limit_per_direction) {
+
+					const rs_vec& coeffs = C.dir_coeffs_pull[i].coeffs;
+
+					rs_vec new_coeffs = std::move(Utility::compute_transformed_coeffs(
+						coeffs,
+						trans,
+						tolerance
+					));
+
+					if (new_coeffs.size() == n) {
+						res.emplace_back(dir_coeffs{
+							std::move(new_coeffs), dir_ID
+							});
+					}
+				}
+			}
+
+			return std::move(res);
+		}
+
 	public:
 
 		double tolerance;
