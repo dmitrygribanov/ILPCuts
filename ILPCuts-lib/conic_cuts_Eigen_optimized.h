@@ -29,6 +29,7 @@ namespace ILPCuts {
 
 		using typename base::sparce_transform;
 		using typename base::dir_coeffs;
+		using typename base::process_func;
 
 		using base::tolerance;
 		using base::threads;
@@ -51,6 +52,12 @@ namespace ILPCuts {
 		using LU_mat_value_type = lrational_type;
 		using L_mat = TriangularView<SparseMatrix<LU_mat_value_type>, UpLoType::Lower>;
 		using U_mat = TriangularView<SparseMatrix<LU_mat_value_type>, UpLoType::Upper>;
+
+		std::unique_ptr<typename base::cone_traits> compute_cone_traits(const base::cone_traits* base_C,
+			const sparce_transform& trans,
+			std::vector<dir_coeffs> dir_coeffs_pull) override {
+			return std::make_unique<typename base::cone_traits>();
+		}
 
 		struct LU_decomp_traits {
 			L_mat L;
@@ -87,6 +94,10 @@ namespace ILPCuts {
 			cone_traits res;
 
 			return std::move(res);
+		}
+
+		void process_node(const base::cone_traits& C, process_func pf) override {
+
 		}
 
 		is_vec even_system_solve(const cone_traits& C) {
