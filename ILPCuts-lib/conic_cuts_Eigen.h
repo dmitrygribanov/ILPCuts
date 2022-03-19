@@ -118,72 +118,78 @@ namespace ILPCuts {
 			return std::move(new_cone);
 		}
 
-		void process_node(const cone_traits& base_C, process_func pf) override {
-
-			const cone_traits_spec& C = static_cast<const cone_traits_spec&>(base_C);
+		void process_even_case(const cone_traits_spec& C, process_func pf) {
 
 			const is_mat& A = C.A;
 			const lint_type& det = C.det;
 			const lis_mat& adjA = C.adjA;
 			size_t n = A.cols();
 
-			if (det % 2 == 0) {
-				lis_vec pivot;
-				for (size_t i = 0; i < n; ++i) {
-					pivot = adjA.col(i);
-					lint_type adj_col_2pow = Utility::vec_max2pow(pivot);
-					if ((static_cast<lint_type>(det) / adj_col_2pow) % 2 == 0) {
-						pivot /= adj_col_2pow;
-						break;
-					}
+			lis_vec pivot;
+			for (size_t i = 0; i < n; ++i) {
+				pivot = adjA.col(i);
+				lint_type adj_col_2pow = Utility::vec_max2pow(pivot);
+				if ((static_cast<lint_type>(det) / adj_col_2pow) % 2 == 0) {
+					pivot /= adj_col_2pow;
+					break;
 				}
-
-				pivot = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).eval();
-
-				/*for (size_t i = 0; i < pivot.size(); ++i)
-					if (pivot[i] != 0 && pivot[i] != 1) {
-						cout << "pivot[i]" << pivot[i] << endl;
-						cin.ignore();
-					}*/
-
-				for (typename is_vec::InnerIterator it(pivot); it; ++it) {
-					if (it.value() > 0)
-						pf(sparce_transform{
-							static_cast<size_t>(it.index()), std::move(pivot), 2
-							});
-				}
-
 			}
-			else {
-				//std::cout << "oddddddddddddddddodddd" << std::endl;
 
-				lis_vec pivot;
-				//out() << A * adjA << std::endl;
-				for (size_t i = 0; i < n; ++i) {
-					pivot = adjA.col(i).unaryExpr(Utility::mod_unaryop(det));
-					bool is_any_nonzero = false;
-					for (typename lis_vec::InnerIterator it(pivot); it; ++it) {
-						if (it.value() > 0) {
-							is_any_nonzero = true;
-							break;
-						}
-					}
-					//out() << i << " ";
+			pivot = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).eval();
 
-					if (is_any_nonzero)
-						break;
-				}
+			for (typename is_vec::InnerIterator it(pivot); it; ++it) {
+				if (it.value() > 0)
+					pf(sparce_transform{
+						static_cast<size_t>(it.index()), std::move(pivot), 2
+						});
+			}
+		}
 
+		void process_odd_case(const cone_traits_spec& C, process_func pf) {
+
+			const is_mat& A = C.A;
+			const lint_type& det = C.det;
+			const lis_mat& adjA = C.adjA;
+			size_t n = A.cols();
+
+			lis_vec pivot;
+			for (size_t i = 0; i < n; ++i) {
+				pivot = adjA.col(i).unaryExpr(Utility::mod_unaryop(det));
+				bool is_any_nonzero = false;
 				for (typename lis_vec::InnerIterator it(pivot); it; ++it) {
 					if (it.value() > 0) {
-						lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), det - gcd(det, it.value()), det);
-						lis_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
-
-						pf(sparce_transform{
-							static_cast<size_t>(it.index()), std::move(t), std::move(det)
-							});
+						is_any_nonzero = true;
+						break;
 					}
 				}
+
+				if (is_any_nonzero)
+					break;
+			}
+
+			for (typename lis_vec::InnerIterator it(pivot); it; ++it) {
+				if (it.value() > 0) {
+					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), det - gcd(det, it.value()), det);
+					lis_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
+
+					pf(sparce_transform{
+						static_cast<size_t>(it.index()), std::move(t), std::move(det)
+						});
+				}
+			}
+		}
+
+		void process_node(const cone_traits& base_C, process_func pf) override {
+
+			const cone_traits_spec& C = static_cast<const cone_traits_spec&>(base_C);
+
+			if (C.det % 2 == 0) {
+				out() << "even step..." << endl;
+				process_even_case(C, pf);
+			}
+			else {
+				out() << "odd step..." << endl;
+				process_odd_case(C, pf);
 			}
 		}
 

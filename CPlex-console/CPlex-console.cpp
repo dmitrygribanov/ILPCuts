@@ -307,7 +307,7 @@ int main(int argc, char** argv)
 
 	program.add_argument("-cg", "--cgen")
 		.default_value(std::string("adj"))
-		.help("specify the output file. (not implemented yet)");
+		.help("type of cutting generation algorithm; can be \"adj\" or \"lu\"");
 
 	program.add_argument("-t", "--tolerance")
 		.default_value(0.000001)
@@ -326,27 +326,27 @@ int main(int argc, char** argv)
 
 	program.add_argument("-r", "--rand_strategy")
 		.default_value(size_t(0))
-		.help("cone limit in random cone strategy")
+		.help("number of directions in random cone strategy")
 		.scan<'i', size_t>();
 
 	program.add_argument("-s", "--some_strategy")
 		.default_value(false)
-		.help("use of some cone strategy ")
+		.help("add \"some\" cone strategy")
 		.implicit_value(true);
 
 	program.add_argument("-w", "--workers", "--threads")
 		.default_value(size_t(1))
-		.help("number of threads")
+		.help("global number of threads")
 		.scan<'i', size_t>();
 
 	program.add_argument("-wcgn", "--workers_cuts", "--threads_cuts")
 		.default_value(size_t(0))
-		.help("number of threads")
+		.help("number of threads for cutting generation algorithm")
 		.scan<'i', size_t>();
 
 	program.add_argument("-wcpl", "--workers_cplex", "--threads_cplex")
 		.default_value(size_t(0))
-		.help("number of threads")
+		.help("number of threads for CPlex solver")
 		.scan<'i', size_t>();
 
 	program.add_argument("-b", "--baseline")
@@ -361,7 +361,7 @@ int main(int argc, char** argv)
 
 	program.add_argument("-it", "--iterations")
 		.default_value(size_t(1))
-		.help("number of iterations in the root-node")
+		.help("number of boosting iterations in the root-node")
 		.scan<'i', size_t>();
 
 	try {
@@ -397,14 +397,3 @@ int main(int argc, char** argv)
 
 	return 0;
 }
-
-// Запуск программы: CTRL+F5 или меню "Отладка" > "Запуск без отладки"
-// Отладка программы: F5 или меню "Отладка" > "Запустить отладку"
-
-// Советы по началу работы 
-//   1. В окне обозревателя решений можно добавлять файлы и управлять ими.
-//   2. В окне Team Explorer можно подключиться к системе управления версиями.
-//   3. В окне "Выходные данные" можно просматривать выходные данные сборки и другие сообщения.
-//   4. В окне "Список ошибок" можно просматривать ошибки.
-//   5. Последовательно выберите пункты меню "Проект" > "Добавить новый элемент", чтобы создать файлы кода, или "Проект" > "Добавить существующий элемент", чтобы добавить в проект существующие файлы кода.
-//   6. Чтобы снова открыть этот проект позже, выберите пункты меню "Файл" > "Открыть" > "Проект" и выберите SLN-файл.

@@ -216,7 +216,7 @@ namespace ILPCuts {
 
 				if (res.nonZeros() > 0) {
 					nonzero_component_generated = true;
-					cout << "res odd :" << res << endl;
+					cout << "res odd: " << res << endl;
 				}
 			}
 
