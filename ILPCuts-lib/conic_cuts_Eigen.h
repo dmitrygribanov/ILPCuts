@@ -57,11 +57,12 @@ namespace ILPCuts {
 
 		std::unique_ptr<cone_traits> create_cone_traits(const is_mat& A, const lis_mat& adjA, const lint_type& det,
 			const std::vector<rs_vec>& directions_pool) {
+
 			auto res = std::make_unique<cone_traits_spec>();
 
-			res -> A = A;
-			res -> det = det;
-			res -> adjA = adjA;
+			res -> A    =     A;
+			res -> det  =   det;
+			res -> adjA =  adjA;
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
 				res -> dir_coeffs_pull.emplace_back(dir_coeffs{
@@ -77,45 +78,16 @@ namespace ILPCuts {
 			const sparce_transform& trans,
 			std::vector<dir_coeffs> dir_coeffs_pull) override {
 
-			//++directions_counter[dir_coeffs_pull[0].dir_ID];
-
 			const cone_traits_spec* C = static_cast<const cone_traits_spec*>(base_C);
+
+			auto new_cone = std::make_unique<cone_traits_spec>();
+			new_cone->move_from_base_ptr(base::compute_cone_traits(base_C, trans, dir_coeffs_pull));
 
 			size_t n = C->A.cols();
 			const auto& t = trans.t;
 			size_t i = trans.i;
 			const auto& denum = trans.denum;
-
-			auto new_cone = std::make_unique<cone_traits_spec>();
-
-			new_cone -> dir_coeffs_pull = std::move(dir_coeffs_pull);
-
-			try {
-				new_cone -> A = C -> A;
-				/*new_cone.A.col(i) = ((C.A * t).cast<rational_type>() / denum)
-					.unaryExpr(*_rat_to_int);*/
-				new_cone -> A.col(i) = ( (C->A.cast<lint_type>() * t).cast<lrational_type>() / denum)
-					.unaryExpr(*_lrat_to_lint).unaryExpr(_to_single_int);
-				Utility::prune_zeroes_int(new_cone -> A);
-			}
-			catch (ToleranceErrorException exc) {
-				out() << "A-column construction tolerance error: " << exc.what() << '\n';
-				err() << "A-column construction tolerance error: " << exc.what() << '\n';
-			}
-
-			const auto & ti = t.coeff(i);
-			try {
-				new_cone -> det = (*_lrat_to_lint)(static_cast<lrational_type>(C->det * ti) / denum);
-			}
-			catch (ToleranceErrorException exc) {
-				out() << "Determinant recompute tolerance error: " << exc.what() << '\n';
-				err() << "Determinant recompute tolerance error: " << exc.what() << '\n';
-			}
-
-			/*if (new_cone.det == 0) {
-				out() << det <<", "<< ti << std::endl;
-				std::cin.ignore();
-			}*/
+			const auto& ti = t.coeff(i);
 
 			lis_mat MM(n, n);
 			using Tripl = Triplet<lint_type>;

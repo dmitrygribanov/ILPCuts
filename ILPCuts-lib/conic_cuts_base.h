@@ -132,13 +132,54 @@ namespace ILPCuts {
 			is_mat A;
 			lint_type det;
 			std::vector<dir_coeffs> dir_coeffs_pull;
+
+			void move_from_base_ptr(std::unique_ptr<cone_traits> base) {
+				*this = std::move(*base);
+				/*A = std::move(base->A);
+				det = std::move(base->det);
+				dir_coeffs_pull = std::move(base->dir_coeffs_pull);*/
+			}
 		};
 
 		using sparce_transform = Utility::sparce_transform<lint_type>;
 
-		virtual std::unique_ptr<cone_traits> compute_cone_traits(const cone_traits * C,
+		virtual std::unique_ptr<cone_traits> compute_cone_traits(const cone_traits* C,
 			const sparce_transform& trans,
-			std::vector<dir_coeffs> dir_coeffs_pull) = 0;
+			std::vector<dir_coeffs> dir_coeffs_pull) {
+
+			size_t n = C->A.cols();
+			const auto& t = trans.t;
+			size_t i = trans.i;
+			const auto& denum = trans.denum;
+
+			auto new_cone = std::make_unique<cone_traits>();
+
+			new_cone->dir_coeffs_pull = std::move(dir_coeffs_pull);
+
+			try {
+				new_cone->A = C->A;
+
+				new_cone->A.col(i) = ((C->A.cast<lint_type>() * t).cast<lrational_type>() / denum)
+					.unaryExpr(*_lrat_to_lint).unaryExpr(_to_single_int);
+
+				Utility::prune_zeroes_int(new_cone->A);
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "A-column construction tolerance error: " << exc.what() << '\n';
+				err() << "A-column construction tolerance error: " << exc.what() << '\n';
+			}
+
+			const auto& ti = t.coeff(i);
+			try {
+				new_cone->det = (*_lrat_to_lint)(static_cast<lrational_type>(C->det * ti) / denum);
+			}
+			catch (ToleranceErrorException exc) {
+				out() << "Determinant recompute tolerance error: " << exc.what() << '\n';
+				err() << "Determinant recompute tolerance error: " << exc.what() << '\n';
+			}
+
+			return std::move(new_cone);
+		}
 
 		std::vector<is_mat> partial_uni_decomp(std::unique_ptr<const cone_traits> C);
 
@@ -322,6 +363,7 @@ namespace ILPCuts {
 
 		out() << "Current determinant: " << det << std::endl;
 		out() << "Nonzeros: " << A.nonZeros() << std::endl;
+		out() << "A's inifinity norm: " << Utility::max_norm(A) << endl;
 
 		auto process_new_candidate = [&](const sparce_transform& trans)
 		{
