@@ -104,6 +104,7 @@ namespace ILPCuts {
 
 		using is_vec = SparseVector<int_type>;
 		using rs_vec = SparseVector<rational_type>;
+
 		using lis_vec = SparseVector<lint_type>;
 		using lrs_vec = SparseVector<lrational_type>;
 
@@ -183,7 +184,8 @@ namespace ILPCuts {
 
 		std::vector<is_mat> partial_uni_decomp(std::unique_ptr<const cone_traits> C);
 
-		std::vector<std::unique_ptr<cone_traits>> compute_layer(const cone_traits* C, std::vector<Atomic<size_t>>& directions_evaluation_counter);
+		std::vector<std::unique_ptr<cone_traits>> compute_layer(const cone_traits* C, 
+			std::vector<Atomic<size_t>>& directions_evaluation_counter);
 
 		std::vector<dir_coeffs> compute_dirr_coeffs_pull(const cone_traits& C,
 			const sparce_transform& trans,
@@ -198,12 +200,12 @@ namespace ILPCuts {
 				if (directions_counter[dir_ID] < cone_limit_per_direction) {
 
 					const rs_vec& coeffs = C.dir_coeffs_pull[i].coeffs;
-
+						
 					rs_vec new_coeffs = std::move(Utility::compute_transformed_coeffs(
-						coeffs,
+						coeffs.cast<lrational_type>().eval(),
 						trans,
 						tolerance
-					));
+					)).unaryExpr(_to_single_rat);
 
 					if (new_coeffs.size() == n) {
 						res.emplace_back(dir_coeffs{

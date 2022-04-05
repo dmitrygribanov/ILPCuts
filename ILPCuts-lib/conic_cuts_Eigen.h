@@ -66,7 +66,7 @@ namespace ILPCuts {
 
 			for (size_t i = 0; i < directions_pool.size(); ++i) {
 				res -> dir_coeffs_pull.emplace_back(dir_coeffs{
-					(adjA.cast<lrational_type>() * directions_pool[i]).unaryExpr(_to_single_rat), i
+					(adjA.cast<lrational_type>() * directions_pool[i].cast<lrational_type>()).unaryExpr(_to_single_rat), i
 					});
 			}
 
@@ -137,7 +137,7 @@ namespace ILPCuts {
 
 			pivot = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).eval();
 
-			for (typename is_vec::InnerIterator it(pivot); it; ++it) {
+			for (typename lis_vec::InnerIterator it(pivot); it; ++it) {
 				if (it.value() > 0)
 					pf(sparce_transform{
 						static_cast<size_t>(it.index()), std::move(pivot), 2

@@ -115,6 +115,13 @@ namespace ILPCuts {
 			}
 		};
 
+		template<>
+		struct ToSingle<mpq_class, double> {
+			double operator()(const mpq_class& input) const {
+				return input.get_d();
+			}
+		};
+
 		template<typename intT, typename ratT>
 		intT rat_to_int(const ratT& rat_x, const ratT& err_tolerance) {
 			intT int_x = static_cast<intT>(round(rat_x));
