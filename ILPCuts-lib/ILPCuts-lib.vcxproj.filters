@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="conic_cuts_arageli.h">
-      <Filter>Исходные файлы</Filter>
-    </ClInclude>
     <ClInclude Include="conic_cuts_Eigen_dence.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
