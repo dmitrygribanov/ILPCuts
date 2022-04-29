@@ -9,7 +9,7 @@ ILOSTLBEGIN
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
 #include "conic_cuts_Eigen_optimized.h"
-#include "../headers/argparse/argparse.hpp"
+#include "dependencies/argparse/argparse.hpp"
 using namespace ILPCuts;
 
 using int_type = mpz_class;
