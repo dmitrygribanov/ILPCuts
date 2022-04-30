@@ -100,7 +100,7 @@ namespace ILPCuts {
 			assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
 #endif
 			int_type x = 0, y = 0;
-			int_type gcd_a_mod = Internal::euclid_bezout(a, mod, x, y);
+			int_type gcd_a_mod = Utility::euclid_bezout(a, mod, x, y);
 
 			if (x < 0) x += mod;
 

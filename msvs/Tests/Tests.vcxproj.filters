@@ -15,12 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Tests.cpp">
+    <ClCompile Include="..\..\Tests.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ILPCuts-lib\conic_cuts_Eigen_dence.h">
+    <ClInclude Include="..\..\conic_cuts_Eigen_dence.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
   </ItemGroup>

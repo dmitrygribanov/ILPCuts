@@ -3,9 +3,8 @@
 
 #include <iostream>
 
-#include "conic_cuts_Eigen.h"
+#include "conic_cuts_Eigen_dence.h"
 
-//#include "conic_cuts_arageli.h"
 using std::cout;
 using std::endl;
 
