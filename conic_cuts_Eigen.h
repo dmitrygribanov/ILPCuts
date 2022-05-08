@@ -107,14 +107,17 @@ namespace ILPCuts
 			for (typename lis_vec::InnerIterator it(t); it; ++it)
 			{
 				if (it.value() > 0 && it.index() != i)
-					triplets.push_back(Tripl(it.index(), i, -it.value()));
+					triplets.emplace_back(Tripl(
+						it.index(),
+						i,
+						lint_type(-it.value())));
 			}
 
 			MM.setFromTriplets(triplets.begin(), triplets.end());
 
 			try
 			{
-				new_cone->adjA = ((MM * C->adjA).template cast<lrational_type>() / denum).unaryExpr(*_lrat_to_lint);
+				new_cone->adjA = ((MM * C->adjA).template cast<lrational_type>() / lrational_type(denum)).unaryExpr(*_lrat_to_lint);
 				Utility::prune_zeroes_int(new_cone->adjA);
 			}
 			catch (ToleranceErrorException exc)
@@ -139,7 +142,7 @@ namespace ILPCuts
 			{
 				pivot = adjA.col(i);
 				lint_type adj_col_2pow = Utility::vec_max2pow(pivot);
-				if ((static_cast<lint_type>(det) / adj_col_2pow) % 2 == 0)
+				if ((static_cast<lint_type>(det) / adj_col_2pow) % lint_type(2) == 0)
 				{
 					pivot /= adj_col_2pow;
 					break;
@@ -152,7 +155,7 @@ namespace ILPCuts
 			{
 				if (it.value() > 0)
 					pf(sparce_transform{
-						static_cast<size_t>(it.index()), std::move(pivot), 2});
+						static_cast<size_t>(it.index()), std::move(pivot), lint_type(2)});
 			}
 		}
 
@@ -186,7 +189,7 @@ namespace ILPCuts
 			{
 				if (it.value() > 0)
 				{
-					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), det - gcd(det, it.value()), det);
+					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), lint_type(det - gcd(det, it.value())), det);
 					lis_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
 
 					pf(sparce_transform{
@@ -200,14 +203,14 @@ namespace ILPCuts
 
 			const cone_traits_spec &C = static_cast<const cone_traits_spec &>(base_C);
 
-			if (C.det % 2 == 0)
+			if (C.det % lint_type(2ul) == 0ul)
 			{
-				out() << "even step..." << endl;
+				out() << "even step..." << std::endl;
 				process_even_case(C, pf);
 			}
 			else
 			{
-				out() << "odd step..." << endl;
+				out() << "odd step..." << std::endl;
 				process_odd_case(C, pf);
 			}
 		}
@@ -238,7 +241,7 @@ namespace ILPCuts
 	ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
 	{
 
-		lrational_type det = 0;
+		lrational_type det(0);
 		lrs_mat adjA;
 
 		try

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpir/mpirxx.h>
+#include <gmpxx.h>
 
 #include <eigen3/Eigen/Core>
 
@@ -47,8 +47,8 @@ namespace Eigen
             IsComplex = 0,
             RequireInitialization = 1,
             ReadCost = 6,
-            AddCost = 75,
-            MulCost = 50
+            AddCost = 50,
+            MulCost = 75
         };
     };
 
@@ -70,8 +70,8 @@ namespace Eigen
             IsComplex = 0,
             RequireInitialization = 1,
             ReadCost = 6,
-            AddCost = 75,
-            MulCost = 50
+            AddCost = 50,
+            MulCost = 75
         };
     };
 }

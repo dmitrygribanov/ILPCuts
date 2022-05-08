@@ -50,7 +50,7 @@ namespace ILPCuts
 				{
 					direction += A.template cast<rational_type>().col(i);
 				}
-				direction /= n;
+				direction /= rational_type(n);
 
 				std::vector<rs_vec> res(1);
 				res[0] = std::move(direction);
@@ -175,7 +175,7 @@ namespace ILPCuts
 			{
 				new_cone->A = C->A;
 
-				new_cone->A.col(i) = ((C->A.template cast<lint_type>() * t).template cast<lrational_type>() / denum)
+				new_cone->A.col(i) = ((C->A.template cast<lint_type>() * t).template cast<lrational_type>() / lrational_type(denum))
 										 .unaryExpr(*_lrat_to_lint)
 										 .unaryExpr(_to_single_int);
 
@@ -190,7 +190,7 @@ namespace ILPCuts
 			const auto &ti = t.coeff(i);
 			try
 			{
-				new_cone->det = (*_lrat_to_lint)(static_cast<lrational_type>(C->det * ti) / denum);
+				new_cone->det = (*_lrat_to_lint)(lrational_type(static_cast<lrational_type>(C->det * ti) / denum));
 			}
 			catch (ToleranceErrorException exc)
 			{
@@ -324,7 +324,7 @@ namespace ILPCuts
 	std::vector<typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::is_mat>
 	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::partial_uni_decomp(std::unique_ptr<const cone_traits> C)
 	{
-		omp_set_dynamic(max(threads, size_t(1)));
+		omp_set_dynamic(std::max(threads, size_t(1)));
 		std::vector<std::unique_ptr<const cone_traits>> current_layer;
 		std::vector<std::vector<is_mat>> result(threads, std::vector<is_mat>());
 
@@ -396,7 +396,7 @@ namespace ILPCuts
 
 		out() << "Current determinant: " << det << std::endl;
 		out() << "Nonzeros: " << A.nonZeros() << std::endl;
-		out() << "A's inifinity norm: " << Utility::max_norm(A) << endl;
+		out() << "A's inifinity norm: " << Utility::max_norm(A) << std::endl;
 
 		auto process_new_candidate = [&](const sparce_transform &trans)
 		{
@@ -462,7 +462,7 @@ namespace ILPCuts
 					cout << ++jjjj << ", " << rat_b.coeff(diff_it.index()) - floor_b.coeff(diff_it.index()) << endl;
 					cin.ignore();
 				}*/
-				if (diff_it.value() > tolerance)
+				if (diff_it.value() > rational_type(tolerance))
 				{
 					is_vec cut = uni_mat.row(diff_it.index());
 					// cut.reserve(1);

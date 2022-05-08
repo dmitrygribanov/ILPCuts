@@ -12,15 +12,18 @@ set(ILOCPLEX_INCLUDE_PATH ${ILOCPLEX_PATH}/cplex/include ${ILOCPLEX_PATH}/concer
 set(ILOCPLEX_INCLUDE_LIB_PATH ${ILOCPLEX_PATH}/cplex/lib/x86-64_linux/static_pic ${ILOCPLEX_PATH}/concert/lib/x86-64_linux/static_pic)
 
 add_executable(CPlexConsole CPlex-console.cpp)
+add_executable(CPlexDummy dummy_main.cpp)
 
 target_include_directories(CPlexConsole PUBLIC "${ILOCPLEX_INCLUDE_PATH}")
 
 target_link_directories(CPlexConsole PUBLIC "${ILOCPLEX_INCLUDE_LIB_PATH}")
 
-target_link_libraries(CPlexConsole PUBLIC -lmpir -lmpirxx -lm -lpthread -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
+target_link_libraries(CPlexConsole PUBLIC -lgmp -lgmpxx -lm -lpthread -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
+target_link_libraries(CPlexDummy PUBLIC -lflint -lmpfr -lgmp -lgmpxx -lpthread ${CMAKE_DL_LIBS})
 
 find_package(OpenMP)
 
 if(OpenMP_CXX_FOUND)
     target_link_libraries(CPlexConsole PUBLIC OpenMP::OpenMP_CXX)
+    target_link_libraries(CPlexDummy PUBLIC OpenMP::OpenMP_CXX)
 endif()

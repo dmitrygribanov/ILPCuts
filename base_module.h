@@ -1,10 +1,7 @@
 #pragma once
 
 #include <eigen3/Eigen/SparseCore>
-#include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/SparseLU>
-
-#include <mpir/mpirxx.h>
 
 #include <vector>
 #include <numeric>
@@ -13,8 +10,9 @@
 #include <random>
 #include <chrono>
 #include <atomic>
+#include <memory>
 
-#include "mpir_eigen_supp.h"
+#include "gmp_eigen_supp.h"
 
 namespace ILPCuts
 {
@@ -162,13 +160,13 @@ namespace ILPCuts
 				msg << "rat_to_int tolerance error (" << abs(rat_x - int_x) << ")";
 				throw ToleranceErrorException(msg.str());
 			}
-			return 0;
+			return intT(0);
 		}
 
 		template <typename intT>
 		intT mod2_unaryop(const intT &x)
 		{
-			return abs(x % 2);
+			return abs(x % intT(2));
 		}
 
 		template <typename intT>
@@ -183,7 +181,7 @@ namespace ILPCuts
 
 			intT operator()(const intT &x) const
 			{
-				intT res = x % _mod;
+				intT res(x % _mod);
 				if (res < 0)
 					res += _mod;
 				return res;
@@ -393,6 +391,18 @@ namespace ILPCuts
 		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT &rgen);
 
 		template <typename intT>
+		class KeepIntFunc
+		{
+		private:
+			const intT zero;
+
+		public:
+			KeepIntFunc() : zero(intT(0)) {}
+
+			bool operator()(const intT &x) const { return x != zero; }
+		};
+
+		template <typename intT>
 		void prune_zeroes_int(SparseMatrix<intT> &A)
 		{
 			A.prune(0, 1 / 2);
@@ -410,7 +420,7 @@ namespace ILPCuts
 			using value_type = valT;
 			using mat_type = SparseMatrix<valT>;
 
-			valT res = 0;
+			valT res(0);
 
 			for (size_t k = 0; k < A.outerSize(); ++k)
 				for (typename mat_type::InnerIterator it(A, k); it; ++it)
@@ -485,7 +495,8 @@ namespace ILPCuts
 
 			if (xi == 0)
 			{
-				res = x * ti / trans.denum;
+				rs_vec xx = x * ti;
+				res = xx / trans.denum;
 			}
 			else
 			{
@@ -501,14 +512,14 @@ namespace ILPCuts
 					}
 					else if (x_it.index() < t_it.index())
 					{
-						rational_type y = x_it.value() * ti / trans.denum;
+						rational_type y(x_it.value() * ti / trans.denum);
 						res.insert(x_it.index()) = std::move(y);
 						++x_it;
 					}
 					else
 					{
-						rational_type y = (x_it.value() * ti - static_cast<rational_type>(t_it.value()) * xi) / trans.denum;
-						if (y < -tolerance)
+						rational_type y((x_it.value() * ti - static_cast<rational_type>(t_it.value()) * xi) / trans.denum);
+						if (y < rational_type(-tolerance))
 							negative_solution_found = true;
 						else
 							res.insert(t_it.index()) = std::move(y);
@@ -531,7 +542,7 @@ namespace ILPCuts
 					{
 						while (x_it)
 						{
-							rational_type y = x_it.value() * ti / trans.denum;
+							rational_type y(x_it.value() * ti / trans.denum);
 							res.insert(x_it.index()) = std::move(y);
 							++x_it;
 						}
