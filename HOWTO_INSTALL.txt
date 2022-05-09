@@ -1,0 +1,8 @@
+1. Install packages: sudo apt-get install g++ build-essential cmake git libgmp-dev libeigen3-dev
+
+2. Install CPlex: see here: https://www.ibm.com/support/pages/installation-ibm-ilog-cplex-optimization-studio-linux-platforms
+The installation path must be "/opt/ibm/ILOG/CPLEX_Studio201" by default. To get the package contact with dimitry_42.
+
+3. Install the Visual Code: see here https://code.visualstudio.com/docs/setup/linux
+
+4. (optional) Intsal the C++, cmake and git plugins for Visual Code. For example: Better C++ Syntax, C/C++, C/C++ Extension Pack, C/C++ Themes, CMake, CMake Tools, GitLens and etc.
