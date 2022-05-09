@@ -1,0 +1,21 @@
+1. Install packages: sudo apt-get install g++ build-essential cmake git libgmp-dev libeigen3-dev
+
+2. Install the mpir package from the source code from here: https://github.com/wbhart/mpir.git
+Install guides:
+https://mpir.org/mpir-3.0.0.pdf
+(IMPORTANT!!!) https://groups.google.com/g/mpir-devel?hl=en
+
+Probably, the following sequence will work:
+sudo apt-get install libtool
+./autogen.sh
+./configure --enable-cxx
+make 
+make check
+make install
+
+2. Install CPlex: see here: https://www.ibm.com/support/pages/installation-ibm-ilog-cplex-optimization-studio-linux-platforms
+The installation path must be "/opt/ibm/ILOG/CPLEX_Studio201" by default. To get the package contact with dimitry_42.
+
+3. Install the Visual Code: see here https://code.visualstudio.com/docs/setup/linux
+
+4. (optional) Intsal the C++, cmake and git plugins for Visual Code. For example: Better C++ Syntax, C/C++, C/C++ Extension Pack, C/C++ Themes, CMake, CMake Tools, GitLens and etc.
