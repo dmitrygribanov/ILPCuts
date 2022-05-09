@@ -6,3 +6,5 @@ The installation path must be "/opt/ibm/ILOG/CPLEX_Studio201" by default. To get
 3. Install the Visual Code: see here https://code.visualstudio.com/docs/setup/linux
 
 4. (optional) Intsal the C++, cmake and git plugins for Visual Code. For example: Better C++ Syntax, C/C++, C/C++ Extension Pack, C/C++ Themes, CMake, CMake Tools, GitLens and etc.
+
+5. To run CPlexConsole enter the following comman in build directory: ./CPlexConsole -i ../problems/cplex/sorrell3.mps.gz -wcgn 1 -wcpl 15
