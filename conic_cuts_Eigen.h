@@ -32,8 +32,9 @@ namespace ILPCuts
 
 		using typename base::cone_traits;
 		using typename base::dir_coeffs;
+		using typename base::lsparce_transform;
 		using typename base::process_func;
-		using typename base::sparce_transform;
+		using typename base::transform_base;
 
 		using base::_lrat_to_lint;
 		using base::_rat_to_int;
@@ -78,7 +79,7 @@ namespace ILPCuts
 
 		// we can run this method only if dir_coeffs_pull is not empty
 		std::unique_ptr<cone_traits> compute_cone_traits(const cone_traits *base_C,
-														 const sparce_transform &trans,
+														 const transform_base &trans,
 														 std::vector<dir_coeffs> dir_coeffs_pull) override
 		{
 
@@ -87,37 +88,9 @@ namespace ILPCuts
 			auto new_cone = std::make_unique<cone_traits_spec>();
 			new_cone->move_from_base_ptr(base::compute_cone_traits(base_C, trans, dir_coeffs_pull));
 
-			size_t n = C->A.cols();
-			const auto &t = trans.t;
-			size_t i = trans.i;
-			const auto &denum = trans.denum;
-			const auto &ti = t.coeff(i);
-
-			lis_mat MM(n, n);
-			using Tripl = Triplet<lint_type>;
-			std::vector<Tripl> triplets;
-			for (size_t j = 0; j < n; ++j)
-			{
-				if (j != i)
-					triplets.push_back(Tripl(j, j, ti));
-				else
-					triplets.push_back(Tripl(j, j, denum));
-			}
-
-			for (typename lis_vec::InnerIterator it(t); it; ++it)
-			{
-				if (it.value() > 0 && it.index() != i)
-					triplets.emplace_back(Tripl(
-						it.index(),
-						i,
-						lint_type(-it.value())));
-			}
-
-			MM.setFromTriplets(triplets.begin(), triplets.end());
-
 			try
 			{
-				new_cone->adjA = ((MM * C->adjA).template cast<lrational_type>() / lrational_type(denum)).unaryExpr(*_lrat_to_lint);
+				new_cone->adjA = trans.compute_adj(C->adjA);
 				Utility::prune_zeroes_int(new_cone->adjA);
 			}
 			catch (ToleranceErrorException exc)
@@ -154,8 +127,7 @@ namespace ILPCuts
 			for (typename lis_vec::InnerIterator it(pivot); it; ++it)
 			{
 				if (it.value() > 0)
-					pf(sparce_transform{
-						static_cast<size_t>(it.index()), std::move(pivot), lint_type(2)});
+					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(pivot), lint_type(2)));
 			}
 		}
 
@@ -192,8 +164,7 @@ namespace ILPCuts
 					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), lint_type(det - gcd(det, it.value())), det);
 					lis_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
 
-					pf(sparce_transform{
-						static_cast<size_t>(it.index()), std::move(t), std::move(det)});
+					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(t), std::move(det)));
 				}
 			}
 		}

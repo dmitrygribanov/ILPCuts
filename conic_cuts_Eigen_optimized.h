@@ -31,8 +31,9 @@ namespace ILPCuts
 
 		using typename base::cone_traits;
 		using typename base::dir_coeffs;
+		using typename base::lsparce_transform;
 		using typename base::process_func;
-		using typename base::sparce_transform;
+		using typename base::transform_base;
 
 		using base::_lrat_to_lint;
 		using base::_rat_to_int;
@@ -71,7 +72,7 @@ namespace ILPCuts
 		};
 
 		std::unique_ptr<cone_traits> compute_cone_traits(const cone_traits *base_C,
-														 const sparce_transform &trans,
+														 const transform_base &trans,
 														 std::vector<dir_coeffs> dir_coeffs_pull) override
 		{
 
@@ -243,8 +244,7 @@ namespace ILPCuts
 			lis_vec x = even_system_solve(C).template cast<lint_type>();
 			for (typename lis_vec::InnerIterator it(x); it; ++it)
 				if (it.value() > 0)
-					pf(sparce_transform{
-						static_cast<size_t>(it.index()), std::move(x), 2});
+					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(x), 2));
 		}
 
 		void process_odd_case(const cone_traits_spec &C, process_func pf)
@@ -256,8 +256,7 @@ namespace ILPCuts
 					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), C.det - gcd(C.det, it.value()), C.det);
 					lis_vec t = (x * lambda).unaryExpr(Utility::mod_unaryop(C.det));
 
-					pf(sparce_transform{
-						static_cast<size_t>(it.index()), std::move(t), C.det});
+					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(t), C.det));
 				}
 		}
 

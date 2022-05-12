@@ -557,6 +557,42 @@ namespace ILPCuts
 
 			return std::move(res);
 		}
+
+		template <typename int_type>
+		SparseMatrix<int_type> compute_adj_Q(size_t n, const sparce_transform<int_type> &trans)
+		{
+			using is_mat = SparseMatrix<int_type>;
+			using is_vec = SparseVector<int_type>;
+
+			const auto &t = trans.t;
+			size_t i = trans.i;
+			const auto &denum = trans.denum;
+			const auto &ti = t.coeff(i);
+
+			is_mat MM(n, n);
+			using Tripl = Triplet<int_type>;
+			std::vector<Tripl> triplets;
+			for (size_t j = 0; j < n; ++j)
+			{
+				if (j != i)
+					triplets.push_back(Tripl(j, j, ti));
+				else
+					triplets.push_back(Tripl(j, j, denum));
+			}
+
+			for (typename is_vec::InnerIterator it(t); it; ++it)
+			{
+				if (it.value() > 0 && it.index() != i)
+					triplets.emplace_back(Tripl(
+						it.index(),
+						i,
+						int_type(-it.value())));
+			}
+
+			MM.setFromTriplets(triplets.begin(), triplets.end());
+
+			return std::move(MM);
+		}
 	};
 
 	template <typename rationalT, typename solverT>

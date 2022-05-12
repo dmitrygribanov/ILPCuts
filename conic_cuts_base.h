@@ -122,6 +122,8 @@ namespace ILPCuts
 		using Strategies = CutsGenStrategies<int_type, rational_type>;
 
 	private:
+		using me = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
+
 		std::ostream *_out;
 		std::ostream *_err;
 
@@ -155,17 +157,72 @@ namespace ILPCuts
 			}
 		};
 
-		using sparce_transform = Utility::sparce_transform<lint_type>;
+		struct transform_base
+		{
+			me *owner;
+
+			transform_base(me *aowner)
+				: owner(aowner) {}
+
+			virtual is_vec operator()(const is_mat &A) const = 0;
+			virtual lint_type operator[](const int_type &det) const = 0;
+			virtual rs_vec compute_coeffs(const rs_vec &old_coefs) const = 0;
+			virtual size_t get_i() const = 0;
+			virtual lis_mat compute_adj(lis_mat old_adjA) const = 0;
+		};
+
+		struct lsparce_transform : public transform_base
+		{
+			Utility::sparce_transform<lint_type> data;
+
+			lsparce_transform(me *aowner, size_t ai,
+							  const lis_vec &at, const lint_type &adenum)
+				: transform_base(aowner), data{ai, at, adenum}
+			{
+			}
+
+			is_vec operator()(const is_mat &A) const override
+			{
+				lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / lrational_type(data.denum);
+
+				return res.unaryExpr(*(transform_base::owner->_lrat_to_lint)).unaryExpr(transform_base::owner->_to_single_int);
+			}
+
+			lint_type operator[](const int_type &det) const override
+			{
+				const lrational_type &ti = data.t.coeff(data.i);
+				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
+				return (*transform_base::owner->_lrat_to_lint)(res);
+			}
+
+			rs_vec compute_coeffs(const rs_vec &old_coefs) const override
+			{
+				return Utility::compute_transformed_coeffs(old_coefs.template cast<lrational_type>().eval(),
+														   data,
+														   transform_base::owner->tolerance)
+					.unaryExpr(transform_base::owner->_to_single_rat);
+			}
+
+			size_t get_i() const override { return data.i; }
+
+			lis_mat compute_adj(lis_mat old_adjA) const override
+			{
+				size_t n = old_adjA.cols();
+				lis_mat Q = compute_adj_Q(n, data);
+				old_adjA = ((Q * old_adjA).template cast<lrational_type>() / data.denum)
+							   .unaryExpr(*transform_base::owner->_lrat_to_lint);
+
+				return std::move(old_adjA);
+			}
+		};
 
 		virtual std::unique_ptr<cone_traits> compute_cone_traits(const cone_traits *C,
-																 const sparce_transform &trans,
+																 const transform_base &trans,
 																 std::vector<dir_coeffs> dir_coeffs_pull)
 		{
 
 			size_t n = C->A.cols();
-			const auto &t = trans.t;
-			size_t i = trans.i;
-			const auto &denum = trans.denum;
+			size_t i = trans.get_i();
 
 			auto new_cone = std::make_unique<cone_traits>();
 
@@ -175,9 +232,7 @@ namespace ILPCuts
 			{
 				new_cone->A = C->A;
 
-				new_cone->A.col(i) = ((C->A.template cast<lint_type>() * t).template cast<lrational_type>() / lrational_type(denum))
-										 .unaryExpr(*_lrat_to_lint)
-										 .unaryExpr(_to_single_int);
+				new_cone->A.col(i) = trans(C->A);
 
 				Utility::prune_zeroes_int(new_cone->A);
 			}
@@ -187,10 +242,9 @@ namespace ILPCuts
 				err() << "A-column construction tolerance error: " << exc.what() << '\n';
 			}
 
-			const auto &ti = t.coeff(i);
 			try
 			{
-				new_cone->det = (*_lrat_to_lint)(lrational_type(static_cast<lrational_type>(C->det * ti) / denum));
+				new_cone->det = trans[C->det];
 			}
 			catch (ToleranceErrorException exc)
 			{
@@ -207,7 +261,7 @@ namespace ILPCuts
 																std::vector<Atomic<size_t>> &directions_evaluation_counter);
 
 		std::vector<dir_coeffs> compute_dirr_coeffs_pull(const cone_traits &C,
-														 const sparce_transform &trans,
+														 const transform_base &trans,
 														 const std::vector<Atomic<size_t>> &directions_counter)
 		{
 
@@ -223,11 +277,7 @@ namespace ILPCuts
 
 					const rs_vec &coeffs = C.dir_coeffs_pull[i].coeffs;
 
-					rs_vec new_coeffs = std::move(Utility::compute_transformed_coeffs(
-													  coeffs.template cast<lrational_type>().eval(),
-													  trans,
-													  tolerance))
-											.unaryExpr(_to_single_rat);
+					rs_vec new_coeffs = trans.compute_coeffs(coeffs);
 
 					if (new_coeffs.size() == n)
 					{
@@ -240,7 +290,7 @@ namespace ILPCuts
 			return std::move(res);
 		}
 
-		using process_func = std::function<void(const sparce_transform &)>;
+		using process_func = std::function<void(const transform_base &)>;
 
 		virtual void process_node(const cone_traits &C, process_func pf) = 0;
 
@@ -398,7 +448,7 @@ namespace ILPCuts
 		out() << "Nonzeros: " << A.nonZeros() << std::endl;
 		out() << "A's inifinity norm: " << Utility::max_norm(A) << std::endl;
 
-		auto process_new_candidate = [&](const sparce_transform &trans)
+		auto process_new_candidate = [&](const transform_base &trans)
 		{
 			auto dirr_coeffs_pull = std::move(compute_dirr_coeffs_pull(
 				*C, trans, directions_evaluation_counter));
