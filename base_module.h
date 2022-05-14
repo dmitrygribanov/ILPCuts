@@ -11,6 +11,7 @@
 #include <chrono>
 #include <atomic>
 #include <memory>
+#include <fstream>
 
 #include "gmp_eigen_supp.h"
 
@@ -593,6 +594,43 @@ namespace ILPCuts
 
 			return std::move(MM);
 		}
+
+		// class PrimesDownloader
+		// {
+		// private:
+		// 	std::ifstream file;
+
+		// public:
+		// 	static std::string get_default_primes_base_path()
+		// 	{
+		// 		return "../primes_table/primes_mill.txt";
+		// 	}
+
+		// 	PrimesDownloader(std::string path = get_default_primes_base_path())
+		// 		: file(path) {}
+
+		// };
+
+		namespace primes
+		{
+			const std::string default_path = "../primes_table/primes_mill.txt";
+			using ptype = uint64_t;
+			std::vector<ptype> download(size_t max_num, std::string path = default_path)
+			{
+				std::ifstream file(path);
+				std::vector<ptype> res;
+
+				size_t i = 0;
+				while (file && (i++ < max_num))
+				{
+					res.push_back(0);
+					file >> res.back();
+				}
+
+				return std::move(res);
+			}
+		}
+
 	};
 
 	template <typename rationalT, typename solverT>

@@ -2,26 +2,35 @@
 #include <iostream>
 
 #include <eigen3/Eigen/SparseCore>
-#include <flint/nmod_vecxx.h>
 #include <NTL/ZZ_p.h>
 #include <NTL/lzz_p.h>
 
-// #include "conic_cuts_Eigen.h"
+#include "base_module.h"
 
-using namespace flint;
+using namespace ILPCuts;
+using namespace std;
+
+// #include "conic_cuts_Eigen.h"
 
 int main(int argc, char **argv)
 {
-    Eigen::SparseMatrix<NTL::zz_p> m(2, 2);
-    using Tripl = Eigen::Triplet<NTL::zz_p>;
-    Tripl item(0, 0, NTL::zz_p(5l));
-    std::vector<Tripl> triplets;
-    triplets.emplace_back(Tripl(0, 0, NTL::zz_p(5l)));
-    triplets.back().value().init(7l);
-    triplets.push_back(Tripl(0, 0, NTL::zz_p(2l)));
-    triplets.back().value().init(7l);
+    // Eigen::SparseMatrix<NTL::zz_p> m(2, 2);
+    // using Tripl = Eigen::Triplet<NTL::zz_p>;
+    // Tripl item(0, 0, NTL::zz_p(5l));
+    // std::vector<Tripl> triplets;
+    // triplets.emplace_back(Tripl(0, 0, NTL::zz_p(5l)));
+    // triplets.back().value().init(7l);
+    // triplets.push_back(Tripl(0, 0, NTL::zz_p(2l)));
+    // triplets.back().value().init(7l);
 
-    m.setFromTriplets(triplets.begin(), triplets.end());
+    // m.setFromTriplets(triplets.begin(), triplets.end());
+
+    std::vector<Utility::primes::ptype> res = Utility::primes::download(10);
+    for (auto p : res)
+    {
+        cout << p << " ";
+    }
+    cout << endl;
 
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);
