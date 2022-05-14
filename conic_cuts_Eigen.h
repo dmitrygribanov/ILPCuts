@@ -34,6 +34,7 @@ namespace ILPCuts
 		using typename base::dir_coeffs;
 		using typename base::lsparce_transform;
 		using typename base::process_func;
+		using typename base::sparce_transform;
 		using typename base::transform_base;
 
 		using base::_lrat_to_lint;
@@ -122,12 +123,12 @@ namespace ILPCuts
 				}
 			}
 
-			pivot = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).eval();
+			is_vec res = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(_to_single_int);
 
-			for (typename lis_vec::InnerIterator it(pivot); it; ++it)
+			for (typename is_vec::InnerIterator it(res); it; ++it)
 			{
 				if (it.value() > 0)
-					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(pivot), lint_type(2)));
+					pf(sparce_transform(this, static_cast<size_t>(it.index()), std::move(res), int_type(2)));
 			}
 		}
 

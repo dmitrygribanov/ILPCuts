@@ -165,10 +165,54 @@ namespace ILPCuts
 				: owner(aowner) {}
 
 			virtual is_vec operator()(const is_mat &A) const = 0;
-			virtual lint_type operator[](const int_type &det) const = 0;
+			virtual lint_type operator[](const lint_type &det) const = 0;
 			virtual rs_vec compute_coeffs(const rs_vec &old_coefs) const = 0;
 			virtual size_t get_i() const = 0;
 			virtual lis_mat compute_adj(lis_mat old_adjA) const = 0;
+		};
+
+		struct sparce_transform : public transform_base
+		{
+			Utility::sparce_transform<int_type> data;
+
+			sparce_transform(me *aowner, size_t ai,
+							 const is_vec &at, const int_type &adenum)
+				: transform_base(aowner), data{ai, at, adenum}
+			{
+			}
+
+			is_vec operator()(const is_mat &A) const override
+			{
+				rs_vec res = (A * data.t).template cast<rational_type>() / data.denum;
+
+				return res.unaryExpr(*(transform_base::owner->_rat_to_int));
+			}
+
+			lint_type operator[](const lint_type &det) const override
+			{
+				const int_type &ti = data.t.coeff(data.i);
+				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
+				return (*transform_base::owner->_lrat_to_lint)(res);
+			}
+
+			rs_vec compute_coeffs(const rs_vec &old_coefs) const override
+			{
+				return Utility::compute_transformed_coeffs(old_coefs,
+														   data,
+														   transform_base::owner->tolerance);
+			}
+
+			size_t get_i() const override { return data.i; }
+
+			lis_mat compute_adj(lis_mat old_adjA) const override
+			{
+				size_t n = old_adjA.cols();
+				is_mat Q = compute_adj_Q(n, data);
+				old_adjA = ((Q.template cast<lint_type>() * old_adjA).template cast<lrational_type>() / data.denum)
+							   .unaryExpr(*transform_base::owner->_lrat_to_lint);
+
+				return std::move(old_adjA);
+			}
 		};
 
 		struct lsparce_transform : public transform_base
@@ -183,14 +227,14 @@ namespace ILPCuts
 
 			is_vec operator()(const is_mat &A) const override
 			{
-				lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / lrational_type(data.denum);
+				lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / data.denum;
 
 				return res.unaryExpr(*(transform_base::owner->_lrat_to_lint)).unaryExpr(transform_base::owner->_to_single_int);
 			}
 
-			lint_type operator[](const int_type &det) const override
+			lint_type operator[](const lint_type &det) const override
 			{
-				const lrational_type &ti = data.t.coeff(data.i);
+				const lint_type &ti = data.t.coeff(data.i);
 				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
 				return (*transform_base::owner->_lrat_to_lint)(res);
 			}
