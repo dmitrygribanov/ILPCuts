@@ -12,9 +12,9 @@ ILOSTLBEGIN
 #include "dependencies/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-using int_type = mpz_class;
+using int_type = int64_t;
 using lint_type = mpz_class;
-using rational_type = mpf_class;
+using rational_type = double;
 using lrational_type = mpf_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;

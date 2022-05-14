@@ -560,7 +560,9 @@ namespace ILPCuts
 				{
 					is_vec cut = uni_mat.row(diff_it.index());
 					// cut.reserve(1);
-					cut.insert(cut.size()) = floor_b.coeff(diff_it.index());
+					size_t n = cut.size();
+					cut.conservativeResize(n + 1);
+					cut.insert(n) = floor_b.coeff(diff_it.index());
 					// cout << cut << endl;
 					// out() << "cut has been added: (" << cut.transpose() << ")\n";
 					res_cuts.push_back(std::move(cut));
