@@ -4,11 +4,16 @@
 #include <eigen3/Eigen/SparseCore>
 #include <NTL/ZZ_p.h>
 #include <NTL/lzz_p.h>
+#include <NTL/ZZ.h>
 
 #include "base_module.h"
 
 using namespace ILPCuts;
 using namespace std;
+
+#include <givaro/modular.h>
+#include <linbox/matrix/sparse-matrix.h>
+#include <linbox/solutions/det.h>
 
 // #include "conic_cuts_Eigen.h"
 
@@ -31,6 +36,15 @@ int main(int argc, char **argv)
         cout << p << " ";
     }
     cout << endl;
+
+    using Field = Givaro::Modular<int64_t>;
+    Field F(101);
+
+    LinBox::SparseMatrix<Field> A(F);
+    A.read(std::cin);
+    Field::Element d;
+    LinBox::Method::Blackbox M;
+    det(d, A, M);
 
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);
