@@ -6,7 +6,7 @@
 #include <NTL/lzz_p.h>
 #include <NTL/ZZ.h>
 
-#include "base_module.h"
+#include "linbox_module.h"
 
 using namespace ILPCuts;
 using namespace std;
@@ -14,6 +14,8 @@ using namespace std;
 #include <givaro/modular.h>
 #include <linbox/matrix/sparse-matrix.h>
 #include <linbox/solutions/det.h>
+#include <linbox/solutions/solve.h>
+//#include <gmp++/gmp++.h>
 
 // #include "conic_cuts_Eigen.h"
 
@@ -37,14 +39,36 @@ int main(int argc, char **argv)
     }
     cout << endl;
 
-    using Field = Givaro::Modular<int64_t>;
-    Field F(101);
+    // using Field1 = Givaro::Modular<Givaro::Integer>;
+    // Field1 F1(101);
 
-    LinBox::SparseMatrix<Field> A(F);
-    A.read(std::cin);
-    Field::Element d;
-    LinBox::Method::Blackbox M;
-    det(d, A, M);
+    // LinBox::SparseMatrix<Field1> A1(F1);
+    // A1.read(std::cin);
+    // Field1::Element d1;
+    // LinBox::Method::Blackbox M;
+    // det(d1, A1, M);
+
+    // using Field2 = Givaro::QField<Givaro::Rational>;
+    // Field2 F2;
+    // LinBox::SparseMatrix<Field2> A2(F2);
+    // Field2::Element d2;
+    // det(d2, A2, M);
+
+    Eigen::SparseMatrix<mpz_class> A(2, 2);
+    A.insert(0, 0) = 1;
+    A.insert(0, 1) = 0;
+    A.insert(1, 0) = 1;
+    A.insert(1, 1) = 7;
+
+    mpz_class dettt = Utility::LinBox::compute_det(A);
+    cout << dettt << endl;
+
+    Eigen::SparseVector<mpz_class> kernel_vec = Utility::LinBox::compute_some_kernel_vec(A, mpz_class(abs(dettt)));
+    for (size_t i = 0; i < kernel_vec.size(); ++i)
+    {
+        cout << kernel_vec.coeff(i) << " ";
+    }
+    cout << endl;
 
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);
