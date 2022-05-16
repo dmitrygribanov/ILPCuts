@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
     // m.setFromTriplets(triplets.begin(), triplets.end());
 
-    std::vector<Utility::primes::ptype> res = Utility::primes::download(10);
+    std::vector<int64_t> res = Utility::primes::download<int64_t>(10);
     for (auto p : res)
     {
         cout << p << " ";
@@ -54,21 +54,18 @@ int main(int argc, char **argv)
     // Field2::Element d2;
     // det(d2, A2, M);
 
-    Eigen::SparseMatrix<mpz_class> A(2, 2);
+    Eigen::SparseMatrix<int64_t> A(2, 2);
     A.insert(0, 0) = 1;
-    A.insert(0, 1) = 0;
-    A.insert(1, 0) = 1;
-    A.insert(1, 1) = 7;
+    A.insert(0, 1) = 2;
+    A.insert(1, 0) = 3;
+    A.insert(1, 1) = 11;
 
-    mpz_class dettt = Utility::LinBox::compute_det(A);
+    mpz_class dettt = Utility::LinBox::compute_det(A.cast<mpz_class>().eval());
     cout << dettt << endl;
 
-    Eigen::SparseVector<mpz_class> kernel_vec = Utility::LinBox::compute_some_kernel_vec(A, mpz_class(abs(dettt)));
-    for (size_t i = 0; i < kernel_vec.size(); ++i)
-    {
-        cout << kernel_vec.coeff(i) << " ";
-    }
-    cout << endl;
+    Eigen::SparseVector<int64_t> kernel_vec = Utility::LinBox::compute_some_kernel_vec(A, int64_t(abs(dettt.get_si())));
+
+    cout << kernel_vec << endl;
 
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);
