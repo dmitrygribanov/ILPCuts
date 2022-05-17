@@ -1,7 +1,7 @@
 #pragma once
 
 #include "conic_cuts_base.h"
-#include "linbox_module.h"
+#include "ntl_module.h"
 
 namespace ILPCuts
 {
@@ -67,11 +67,11 @@ namespace ILPCuts
 
         void process_odd_conservative_case_zp(const cone_traits &C, process_func pf, int_type p)
         {
-            is_vec x = Utility::LinBox::compute_some_kernel_vec(C.A, p);
+            is_vec x = Utility::NTL::kernel_vec_Zp(C.A, p);
 
-            is_vec y = C.A * x;
-            cout << y << endl;
-            cin.ignore();
+            // is_vec y = C.A * x;
+            // cout << y << endl;
+            // cin.ignore();
 
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {
@@ -82,7 +82,9 @@ namespace ILPCuts
 
         void process_even_case(const cone_traits &C, process_func pf)
         {
-            process_odd_conservative_case_zp(C, pf, 2);
+            is_vec x = Utility::NTL::kernel_vec_GF2(C.A);
+
+            process_odd_x<int_type, sparce_transform>(x, pf, 2);
         }
 
         template <typename int_typeT, typename sparse_transformT>
@@ -104,7 +106,7 @@ namespace ILPCuts
 
         void process_odd_case_zp(const cone_traits &C, process_func pf, int_type p)
         {
-            is_vec x = Utility::LinBox::compute_some_kernel_vec(C.A, p);
+            is_vec x = Utility::NTL::kernel_vec_Zp(C.A, p);
 
             process_odd_x<int_type, sparce_transform>(x, pf, p);
         }
@@ -121,7 +123,7 @@ namespace ILPCuts
                 lis_vec b = Utility::bernouly_vec_generate<int_type>(n, *base::rgen).template cast<lint_type>();
                 b *= det;
 
-                x = Utility::LinBox::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
+                x = Utility::NTL::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
 
                 x = x.unaryExpr(Utility::mod_unaryop(det));
                 Utility::prune_zeroes_int(x);
@@ -179,12 +181,14 @@ namespace ILPCuts
             {
                 auto start = std::chrono::steady_clock::now();
                 lint_type det = (*_lrat_to_lint)(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
-                // lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
+                // lint_type det = abs(Utility::NTL::det(A.template cast<lint_type>().eval()));
+                //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
                 auto end = std::chrono::steady_clock::now();
 
                 std::chrono::duration<double> elapsed_seconds = end - start;
 
                 out() << "ConicCuts: determinant computation time: " << elapsed_seconds.count() << "s\n";
+                cin.ignore();
 
                 return generate_cuts(A, optLP, det);
             }
