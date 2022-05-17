@@ -35,7 +35,11 @@
                 "-wcgn",
                 "1",
                 "-wcpl",
-                "15"
+                "15",
+                "--cgen",
+                "zp",
+                "--cprime",
+                "11"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",

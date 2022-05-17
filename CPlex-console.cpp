@@ -9,6 +9,7 @@ ILOSTLBEGIN
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
 #include "conic_cuts_Eigen_optimized.h"
+#include "conic_cuts_Eigen_zp.h"
 #include "dependencies/argparse/argparse.hpp"
 using namespace ILPCuts;
 
@@ -22,6 +23,7 @@ using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type,
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Adj = ConicCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_LU = ConicCutsGeneratorOpt<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
 // ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
 //     IloEnv env = getEnv();
@@ -117,7 +119,8 @@ void run_cplex_experiment(
 	bool baseline,
 	bool lazy_constraints_on,
 	size_t iterations_number,
-	std::string solver_type)
+	std::string solver_type,
+	size_t cprime)
 {
 	// TO DO: дописать сохраниение в формат csv
 	// create CPLEX envirement
@@ -191,6 +194,12 @@ void run_cplex_experiment(
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Adj>(&env.out(), &env.error());
 	else if (solver_type == "lu")
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(&env.out(), &env.error());
+	else if (solver_type == "zp")
+	{
+		std::unique_ptr<CutsGen_Zp> gen_ptr = std::make_unique<CutsGen_Zp>(&env.out(), &env.error());
+		gen_ptr->max_conservative_prime = cprime;
+		cuts_gen_adapter.generator_ptr.reset(gen_ptr.release());
+	}
 	else
 	{
 		env.error() << "Wrong value of the CLI parameter -cg(--cgen): " << solver_type << std::endl;
@@ -323,6 +332,11 @@ int main(int argc, char **argv)
 		.help("ILPCuts algorithm tolerance")
 		.scan<'g', double>();
 
+	program.add_argument("--cprime")
+		.default_value(size_t(11))
+		.help("max conservative prime for ILPCuts with Zp")
+		.scan<'i', size_t>();
+
 	program.add_argument("-e", "--err_tolerance")
 		.default_value(0.0001)
 		.help("ILPCuts algorithm error tolerance")
@@ -398,7 +412,8 @@ int main(int argc, char **argv)
 			program.get<bool>("--baseline"),
 			program.get<bool>("--lazy"),
 			program.get<size_t>("--iterations"),
-			program.get<std::string>("--cgen"));
+			program.get<std::string>("--cgen"),
+			program.get<size_t>("--cprime"));
 	}
 	catch (const std::exception &err)
 	{

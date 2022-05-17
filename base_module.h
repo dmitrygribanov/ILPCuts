@@ -382,6 +382,28 @@ namespace ILPCuts
 			return x;
 		}
 
+		template <>
+		int64_t mod_equation_solve(const int64_t &a, const int64_t &b, const int64_t &mod)
+		{
+#ifdef _DEBUG
+			assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
+#endif
+
+			int64_t x = 0, y = 0;
+			int64_t gcd_a_mod = euclid_bezout(a, mod, x, y);
+
+			if (x < 0)
+				x += mod;
+
+#ifdef _DEBUG
+			assert(x > 0);
+			assert(b % gcd_a_mod == 0, "No solutions in _mod_equation_solve.");
+#endif
+			x *= (b / gcd_a_mod);
+
+			return x;
+		}
+
 		template <typename rationalT>
 		SparseVector<rationalT> system_solve(const SparseMatrix<rationalT> &A, const SparseVector<rationalT> &b);
 

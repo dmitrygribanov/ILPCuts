@@ -26,6 +26,7 @@ namespace ILPCuts
                     dv_LB x_LB(F, n);
                     typename Field::Element denum;
                     ::LinBox::Method::Blackbox method_LB;
+                    method_LB.preconditioner = ::LinBox::Preconditioner::Sparse;
                     ::LinBox::solve(x_LB, denum, A, b, method_LB);
 
                     return std::make_tuple(x_LB, denum);
@@ -55,9 +56,19 @@ namespace ILPCuts
                     bool has_non_zero_solution = false;
                     while (!has_non_zero_solution)
                     {
-                        ::LinBox::Method::Blackbox method_LB;
+                        ::LinBox::Method::SparseElimination method_LB;
+                        // method_LB.preconditioner = ::LinBox::Preconditioner::FullDiagonal;
+                        method_LB.singularity = ::LinBox::Singularity::Singular;
                         ::LinBox::solve(x_LB, A, zero_vec_LB, method_LB);
                         has_non_zero_solution = !Internal::is_zero<Field>(x_LB);
+
+                        // ::LinBox::DenseVector<Field> y_LB;
+                        // A.apply(y_LB, x_LB);
+                        // if (!Internal::is_zero<Field>(y_LB))
+                        // {
+                        //     cout << "LLLLL" << endl;
+                        //     cin.ignore();
+                        // }
                     }
 
                     return x_LB;

@@ -35,7 +35,11 @@ namespace ILPCuts
         using typename base::transform_base;
 
         using typename base::base;
-        using typename base::cone_traits;
+
+        using base::err;
+        using base::out;
+
+        using base::_lrat_to_lint;
 
         size_t max_conservative_prime = 11;
 
@@ -65,6 +69,10 @@ namespace ILPCuts
         {
             is_vec x = Utility::LinBox::compute_some_kernel_vec(C.A, p);
 
+            is_vec y = C.A * x;
+            cout << y << endl;
+            cin.ignore();
+
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {
                 if (it.value() > 0)
@@ -77,34 +85,43 @@ namespace ILPCuts
             process_odd_conservative_case_zp(C, pf, 2);
         }
 
-        void process_odd_case_zp(const cone_traits &C, process_func pf, int_type p)
+        template <typename int_typeT, typename sparse_transformT>
+        void process_odd_x(const SparseVector<int_typeT> &x, process_func pf, const int_typeT &denum)
         {
-            is_vec x = Utility::LinBox::compute_some_kernel_vec(C.A, p);
+            using vec_type = SparseVector<int_typeT>;
 
-            for (typename lis_vec::InnerIterator it(x); it; ++it)
+            for (typename vec_type::InnerIterator it(x); it; ++it)
             {
                 if (it.value() > 0)
                 {
-                    int_type lambda = Utility::mod_equation_solve<int_type>(it.value(), p - gcd(p, it.value()), p);
-                    is_vec t = (x * lambda).unaryExpr(Utility::mod_unaryop(p));
+                    int_typeT lambda = Utility::mod_equation_solve<int_typeT>(it.value(), denum - gcd(denum, it.value()), denum);
+                    vec_type t = (x * lambda).unaryExpr(Utility::mod_unaryop(denum));
 
-                    pf(sparce_transform(this, static_cast<size_t>(it.index()), std::move(t), p));
+                    pf(sparse_transformT(this, static_cast<size_t>(it.index()), std::move(t), denum));
                 }
             }
         }
 
+        void process_odd_case_zp(const cone_traits &C, process_func pf, int_type p)
+        {
+            is_vec x = Utility::LinBox::compute_some_kernel_vec(C.A, p);
+
+            process_odd_x<int_type, sparce_transform>(x, pf, p);
+        }
+
         void process_odd_case_basic(const cone_traits &C, process_func pf)
         {
-            cone lint_type &det = C.det;
+            const lint_type &det = C.det;
             size_t n = C.A.cols();
 
             bool has_non_zero_solution = false;
+            lis_vec x;
             while (!has_non_zero_solution)
             {
-                lrs_vec b = Utility::bernouly_vec_generate<int_type>(n, *rgen).template cast<lint_type>();
+                lis_vec b = Utility::bernouly_vec_generate<int_type>(n, *base::rgen).template cast<lint_type>();
                 b *= det;
 
-                lrs_vec x = Utility::LinBox::solve_ZZ(C.A.template cast<lint_type>(), b);
+                x = Utility::LinBox::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
 
                 x = x.unaryExpr(Utility::mod_unaryop(det));
                 Utility::prune_zeroes_int(x);
@@ -112,6 +129,8 @@ namespace ILPCuts
                 if (x.nonZeros() > 0)
                     has_non_zero_solution = true;
             }
+
+            process_odd_x<lint_type, lsparce_transform>(x, pf, det);
         }
 
         void process_node(const cone_traits &C, process_func pf) override
@@ -159,7 +178,8 @@ namespace ILPCuts
             try
             {
                 auto start = std::chrono::steady_clock::now();
-                lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>());
+                lint_type det = (*_lrat_to_lint)(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+                // lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
                 auto end = std::chrono::steady_clock::now();
 
                 std::chrono::duration<double> elapsed_seconds = end - start;
