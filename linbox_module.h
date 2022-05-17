@@ -17,18 +17,18 @@ namespace ILPCuts
             namespace Internal
             {
                 template <typename Field>
-                ::LinBox::DenseVector<Field> compute_some_kernel_vec(const Field &F, const ::LinBox::SparseMatrix<Field> &A)
+                std::tuple<::LinBox::DenseVector<Field>, Field> solve(const Field &F, const ::LinBox::SparseMatrix<Field> &A, const ::LinBox::DenseVector<Field> &b)
                 {
                     using dv_LB = ::LinBox::DenseVector<Field>;
 
                     size_t n = A.coldim();
-                    dv_LB zero_vec_LB(F, n, F.zero);
 
                     dv_LB x_LB(F, n);
+                    typename Field::Element denum;
                     ::LinBox::Method::Blackbox method_LB;
-                    ::LinBox::solve(x_LB, A, zero_vec_LB, method_LB);
+                    ::LinBox::solve(x_LB, denum, A, b, method_LB);
 
-                    return x_LB;
+                    return std::make_tuple(x_LB, denum);
                 }
 
                 template <typename T>
@@ -41,6 +41,26 @@ namespace ILPCuts
                     }
 
                     return true;
+                }
+
+                template <typename Field>
+                ::LinBox::DenseVector<Field> compute_some_kernel_vec(const Field &F, const ::LinBox::SparseMatrix<Field> &A)
+                {
+                    using dv_LB = ::LinBox::DenseVector<Field>;
+
+                    size_t n = A.coldim();
+                    dv_LB zero_vec_LB(F, n, F.zero);
+
+                    ::LinBox::DenseVector<Field> x_LB(F, n);
+                    bool has_non_zero_solution = false;
+                    while (!has_non_zero_solution)
+                    {
+                        ::LinBox::Method::Blackbox method_LB;
+                        ::LinBox::solve(x_LB, A, zero_vec_LB, method_LB);
+                        has_non_zero_solution = !Internal::is_zero<Field>(x_LB);
+                    }
+
+                    return x_LB;
                 }
 
                 template <typename LinBoxValT, typename EigenValT>
@@ -60,6 +80,24 @@ namespace ILPCuts
                         }
 
                     return intoA;
+                }
+
+                template <typename LinBoxValT, typename EigenValT>
+                ::LinBox::DenseVector<LinBoxValT> create_from_Eigen(const Eigen::SparseVector<EigenValT> &vec, const LinBoxValT &F)
+                {
+                    using eigen_vec_type = Eigen::SparseVector<EigenValT>;
+
+                    size_t n = vec.size();
+                    ::LinBox::DenseVector<LinBoxValT> into_vec(F, n);
+
+                    for (typename eigen_vec_type::InnerIterator it(vec); it; ++it)
+                    {
+                        typename LinBoxValT::Element new_F_elem;
+                        F.init(new_F_elem, it.value());
+                        into_vec.setEntry(it.index(), new_F_elem);
+                    }
+
+                    return into_vec;
                 }
 
             }
@@ -104,15 +142,7 @@ namespace ILPCuts
                 Field F(p);
                 ::LinBox::SparseMatrix<Field> A_LB = Internal::create_from_Eigen<Field, int64_t>(A, F);
 
-                ::LinBox::DenseVector<Field> res_LB;
-                bool has_non_zero_solution = false;
-
-                while (!has_non_zero_solution)
-                {
-                    res_LB = Internal::compute_some_kernel_vec(F, A_LB);
-
-                    has_non_zero_solution = !Internal::is_zero<Field>(res_LB);
-                }
+                ::LinBox::DenseVector<Field> res_LB = Internal::compute_some_kernel_vec(F, A_LB);
 
                 Eigen::SparseVector<int64_t> res(n);
                 for (size_t i = 0; i < n; ++i)
@@ -136,14 +166,7 @@ namespace ILPCuts
                 Field F(p);
                 ::LinBox::SparseMatrix<Field> A_LB = Internal::create_from_Eigen<Field, mpz_class>(A, F);
 
-                ::LinBox::DenseVector<Field> res_LB;
-                bool has_non_zero_solution = false;
-
-                while (!has_non_zero_solution)
-                {
-                    res_LB = Internal::compute_some_kernel_vec(F, A_LB);
-                    has_non_zero_solution = !Internal::is_zero<Field>(res_LB);
-                }
+                ::LinBox::DenseVector<Field> res_LB = Internal::compute_some_kernel_vec(F, A_LB);
 
                 Eigen::SparseVector<mpz_class> res(n);
                 for (size_t i = 0; i < n; ++i)
@@ -168,6 +191,20 @@ namespace ILPCuts
                 ZRing Z;
 
                 ::LinBox::SparseMatrix<ZRing> A_LB = Internal::create_from_Eigen<ZRing, mpz_class>(A, Z);
+                ::LinBox::DenseVector<ZRing> b_LB = Internal::create_from_Eigen<ZRing, mpz_class>(b, Z);
+
+                auto [x_LB, denum] = Internal::solve(Z, A_LB, b_LB);
+
+                assert(denum == 1);
+
+                Eigen::SparseVector<mpz_class> res(n);
+                for (size_t i = 0; i < n; ++i)
+                {
+                    if (x_LB[i] != 0)
+                        res.insert(i) = mpz_class(x_LB[i].get_mpz_const());
+                }
+
+                return res;
             }
         }
     }

@@ -93,7 +93,26 @@ namespace ILPCuts
             }
         }
 
-        void process_odd_case_basic(const cone_traits &C, process_func pf) {}
+        void process_odd_case_basic(const cone_traits &C, process_func pf)
+        {
+            cone lint_type &det = C.det;
+            size_t n = C.A.cols();
+
+            bool has_non_zero_solution = false;
+            while (!has_non_zero_solution)
+            {
+                lrs_vec b = Utility::bernouly_vec_generate<int_type>(n, *rgen).template cast<lint_type>();
+                b *= det;
+
+                lrs_vec x = Utility::LinBox::solve_ZZ(C.A.template cast<lint_type>(), b);
+
+                x = x.unaryExpr(Utility::mod_unaryop(det));
+                Utility::prune_zeroes_int(x);
+
+                if (x.nonZeros() > 0)
+                    has_non_zero_solution = true;
+            }
+        }
 
         void process_node(const cone_traits &C, process_func pf) override
         {

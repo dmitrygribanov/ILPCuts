@@ -67,6 +67,14 @@ int main(int argc, char **argv)
 
     cout << kernel_vec << endl;
 
+    Eigen::SparseVector<mpz_class> b(2);
+    b.insert(0) = -10;
+    b.insert(1) = -65;
+
+    Eigen::SparseVector<mpz_class> x = Utility::LinBox::solve_ZZ(A.cast<mpz_class>().eval(), b);
+
+    cout << x << endl;
+
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);
     // using Tripl = Eigen::Triplet<nmodxx>;
