@@ -192,6 +192,8 @@ namespace ILPCuts
 			{
 				const int_type &ti = data.t.coeff(data.i);
 				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
+				// cout << det << endl;
+				// cout << (lint_type)(res * 2) << endl;
 				return (*transform_base::owner->_lrat_to_lint)(res);
 			}
 
@@ -376,7 +378,7 @@ namespace ILPCuts
 			tolerance = a_tolerance;
 			err_tolerance = a_err_tolerance;
 			cone_limit_per_direction = a_cone_limit_per_direction;
-			direction_strategies.push_back(std::make_unique<typename Strategies::SomeDirection>());
+			// direction_strategies.push_back(std::make_unique<typename Strategies::SomeDirection>());
 			threads = a_threads;
 			rgen = a_rgen;
 

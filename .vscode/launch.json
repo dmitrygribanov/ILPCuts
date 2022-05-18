@@ -31,7 +31,7 @@
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/cplex/sorrell3.mps.gz",
+                "../problems/cplex/cod105_vc1024.mps.gz",
                 "-wcgn",
                 "1",
                 "-wcpl",

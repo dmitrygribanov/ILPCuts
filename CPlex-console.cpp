@@ -4,7 +4,7 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-#define ILPCUTS_PARALLEL_OFF
+//#define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen.h"
@@ -16,7 +16,7 @@ using namespace ILPCuts;
 using int_type = int64_t;
 using lint_type = mpz_class;
 using rational_type = double;
-using lrational_type = mpf_class;
+using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;

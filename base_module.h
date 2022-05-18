@@ -755,7 +755,7 @@ namespace ILPCuts
 		{
 			bool flip = bd(rgen);
 			if (flip)
-				res.insert(i) = 1.0;
+				res.insert(i) = 1;
 		}
 
 		return std::move(res);

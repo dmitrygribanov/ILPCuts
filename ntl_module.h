@@ -180,6 +180,10 @@ namespace ILPCuts
             Eigen::SparseVector<int_type> solve_ZZ(Eigen::SparseMatrix<int_type> A, Eigen::SparseVector<int_type> b)
             {
                 size_t n = A.cols();
+
+                prune_zeroes_int(A);
+                A = A.transpose().eval();
+
                 vec_ZZ b_ntl = Internal::eigen_to_ntl<int_type, ZZ>(b);
                 mat_ZZ A_ntl = Internal::eigen_to_ntl<int_type, ZZ>(A);
 
