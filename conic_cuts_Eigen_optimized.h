@@ -175,7 +175,7 @@ namespace ILPCuts
 				cin.ignore();*/
 
 				// create long integer solution
-				lis_vec int_x = (x * C.det).unaryExpr(*_lrat_to_lint);
+				lis_vec int_x = (x * C.det).unaryExpr(_lrat_to_lint);
 
 				lint_type max_2_pow = Utility::vec_max2pow(int_x);
 				if ((static_cast<lint_type>(C.det) / max_2_pow) % 2 == 0)
@@ -223,7 +223,7 @@ namespace ILPCuts
 				lrs_vec x = std::move(Utility::system_solve(rhs, *C.decomp));
 
 				// create long integer solution
-				res = (x * C.det).unaryExpr(*_lrat_to_lint);
+				res = (x * C.det).unaryExpr(_lrat_to_lint);
 
 				// transform modulo det
 				res = res.unaryExpr(Utility::mod_unaryop<lint_type>(C.det));
@@ -276,7 +276,7 @@ namespace ILPCuts
 
 			auto start = std::chrono::steady_clock::now();
 
-			lint_type det = (*_lrat_to_lint)(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+			lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
 
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;

@@ -225,7 +225,7 @@ namespace ILPCuts
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
 
-			return std::move(generate_cuts(A, adjA.unaryExpr(*_lrat_to_lint), optLP, (*_lrat_to_lint)(det)));
+			return std::move(generate_cuts(A, adjA.unaryExpr(_lrat_to_lint), optLP, _lrat_to_lint(det)));
 		}
 		catch (ToleranceErrorException exc)
 		{

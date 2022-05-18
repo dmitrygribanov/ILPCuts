@@ -209,7 +209,6 @@ void run_cplex_experiment(
 
 	// initialization of cuts generator and setting parameters
 	std::mt19937 engine;
-	cuts_gen_ptr->Init();
 	cuts_gen_ptr->tolerance = tolerance;
 	cuts_gen_ptr->err_tolerance = err_tolerance;
 	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;

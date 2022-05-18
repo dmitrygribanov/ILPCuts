@@ -213,10 +213,10 @@ namespace ILPCuts
 		class RatToInt_Unary
 		{
 		private:
-			ratT _err_tolerance;
+			const double &_err_tolerance;
 
 		public:
-			RatToInt_Unary(const ratT &err_tolerance)
+			explicit RatToInt_Unary(const double &err_tolerance)
 				: _err_tolerance(err_tolerance) {}
 
 			intT operator()(const ratT &rat_x) const

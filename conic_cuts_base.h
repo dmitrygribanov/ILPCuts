@@ -130,8 +130,8 @@ namespace ILPCuts
 	protected:
 		using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
 		using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
-		std::unique_ptr<RatToInt_Unary> _rat_to_int;
-		std::unique_ptr<LRatToLInt_Unary> _lrat_to_lint;
+		RatToInt_Unary _rat_to_int;
+		LRatToLInt_Unary _lrat_to_lint;
 
 		Utility::ToSingle<lint_type, int_type> _to_single_int;
 		Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
@@ -185,7 +185,7 @@ namespace ILPCuts
 			{
 				rs_vec res = (A * data.t).template cast<rational_type>() / data.denum;
 
-				return res.unaryExpr(*(transform_base::owner->_rat_to_int));
+				return res.unaryExpr(transform_base::owner->_rat_to_int);
 			}
 
 			lint_type operator[](const lint_type &det) const override
@@ -194,7 +194,7 @@ namespace ILPCuts
 				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
 				// cout << det << endl;
 				// cout << (lint_type)(res * 2) << endl;
-				return (*transform_base::owner->_lrat_to_lint)(res);
+				return (transform_base::owner->_lrat_to_lint)(res);
 			}
 
 			rs_vec compute_coeffs(const rs_vec &old_coefs) const override
@@ -211,7 +211,7 @@ namespace ILPCuts
 				size_t n = old_adjA.cols();
 				is_mat Q = compute_adj_Q(n, data);
 				old_adjA = ((Q.template cast<lint_type>() * old_adjA).template cast<lrational_type>() / data.denum)
-							   .unaryExpr(*transform_base::owner->_lrat_to_lint);
+							   .unaryExpr(transform_base::owner->_lrat_to_lint);
 
 				return std::move(old_adjA);
 			}
@@ -231,14 +231,14 @@ namespace ILPCuts
 			{
 				lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / data.denum;
 
-				return res.unaryExpr(*(transform_base::owner->_lrat_to_lint)).unaryExpr(transform_base::owner->_to_single_int);
+				return res.unaryExpr(transform_base::owner->_lrat_to_lint).unaryExpr(transform_base::owner->_to_single_int);
 			}
 
 			lint_type operator[](const lint_type &det) const override
 			{
 				const lint_type &ti = data.t.coeff(data.i);
 				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
-				return (*transform_base::owner->_lrat_to_lint)(res);
+				return transform_base::owner->_lrat_to_lint(res);
 			}
 
 			rs_vec compute_coeffs(const rs_vec &old_coefs) const override
@@ -256,7 +256,7 @@ namespace ILPCuts
 				size_t n = old_adjA.cols();
 				lis_mat Q = compute_adj_Q(n, data);
 				old_adjA = ((Q * old_adjA).template cast<lrational_type>() / data.denum)
-							   .unaryExpr(*transform_base::owner->_lrat_to_lint);
+							   .unaryExpr(transform_base::owner->_lrat_to_lint);
 
 				return std::move(old_adjA);
 			}
@@ -356,34 +356,16 @@ namespace ILPCuts
 		}
 
 	public:
-		double tolerance;
-		double err_tolerance;
-		size_t cone_limit_per_direction;
-		size_t threads;
+		double tolerance = 0.000001;
+		double err_tolerance = 0.01;
+		size_t cone_limit_per_direction = 1;
+		size_t threads = 8;
 		std::vector<std::unique_ptr<typename Strategies::DirectionsStrategyBase>> direction_strategies;
-		std::mt19937 *rgen;
+		std::mt19937 *rgen = nullptr;
 
 		ConicCutsGenerator_Base(std::ostream *outs = &std::cout, std::ostream *errs = &std::cout)
-			: _out(outs), _err(errs), cone_limit_per_direction(0),
-			  tolerance(0), err_tolerance(0), threads(0), _rat_to_int(), rgen(nullptr)
+			: _out(outs), _err(errs), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
 		{
-		}
-
-		virtual void Init(double a_tolerance = 0.000001,
-						  double a_err_tolerance = 0.001,
-						  size_t a_cone_limit_per_direction = 1,
-						  size_t a_threads = 8, std::mt19937 *a_rgen = nullptr)
-		{
-
-			tolerance = a_tolerance;
-			err_tolerance = a_err_tolerance;
-			cone_limit_per_direction = a_cone_limit_per_direction;
-			// direction_strategies.push_back(std::make_unique<typename Strategies::SomeDirection>());
-			threads = a_threads;
-			rgen = a_rgen;
-
-			_rat_to_int = std::make_unique<RatToInt_Unary>(err_tolerance);
-			_lrat_to_lint = std::make_unique<LRatToLInt_Unary>(err_tolerance);
 		}
 
 		std::ostream &out() { return *_out; }

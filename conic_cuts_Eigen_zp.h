@@ -197,7 +197,7 @@ namespace ILPCuts
             try
             {
                 auto start = std::chrono::steady_clock::now();
-                // lint_type det = (*_lrat_to_lint)(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+                // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
                 lint_type det = abs(Utility::NTL::det(A.template cast<lint_type>().eval()));
                 //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
                 auto end = std::chrono::steady_clock::now();
