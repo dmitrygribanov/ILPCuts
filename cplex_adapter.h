@@ -1,6 +1,7 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "base_module.h"
+#include <ilcplex/ilocplex.h>
 
 namespace ILPCuts
 {
@@ -36,10 +37,6 @@ namespace ILPCuts
 
 		std::unique_ptr<generator_base> generator_ptr;
 
-		/*CPlexAdapter(std::ostream* outs, std::ostream* errs)
-			:base(outs, errs) {}
-
-		CPlexAdapter() :base() {}*/
 	private:
 		std::vector<is_vec> cuts_Eigen;
 
@@ -92,10 +89,6 @@ namespace ILPCuts
 					++iter;
 				}
 			}
-
-			/*cout << c << endl;
-			cin.ignore();
-			*/
 		}
 
 		{
@@ -212,11 +205,7 @@ namespace ILPCuts
 		rs_vec optLP;
 		is_vec c;
 
-		// cout << "!!!!!!!!!!!!!!" << endl;
-
 		tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
-
-		// cout << "!!!!!!!!!!!!!!" << endl;
 
 		generator_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
 

@@ -7,6 +7,7 @@
 #include <NTL/ZZ.h>
 
 #include "linbox_module.h"
+#include "primes_downloader.h"
 
 using namespace ILPCuts;
 using namespace std;
@@ -15,6 +16,7 @@ using namespace std;
 #include <linbox/matrix/sparse-matrix.h>
 #include <linbox/solutions/det.h>
 #include <linbox/solutions/solve.h>
+
 //#include <gmp++/gmp++.h>
 
 // #include "conic_cuts_Eigen.h"
@@ -98,7 +100,7 @@ int main(int argc, char **argv)
     // double dd;
     // x < fmpqxx(dd);
 
-    // ILPCuts::ConicCutsGenerator<fmpzxx, fmpqxx, fmpzxx, fmpqxx> cuts_gen;
+    // ILPCuts::ConicCutsGenerator_adj<fmpzxx, fmpqxx, fmpzxx, fmpqxx> cuts_gen;
 
     // Eigen::SparseMatrix<fmpzxx> m(5, 5);
 

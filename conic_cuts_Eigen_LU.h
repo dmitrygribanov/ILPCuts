@@ -1,17 +1,18 @@
 #pragma once
 
 #include "conic_cuts_base.h"
+#include "Eigen_solving_utilities.h"
 
 namespace ILPCuts
 {
 
 	template <typename intT, typename ratT, typename lintT, typename lratT>
-	class ConicCutsGeneratorOpt
+	class ConicCutsGenerator_LU
 		: public ConicCutsGenerator_Base<intT, ratT, lintT, lratT>
 	{
 	private:
 		using base = ConicCutsGenerator_Base<intT, ratT, lintT, lratT>;
-		using my_type = ConicCutsGeneratorOpt<intT, ratT, lintT, lratT>;
+		using my_type = ConicCutsGenerator_LU<intT, ratT, lintT, lratT>;
 
 	public:
 		using typename base::int_type;
@@ -31,7 +32,7 @@ namespace ILPCuts
 
 		using typename base::cone_traits;
 		using typename base::dir_coeffs;
-		using typename base::lsparce_transform;
+		using typename base::lsparse_transform;
 		using typename base::process_func;
 		using typename base::transform_base;
 
@@ -244,7 +245,7 @@ namespace ILPCuts
 			lis_vec x = even_system_solve(C).template cast<lint_type>();
 			for (typename lis_vec::InnerIterator it(x); it; ++it)
 				if (it.value() > 0)
-					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(x), 2));
+					pf(lsparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(x), 2));
 		}
 
 		void process_odd_case(const cone_traits_spec &C, process_func pf)
@@ -256,7 +257,7 @@ namespace ILPCuts
 					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), C.det - gcd(C.det, it.value()), C.det);
 					lis_vec t = (x * lambda).unaryExpr(Utility::mod_unaryop(C.det));
 
-					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(t), C.det));
+					pf(lsparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(t), C.det));
 				}
 		}
 

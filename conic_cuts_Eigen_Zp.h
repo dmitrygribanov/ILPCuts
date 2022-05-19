@@ -2,6 +2,7 @@
 
 #include "conic_cuts_base.h"
 #include "ntl_module.h"
+#include "primes_downloader.h"
 
 namespace ILPCuts
 {
@@ -29,19 +30,20 @@ namespace ILPCuts
 
         using typename base::cone_traits;
         using typename base::dir_coeffs;
-        using typename base::lsparce_transform;
+        using typename base::lsparse_transform;
         using typename base::process_func;
-        using typename base::sparce_transform;
+        using typename base::sparse_transform;
         using typename base::transform_base;
 
         using typename base::base;
 
-        using base::err;
-        using base::out;
-
         using base::_lrat_to_lint;
+        using base::err;
+        using base::err_tolerance;
+        using base::out;
+        using base::tolerance;
 
-        size_t max_conservative_prime = 11;
+        size_t max_conservative_prime = 101;
 
     private:
         std::vector<int_type> _primes_data;
@@ -80,7 +82,7 @@ namespace ILPCuts
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {
                 if (it.value() > 0)
-                    pf(sparce_transform(this, static_cast<size_t>(it.index()), std::move(x), p));
+                    pf(sparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(x), p));
             }
         }
 
@@ -91,7 +93,7 @@ namespace ILPCuts
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {
                 if (it.value() > 0)
-                    pf(sparce_transform(this, static_cast<size_t>(it.index()), std::move(x), 2));
+                    pf(sparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(x), 2));
             }
         }
 
@@ -107,7 +109,7 @@ namespace ILPCuts
                     int_typeT lambda = Utility::mod_equation_solve<int_typeT>(it.value(), denum - gcd(denum, it.value()), denum);
                     vec_type t = (x * lambda).unaryExpr(Utility::mod_unaryop(denum));
 
-                    pf(sparse_transformT(this, static_cast<size_t>(it.index()), std::move(t), denum));
+                    pf(sparse_transformT(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(t), denum));
                 }
             }
         }
@@ -116,7 +118,7 @@ namespace ILPCuts
         {
             is_vec x = Utility::NTL::kernel_vec_Zp(C.A, p);
 
-            process_odd_x<int_type, sparce_transform>(x, pf, p);
+            process_odd_x<int_type, sparse_transform>(x, pf, p);
         }
 
         void process_odd_case_basic(const cone_traits &C, process_func pf)
@@ -149,7 +151,7 @@ namespace ILPCuts
                     has_non_zero_solution = true;
             }
 
-            process_odd_x<lint_type, lsparce_transform>(x, pf, det);
+            process_odd_x<lint_type, lsparse_transform>(x, pf, det);
         }
 
         void process_node(const cone_traits &C, process_func pf) override

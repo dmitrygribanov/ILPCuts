@@ -1,102 +1,12 @@
 #pragma once
 
 #include "base_module.h"
+#include "cuts_strategies.h"
+#include "Eigen_solving_utilities.h"
+#include "sparse_transform.h"
 
 namespace ILPCuts
 {
-
-	template <typename intT, typename ratT>
-	struct CutsGenStrategies
-	{
-		using int_type = intT;
-		using rational_type = ratT;
-		using is_mat = SparseMatrix<int_type>;
-		using is_vec = SparseVector<int_type>;
-		using rs_vec = SparseVector<rational_type>;
-
-		class DirectionsStrategyBase
-		{
-		public:
-			virtual std::vector<rs_vec> generate_directons(const is_mat &A) = 0;
-		};
-
-		class GreadyDirection : public DirectionsStrategyBase
-		{
-		private:
-			rs_vec _c;
-
-		public:
-			GreadyDirection(const rs_vec &c)
-				: _c(c) {}
-
-			std::vector<rs_vec> generate_directons(const is_mat &A) override
-			{
-				std::vector<rs_vec> res(1);
-				res[0] = _c;
-				return std::move(res);
-			}
-		};
-
-		class SomeDirection : public DirectionsStrategyBase
-		{
-		public:
-			std::vector<rs_vec> generate_directons(const is_mat &A) override
-			{
-				size_t n = A.cols();
-				rs_vec direction(n);
-				direction.setZero();
-
-				for (size_t i = 0; i < n; ++i)
-				{
-					direction += A.template cast<rational_type>().col(i);
-				}
-				direction /= rational_type(n);
-
-				std::vector<rs_vec> res(1);
-				res[0] = std::move(direction);
-				return std::move(res);
-			}
-		};
-
-		template <typename randGenT>
-		class ConvUniform : public DirectionsStrategyBase
-		{
-		public:
-			using gen_type = randGenT;
-
-		private:
-			const size_t _rand_dir_num;
-			gen_type &_gen;
-
-		public:
-			ConvUniform(gen_type &gen, size_t rand_dir_num = 3)
-				: DirectionsStrategyBase(), _gen(gen), _rand_dir_num(rand_dir_num) {}
-
-			std::vector<rs_vec> generate_directons(const is_mat &A) override
-			{
-				std::vector<rs_vec> result_directions;
-				size_t n = A.cols();
-
-				result_directions.reserve(_rand_dir_num);
-
-				std::uniform_real_distribution<double> udistr(0.0, 1.0);
-
-				for (size_t i = 0; i < _rand_dir_num; ++i)
-				{
-					rs_vec new_dir = A.col(0).template cast<rational_type>();
-					for (size_t j = 1; j < n; ++j)
-					{
-						rational_type alpha = udistr(_gen);
-						new_dir = (new_dir * alpha + A.col(j).template cast<rational_type>() * (1.0 - alpha)).eval();
-					}
-					result_directions.push_back(std::move(new_dir));
-				}
-
-				return std::move(result_directions);
-			}
-		};
-	};
-
 	template <typename intT, typename rationalT, typename lintT, typename lrationalT>
 	class ConicCutsGenerator_Base
 	{
@@ -130,6 +40,10 @@ namespace ILPCuts
 	protected:
 		using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
 		using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
+		using transform_base = ILPCuts::transform_base<int_type, rational_type, lint_type, lrational_type>;
+		using sparse_transform = ILPCuts::sparse_transform<int_type, rational_type, lint_type, lrational_type>;
+		using lsparse_transform = ILPCuts::lsparse_transform<int_type, rational_type, lint_type, lrational_type>;
+
 		RatToInt_Unary _rat_to_int;
 		LRatToLInt_Unary _lrat_to_lint;
 
@@ -154,111 +68,6 @@ namespace ILPCuts
 				/*A = std::move(base->A);
 				det = std::move(base->det);
 				dir_coeffs_pull = std::move(base->dir_coeffs_pull);*/
-			}
-		};
-
-		struct transform_base
-		{
-			me *owner;
-
-			transform_base(me *aowner)
-				: owner(aowner) {}
-
-			virtual is_vec operator()(const is_mat &A) const = 0;
-			virtual lint_type operator[](const lint_type &det) const = 0;
-			virtual rs_vec compute_coeffs(const rs_vec &old_coefs) const = 0;
-			virtual size_t get_i() const = 0;
-			virtual lis_mat compute_adj(lis_mat old_adjA) const = 0;
-		};
-
-		struct sparce_transform : public transform_base
-		{
-			Utility::sparce_transform<int_type> data;
-
-			sparce_transform(me *aowner, size_t ai,
-							 const is_vec &at, const int_type &adenum)
-				: transform_base(aowner), data{ai, at, adenum}
-			{
-			}
-
-			is_vec operator()(const is_mat &A) const override
-			{
-				rs_vec res = (A * data.t).template cast<rational_type>() / data.denum;
-
-				return res.unaryExpr(transform_base::owner->_rat_to_int);
-			}
-
-			lint_type operator[](const lint_type &det) const override
-			{
-				const int_type &ti = data.t.coeff(data.i);
-				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
-				// cout << det << endl;
-				// cout << (lint_type)(res * 2) << endl;
-				return (transform_base::owner->_lrat_to_lint)(res);
-			}
-
-			rs_vec compute_coeffs(const rs_vec &old_coefs) const override
-			{
-				return Utility::compute_transformed_coeffs(old_coefs,
-														   data,
-														   transform_base::owner->tolerance);
-			}
-
-			size_t get_i() const override { return data.i; }
-
-			lis_mat compute_adj(lis_mat old_adjA) const override
-			{
-				size_t n = old_adjA.cols();
-				is_mat Q = compute_adj_Q(n, data);
-				old_adjA = ((Q.template cast<lint_type>() * old_adjA).template cast<lrational_type>() / data.denum)
-							   .unaryExpr(transform_base::owner->_lrat_to_lint);
-
-				return std::move(old_adjA);
-			}
-		};
-
-		struct lsparce_transform : public transform_base
-		{
-			Utility::sparce_transform<lint_type> data;
-
-			lsparce_transform(me *aowner, size_t ai,
-							  const lis_vec &at, const lint_type &adenum)
-				: transform_base(aowner), data{ai, at, adenum}
-			{
-			}
-
-			is_vec operator()(const is_mat &A) const override
-			{
-				lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / data.denum;
-
-				return res.unaryExpr(transform_base::owner->_lrat_to_lint).unaryExpr(transform_base::owner->_to_single_int);
-			}
-
-			lint_type operator[](const lint_type &det) const override
-			{
-				const lint_type &ti = data.t.coeff(data.i);
-				lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
-				return transform_base::owner->_lrat_to_lint(res);
-			}
-
-			rs_vec compute_coeffs(const rs_vec &old_coefs) const override
-			{
-				return Utility::compute_transformed_coeffs(old_coefs.template cast<lrational_type>().eval(),
-														   data,
-														   transform_base::owner->tolerance)
-					.unaryExpr(transform_base::owner->_to_single_rat);
-			}
-
-			size_t get_i() const override { return data.i; }
-
-			lis_mat compute_adj(lis_mat old_adjA) const override
-			{
-				size_t n = old_adjA.cols();
-				lis_mat Q = compute_adj_Q(n, data);
-				old_adjA = ((Q * old_adjA).template cast<lrational_type>() / data.denum)
-							   .unaryExpr(transform_base::owner->_lrat_to_lint);
-
-				return std::move(old_adjA);
 			}
 		};
 

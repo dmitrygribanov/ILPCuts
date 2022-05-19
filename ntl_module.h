@@ -1,6 +1,8 @@
 #pragma once
 
 #include "base_module.h"
+
+#include <sstream>
 #include <NTL/mat_GF2.h>
 #include <NTL/mat_lzz_p.h>
 #include <NTL/mat_ZZ_p.h>

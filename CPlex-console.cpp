@@ -4,12 +4,12 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-//#define ILPCUTS_PARALLEL_OFF
+#define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
-#include "conic_cuts_Eigen.h"
-#include "conic_cuts_Eigen_optimized.h"
-#include "conic_cuts_Eigen_zp.h"
+#include "conic_cuts_Eigen_adj.h"
+#include "conic_cuts_Eigen_LU.h"
+#include "conic_cuts_Eigen_Zp.h"
 #include "dependencies/argparse/argparse.hpp"
 using namespace ILPCuts;
 
@@ -21,8 +21,8 @@ using lrational_type = mpq_class;
 using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
-using CutsGen_Adj = ConicCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_LU = ConicCutsGeneratorOpt<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
 // ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {

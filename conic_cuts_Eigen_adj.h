@@ -1,6 +1,7 @@
 #pragma once
 
 #include "conic_cuts_base.h"
+#include "Eigen_solving_utilities.h"
 
 #include <omp.h>
 #include <atomic>
@@ -9,7 +10,7 @@ namespace ILPCuts
 {
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	class ConicCutsGenerator : public ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>
+	class ConicCutsGenerator_adj : public ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>
 	{
 	private:
 		using base = ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>;
@@ -32,9 +33,9 @@ namespace ILPCuts
 
 		using typename base::cone_traits;
 		using typename base::dir_coeffs;
-		using typename base::lsparce_transform;
+		using typename base::lsparse_transform;
 		using typename base::process_func;
-		using typename base::sparce_transform;
+		using typename base::sparse_transform;
 		using typename base::transform_base;
 
 		using base::_lrat_to_lint;
@@ -128,7 +129,7 @@ namespace ILPCuts
 			for (typename is_vec::InnerIterator it(res); it; ++it)
 			{
 				if (it.value() > 0)
-					pf(sparce_transform(this, static_cast<size_t>(it.index()), std::move(res), int_type(2)));
+					pf(sparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(res), int_type(2)));
 			}
 		}
 
@@ -165,7 +166,7 @@ namespace ILPCuts
 					lint_type lambda = Utility::mod_equation_solve<lint_type>(it.value(), lint_type(det - gcd(det, it.value())), det);
 					lis_vec t = (pivot * lambda).unaryExpr(Utility::mod_unaryop(det));
 
-					pf(lsparce_transform(this, static_cast<size_t>(it.index()), std::move(t), std::move(det)));
+					pf(lsparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(t), std::move(det)));
 				}
 			}
 		}
@@ -188,7 +189,7 @@ namespace ILPCuts
 		}
 
 	public:
-		/*ConicCutsGenerator(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
+		/*ConicCutsGenerator_adj(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:base(outs, errs) {}*/
 
 		std::vector<is_vec> generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det);
@@ -197,8 +198,8 @@ namespace ILPCuts
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator<intT, rationalT, lintT, lratT>::is_vec>
-	ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
+	std::vector<typename ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::is_vec>
+	ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
 	{
 
 		auto directions_pool = std::move(base::generate_directions_pool(A));
@@ -209,15 +210,14 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator<intT, rationalT, lintT, lratT>::is_vec>
-	ConicCutsGenerator<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
+	std::vector<typename ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::is_vec>
+	ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
 	{
-
-		lrational_type det(0);
-		lrs_mat adjA;
-
 		try
 		{
+			lrational_type det(0.0);
+			lrs_mat adjA;
+
 			auto start = std::chrono::steady_clock::now();
 			std::tie(adjA, det) = std::move(
 				Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
