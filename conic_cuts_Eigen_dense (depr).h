@@ -19,7 +19,7 @@ namespace ILPCuts
 	using namespace Eigen;
 
 	template <typename intT, typename rationalT, template <typename> class matrixT, template <typename> class vectorT>
-	class ConicCutsGenerator_Eigen
+	[[deprecated]] class ConicCutsGenerator_EigenDense
 	{
 	public:
 		using rational_type = rationalT;
@@ -341,7 +341,7 @@ namespace ILPCuts
 		}
 
 	public:
-		ConicCutsGenerator_Eigen(std::ostream *outs = &std::cout, std::ostream *errs = &std::cout)
+		ConicCutsGenerator_EigenDense(std::ostream *outs = &std::cout, std::ostream *errs = &std::cout)
 			: _out(outs), _err(errs) {}
 
 		std::ostream &out() { return *_out; }
@@ -532,10 +532,10 @@ namespace ILPCuts
 	using SparceVec = SparseVector<T>;
 
 	template <typename intT = long long int, typename ratT = double>
-	using ConicCutsGenerator_EigenDence = ConicCutsGenerator_Eigen<intT, ratT,
-																   DenceMat, DenceVec>;
+	using ConicCutsGenerator_EigenDence = ConicCutsGenerator_EigenDense<intT, ratT,
+																		DenceMat, DenceVec>;
 
 	template <typename intT = long long int, typename ratT = double>
-	using ConicCutsGenerator_EigenSparce = ConicCutsGenerator_Eigen<intT, ratT,
-																	SparceMat, SparceVec>;
+	using ConicCutsGenerator_EigenSparce = ConicCutsGenerator_EigenDense<intT, ratT,
+																		 SparceMat, SparceVec>;
 }

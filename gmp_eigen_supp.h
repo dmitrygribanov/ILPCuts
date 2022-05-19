@@ -111,11 +111,11 @@ mpf_class round(const mpf_class &x)
 mpq_class round(const mpq_class &x)
 {
     if (x >= mpq_class(0))
-        return floor(mpq_class(x + mpq_class(1, 2)));
+        return floor(x + mpq_class(1, 2));
     else
     {
         // cout << "x: " << x << endl;
-        return ceil(mpq_class(x - mpq_class(1, 2)));
+        return ceil(x - mpq_class(1, 2));
     }
     // return mpq_class(ceil(x));
     //  return floor(x); // (x > mpf_class(0)) ? mpf_class(floor(x + mpf_class(0.5))) : mpf_class(ceil(x - mpf_class(0.5)));

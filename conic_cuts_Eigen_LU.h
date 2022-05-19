@@ -2,6 +2,7 @@
 
 #include "conic_cuts_base.h"
 #include "Eigen_solving_utilities.h"
+#include "ntl_module.h"
 
 namespace ILPCuts
 {
@@ -277,7 +278,8 @@ namespace ILPCuts
 
 			auto start = std::chrono::steady_clock::now();
 
-			lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+			lint_type det = abs(Utility::NTL::det(A.template cast<lint_type>().eval()));
+			// lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
 
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;

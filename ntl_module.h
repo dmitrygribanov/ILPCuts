@@ -128,7 +128,7 @@ namespace ILPCuts
             {
                 size_t n = A.cols();
 
-                A.unaryExpr(std::ref(Utility::mod2_unaryop<int_type>));
+                A = A.unaryExpr(std::ref(Utility::mod2_unaryop<int_type>)).eval();
                 prune_zeroes_int(A);
                 A = A.transpose().eval();
 
@@ -150,7 +150,7 @@ namespace ILPCuts
 
                 zz_p::init(p);
 
-                A.unaryExpr(mod_unaryop(p));
+                A = A.unaryExpr(mod_unaryop(p)).eval();
                 prune_zeroes_int(A);
                 A = A.transpose().eval();
 

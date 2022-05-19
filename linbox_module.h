@@ -19,25 +19,26 @@ namespace ILPCuts
                 template <typename Field>
                 std::tuple<::LinBox::DenseVector<Field>, Field> solve(const Field &F, const ::LinBox::SparseMatrix<Field> &A, const ::LinBox::DenseVector<Field> &b)
                 {
-                    using dv_LB = ::LinBox::DenseVector<Field>;
+                    using dv_LB_type = ::LinBox::DenseVector<Field>;
 
                     size_t n = A.coldim();
 
-                    dv_LB x_LB(F, n);
+                    dv_LB_type x_LB(F, n);
                     typename Field::Element denum;
                     ::LinBox::Method::Blackbox method_LB;
                     method_LB.preconditioner = ::LinBox::Preconditioner::Sparse;
+                    method_LB.singularity = ::LinBox::Singularity::NonSingular;
                     ::LinBox::solve(x_LB, denum, A, b, method_LB);
 
                     return std::make_tuple(x_LB, denum);
                 }
 
                 template <typename T>
-                bool is_zero(const ::LinBox::DenseVector<T> &vec)
+                bool is_zero(const ::LinBox::DenseVector<T> &v)
                 {
-                    for (size_t i = 0; i < vec.size(); ++i)
+                    for (size_t i = 0; i < v.size(); ++i)
                     {
-                        if (vec[i] != 0)
+                        if (v[i] != 0)
                             return false;
                     }
 
@@ -47,68 +48,91 @@ namespace ILPCuts
                 template <typename Field>
                 ::LinBox::DenseVector<Field> compute_some_kernel_vec(const Field &F, const ::LinBox::SparseMatrix<Field> &A)
                 {
-                    using dv_LB = ::LinBox::DenseVector<Field>;
+                    using dv_LB_type = ::LinBox::DenseVector<Field>;
 
                     size_t n = A.coldim();
-                    dv_LB zero_vec_LB(F, n, F.zero);
+                    dv_LB_type zero_vec_LB(F, n, F.zero);
 
                     ::LinBox::DenseVector<Field> x_LB(F, n);
                     bool has_non_zero_solution = false;
                     while (!has_non_zero_solution)
                     {
                         ::LinBox::Method::SparseElimination method_LB;
-                        // method_LB.preconditioner = ::LinBox::Preconditioner::FullDiagonal;
+                        method_LB.preconditioner = ::LinBox::Preconditioner::Sparse;
                         method_LB.singularity = ::LinBox::Singularity::Singular;
                         ::LinBox::solve(x_LB, A, zero_vec_LB, method_LB);
                         has_non_zero_solution = !Internal::is_zero<Field>(x_LB);
-
-                        // ::LinBox::DenseVector<Field> y_LB;
-                        // A.apply(y_LB, x_LB);
-                        // if (!Internal::is_zero<Field>(y_LB))
-                        // {
-                        //     cout << "LLLLL" << endl;
-                        //     cin.ignore();
-                        // }
                     }
 
                     return x_LB;
                 }
 
-                template <typename LinBoxValT, typename EigenValT>
-                ::LinBox::SparseMatrix<LinBoxValT> create_from_Eigen(const Eigen::SparseMatrix<EigenValT> &A, const LinBoxValT &F)
+                template <typename in_type, typename out_type>
+                struct Conversion
                 {
-                    using eigen_mat_type = Eigen::SparseMatrix<EigenValT>;
+                    out_type operator()(const typename in_type::Element &a) const { return out_type(a); }
+                };
+
+                template <>
+                struct Conversion<Givaro::Modular<Givaro::Integer>, mpz_class>
+                {
+                    mpz_class operator()(const typename Givaro::Modular<Givaro::Integer>::Element &a) const { return mpz_class(a.get_mpz_const()); }
+                };
+                template <>
+                struct Conversion<Givaro::ZRing<Givaro::Integer>, mpz_class>
+                {
+                    mpz_class operator()(const typename Givaro::ZRing<Givaro::Integer>::Element &a) const { return mpz_class(a.get_mpz_const()); }
+                };
+
+                template <typename inT, typename outT, typename ConversionT = Conversion<inT, outT>>
+                Eigen::SparseVector<outT> Eigen_from_LinBox(const ::LinBox::DenseVector<inT> &v, ConversionT conv = ConversionT())
+                {
+                    size_t n = v.size();
+                    Eigen::SparseVector<outT> res(n);
+                    for (size_t i = 0; i < n; ++i)
+                    {
+                        if (v[i] != 0)
+                            res.insert(i) = conv(v[i]);
+                    }
+
+                    return res;
+                }
+
+                template <typename intT, typename outT>
+                ::LinBox::SparseMatrix<outT> LinBox_from_Eigen(const Eigen::SparseMatrix<intT> &A, const outT &F)
+                {
+                    using eigen_mat_type = Eigen::SparseMatrix<intT>;
 
                     size_t n = A.cols();
-                    ::LinBox::SparseMatrix<LinBoxValT> intoA(F, n, n);
+                    ::LinBox::SparseMatrix<outT> res_A(F, n, n);
 
                     for (size_t k = 0; k < A.outerSize(); ++k)
                         for (typename eigen_mat_type::InnerIterator it(A, k); it; ++it)
                         {
-                            typename LinBoxValT::Element new_F_elem;
+                            typename outT::Element new_F_elem;
                             F.init(new_F_elem, it.value());
-                            intoA.setEntry(it.row(), it.col(), new_F_elem);
+                            res_A.setEntry(it.row(), it.col(), new_F_elem);
                         }
 
-                    return intoA;
+                    return res_A;
                 }
 
-                template <typename LinBoxValT, typename EigenValT>
-                ::LinBox::DenseVector<LinBoxValT> create_from_Eigen(const Eigen::SparseVector<EigenValT> &vec, const LinBoxValT &F)
+                template <typename intT, typename outT>
+                ::LinBox::DenseVector<outT> LinBox_from_Eigen(const Eigen::SparseVector<intT> &vec, const outT &F)
                 {
-                    using eigen_vec_type = Eigen::SparseVector<EigenValT>;
+                    using eigen_vec_type = Eigen::SparseVector<intT>;
 
                     size_t n = vec.size();
-                    ::LinBox::DenseVector<LinBoxValT> into_vec(F, n);
+                    ::LinBox::DenseVector<outT> res_vec(F, n);
 
                     for (typename eigen_vec_type::InnerIterator it(vec); it; ++it)
                     {
-                        typename LinBoxValT::Element new_F_elem;
+                        typename outT::Element new_F_elem;
                         F.init(new_F_elem, it.value());
-                        into_vec.setEntry(it.index(), new_F_elem);
+                        res_vec.setEntry(it.index(), new_F_elem);
                     }
 
-                    return into_vec;
+                    return res_vec;
                 }
 
             }
@@ -128,10 +152,11 @@ namespace ILPCuts
 
                 // using QField = Givaro::QField<Givaro::Rational>;
                 // QField Q;
-                ::LinBox::SparseMatrix<ZRing> A_LinBox = Internal::create_from_Eigen<ZRing, mpz_class>(A, Z);
+                ::LinBox::SparseMatrix<ZRing> A_LinBox = Internal::LinBox_from_Eigen<mpz_class, ZRing>(A, Z);
 
                 ZRing::Element det_LinBox;
                 ::LinBox::Method::Blackbox method_LinBox;
+                method_LinBox.singularity = ::LinBox::Singularity::NonSingular;
                 ::LinBox::det(det_LinBox, A_LinBox, method_LinBox);
 
                 return mpz_class(det_LinBox.get_mpz_const());
@@ -144,49 +169,34 @@ namespace ILPCuts
             Eigen::SparseVector<int64_t> compute_some_kernel_vec(Eigen::SparseMatrix<int64_t> A, const int64_t &p)
             {
                 using Field = Givaro::Modular<int64_t>;
-                using eigen_mat_type = Eigen::SparseMatrix<int64_t>;
 
-                A.unaryExpr(Utility::mod_unaryop(p));
+                A = A.unaryExpr(Utility::mod_unaryop(p)).eval();
                 prune_zeroes_int(A);
 
                 size_t n = A.cols();
                 Field F(p);
-                ::LinBox::SparseMatrix<Field> A_LB = Internal::create_from_Eigen<Field, int64_t>(A, F);
+                ::LinBox::SparseMatrix<Field> A_LB = Internal::LinBox_from_Eigen<int64_t, Field>(A, F);
 
                 ::LinBox::DenseVector<Field> res_LB = Internal::compute_some_kernel_vec(F, A_LB);
 
-                Eigen::SparseVector<int64_t> res(n);
-                for (size_t i = 0; i < n; ++i)
-                {
-                    if (res_LB[i] != 0)
-                        res.insert(i) = res_LB[i];
-                }
-
-                return res;
+                return Internal::Eigen_from_LinBox<Field, int64_t>(res_LB);
             }
 
             template <>
             Eigen::SparseVector<mpz_class> compute_some_kernel_vec(Eigen::SparseMatrix<mpz_class> A, const mpz_class &p)
             {
                 using Field = Givaro::Modular<Givaro::Integer>;
-                using eigen_mat_type = Eigen::SparseMatrix<mpz_class>;
 
-                A.unaryExpr(Utility::mod_unaryop(p));
+                A = A.unaryExpr(Utility::mod_unaryop(p)).eval();
                 prune_zeroes_int(A);
+
                 size_t n = A.cols();
                 Field F(p);
-                ::LinBox::SparseMatrix<Field> A_LB = Internal::create_from_Eigen<Field, mpz_class>(A, F);
+                ::LinBox::SparseMatrix<Field> A_LB = Internal::LinBox_from_Eigen<mpz_class, Field>(A, F);
 
                 ::LinBox::DenseVector<Field> res_LB = Internal::compute_some_kernel_vec(F, A_LB);
 
-                Eigen::SparseVector<mpz_class> res(n);
-                for (size_t i = 0; i < n; ++i)
-                {
-                    if (res_LB[i] != 0)
-                        res.insert(i) = mpz_class(res_LB[i].get_mpz_const());
-                }
-
-                return res;
+                return Internal::Eigen_from_LinBox<Field, mpz_class>(res_LB);
             }
 
             template <typename int_type>
@@ -201,21 +211,14 @@ namespace ILPCuts
                 using ZRing = Givaro::ZRing<Givaro::Integer>;
                 ZRing Z;
 
-                ::LinBox::SparseMatrix<ZRing> A_LB = Internal::create_from_Eigen<ZRing, mpz_class>(A, Z);
-                ::LinBox::DenseVector<ZRing> b_LB = Internal::create_from_Eigen<ZRing, mpz_class>(b, Z);
+                ::LinBox::SparseMatrix<ZRing> A_LB = Internal::LinBox_from_Eigen<mpz_class, ZRing>(A, Z);
+                ::LinBox::DenseVector<ZRing> b_LB = Internal::LinBox_from_Eigen<mpz_class, ZRing>(b, Z);
 
                 auto [x_LB, denum] = Internal::solve(Z, A_LB, b_LB);
 
                 assert(denum == 1);
 
-                Eigen::SparseVector<mpz_class> res(n);
-                for (size_t i = 0; i < n; ++i)
-                {
-                    if (x_LB[i] != 0)
-                        res.insert(i) = mpz_class(x_LB[i].get_mpz_const());
-                }
-
-                return res;
+                return Internal::Eigen_from_LinBox<ZRing, mpz_class>(x_LB);
             }
         }
     }

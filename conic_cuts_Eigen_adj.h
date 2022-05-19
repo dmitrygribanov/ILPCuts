@@ -125,6 +125,7 @@ namespace ILPCuts
 			}
 
 			is_vec res = pivot.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(_to_single_int);
+			Utility::prune_zeroes_int(res);
 
 			for (typename is_vec::InnerIterator it(res); it; ++it)
 			{
@@ -145,17 +146,10 @@ namespace ILPCuts
 			for (size_t i = 0; i < n; ++i)
 			{
 				pivot = adjA.col(i).unaryExpr(Utility::mod_unaryop(det));
-				bool is_any_nonzero = false;
-				for (typename lis_vec::InnerIterator it(pivot); it; ++it)
-				{
-					if (it.value() > 0)
-					{
-						is_any_nonzero = true;
-						break;
-					}
-				}
 
-				if (is_any_nonzero)
+				Utility::prune_zeroes_int(pivot);
+
+				if (pivot.nonZeros() > 0)
 					break;
 			}
 
@@ -176,7 +170,7 @@ namespace ILPCuts
 
 			const cone_traits_spec &C = static_cast<const cone_traits_spec &>(base_C);
 
-			if (C.det % lint_type(2ul) == 0ul)
+			if (C.det % lint_type(2) == 0)
 			{
 				out() << "even step..." << std::endl;
 				process_even_case(C, pf);
@@ -229,8 +223,10 @@ namespace ILPCuts
 		}
 		catch (ToleranceErrorException exc)
 		{
-			out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
-			err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
+			out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
+			err() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
+
+			return std::vector<is_vec>();
 		}
 	}
 }

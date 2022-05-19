@@ -142,7 +142,7 @@ namespace ILPCuts
 
                 // cout << "x: " << x << endl;
 
-                x = x.unaryExpr(Utility::mod_unaryop(det));
+                x = x.unaryExpr(Utility::mod_unaryop(det)).eval();
                 Utility::prune_zeroes_int(x);
 
                 // cout << "x: " << x << endl;
@@ -208,14 +208,15 @@ namespace ILPCuts
 
                 out() << "ConicCuts: determinant computation time: " << elapsed_seconds.count() << endl;
                 out() << "ConicCuts: determinant is: " << det << endl;
-                // cin.ignore();
 
                 return generate_cuts(A, optLP, det);
             }
             catch (ToleranceErrorException exc)
             {
-                out() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
-                err() << "Root: determinant computing tolerance error: " << exc.what() << '\n';
+                out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
+                err() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
+
+                return std::vector<is_vec>();
             }
         }
     };

@@ -32,7 +32,7 @@ namespace ILPCuts
 		using Strategies = CutsGenStrategies<int_type, rational_type>;
 
 	private:
-		using me = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
+		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
 
 		std::ostream *_out;
 		std::ostream *_err;
@@ -64,10 +64,10 @@ namespace ILPCuts
 
 			void move_from_base_ptr(std::unique_ptr<cone_traits> base)
 			{
-				*this = std::move(*base);
-				/*A = std::move(base->A);
+				//*this = std::move(*base);
+				A = std::move(base->A);
 				det = std::move(base->det);
-				dir_coeffs_pull = std::move(base->dir_coeffs_pull);*/
+				dir_coeffs_pull = std::move(base->dir_coeffs_pull);
 			}
 		};
 
@@ -130,9 +130,8 @@ namespace ILPCuts
 				if (directions_counter[dir_ID] < cone_limit_per_direction)
 				{
 
-					const rs_vec &coeffs = C.dir_coeffs_pull[i].coeffs;
-
-					rs_vec new_coeffs = trans.compute_coeffs(coeffs);
+					const rs_vec &old_coeffs = C.dir_coeffs_pull[i].coeffs;
+					rs_vec new_coeffs = trans.compute_coeffs(old_coeffs);
 
 					if (new_coeffs.size() == n)
 					{
@@ -155,10 +154,12 @@ namespace ILPCuts
 		{
 			std::vector<rs_vec> directions_pool;
 
-			for (auto &strategy : direction_strategies)
+			for (const auto &strategy : direction_strategies)
 			{
 				std::vector<rs_vec> strategy_directions = std::move(strategy->generate_directons(A));
-				directions_pool.insert(directions_pool.end(), strategy_directions.begin(), strategy_directions.end());
+				directions_pool.insert(directions_pool.end(),
+									   std::make_move_iterator(strategy_directions.begin()),
+									   std::make_move_iterator(strategy_directions.end()));
 			}
 
 			return std::move(directions_pool);
@@ -181,10 +182,8 @@ namespace ILPCuts
 
 		std::ostream &err() { return *_err; }
 
-		is_mat adjust_normal_cone(const is_mat &A, const is_vec &c)
+		is_mat adjust_normal_cone(is_mat A, const is_vec &c)
 		{
-			is_mat resA = A;
-
 			rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c.template cast<rational_type>().eval());
 			/*cout << c << endl << endl;
 			cout << t << endl;
@@ -197,11 +196,11 @@ namespace ILPCuts
 				{
 					/*cout << it.value() << endl;
 					cin.ignore();*/
-					resA.col(it.index()) = -resA.col(it.index());
+					A.col(it.index()) = -A.col(it.index());
 				}
 			}
 
-			return std::move(resA);
+			return std::move(A);
 		}
 
 		virtual std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) = 0;
@@ -213,7 +212,7 @@ namespace ILPCuts
 	{
 		omp_set_dynamic(std::max(threads, size_t(1)));
 		std::vector<std::unique_ptr<const cone_traits>> current_layer;
-		std::vector<std::vector<is_mat>> result(threads, std::vector<is_mat>());
+		std::vector<std::vector<is_mat>> result_by_treads(threads);
 
 		size_t directions_pool_size = C->dir_coeffs_pull.size();
 		current_layer.push_back(std::move(C));
@@ -221,49 +220,48 @@ namespace ILPCuts
 		while (!current_layer.empty())
 		{
 
-			/*out() << "Curr level size: " << current_layer.size() << std::endl;
-			std::cin.ignore();*/
+			// out() << "Curr level size: " << current_layer.size() << std::endl;
 
-			std::vector<Atomic<size_t>> directions_evaluation_counter(directions_pool_size /*, Atomic<size_t>(0)*/);
+			std::vector<Atomic<size_t>> directions_evaluation_counter(directions_pool_size);
 
-			int dynamic_threads = std::min(threads, current_layer.size());
+			size_t dynamic_threads = std::min(threads, current_layer.size());
 
-			std::vector<std::vector<std::unique_ptr<const cone_traits>>> next_layers(dynamic_threads /*, std::vector<cone_traits>()*/);
+			std::vector<std::vector<std::unique_ptr<const cone_traits>>> next_layers_by_treads(dynamic_threads);
 			omp_set_num_threads(dynamic_threads);
 #ifndef ILPCUTS_PARALLEL_OFF
 #pragma omp parallel for
 #endif
-			for (int i = 0; i < current_layer.size(); ++i)
+			for (size_t i = 0; i < current_layer.size(); ++i)
 			{
 				auto node = current_layer[i].get();
-				auto next_node_layer = std::move(compute_layer(node, directions_evaluation_counter));
+				auto next_node_layer = compute_layer(node, directions_evaluation_counter);
 				int tid = omp_get_thread_num();
 				for (auto &next_node : next_node_layer)
 				{
 					if (next_node->det == 1)
-						result[tid].push_back(std::move(next_node->A));
+						result_by_treads[tid].push_back(std::move(next_node->A));
 					else
-						next_layers[tid].push_back(std::move(next_node));
+						next_layers_by_treads[tid].push_back(std::move(next_node));
 				}
 			}
 
-			std::swap(current_layer, next_layers[0]);
-			for (int i = 1; i < next_layers.size(); ++i)
+			std::swap(current_layer, next_layers_by_treads[0]);
+			for (int i = 1; i < next_layers_by_treads.size(); ++i)
 			{
 				current_layer.insert(
 					current_layer.end(),
-					std::make_move_iterator(next_layers[i].begin()),
-					std::make_move_iterator(next_layers[i].end()));
+					std::make_move_iterator(next_layers_by_treads[i].begin()),
+					std::make_move_iterator(next_layers_by_treads[i].end()));
 			}
 		}
 
-		std::vector<is_mat> &concatenated_result = result[0];
-		for (int i = 1; i < result.size(); ++i)
+		std::vector<is_mat> &concatenated_result = result_by_treads[0];
+		for (int i = 1; i < result_by_treads.size(); ++i)
 		{
 			concatenated_result.insert(
 				concatenated_result.end(),
-				std::make_move_iterator(result[i].begin()),
-				std::make_move_iterator(result[i].end()));
+				std::make_move_iterator(result_by_treads[i].begin()),
+				std::make_move_iterator(result_by_treads[i].end()));
 		}
 
 		return std::move(concatenated_result);
@@ -295,7 +293,7 @@ namespace ILPCuts
 				++directions_evaluation_counter[dirr_coeffs_pull[0].dir_ID];
 
 				std::unique_ptr<cone_traits> new_cone = std::move(compute_cone_traits(
-					C, trans, dirr_coeffs_pull));
+					C, trans, std::move(dirr_coeffs_pull)));
 
 				result.push_back(std::move(new_cone));
 				out() << "Adding step done..." << std::endl;
@@ -321,7 +319,7 @@ namespace ILPCuts
 
 		for (is_mat &uni_mat : uni_mat_pool)
 		{
-			uni_mat = uni_mat.transpose();
+			uni_mat = uni_mat.transpose().eval();
 		}
 
 		for (const is_mat &uni_mat : uni_mat_pool)
@@ -361,18 +359,7 @@ namespace ILPCuts
 					res_cuts.push_back(std::move(cut));
 				}
 				++diff_it;
-				//++floor_it;
 			}
-
-			/*for (size_t i = 0; i < diff_b.size(); ++i) {
-				if (diff_b[i] > tolerance) {
-					is_vec cut = uni_mat.row(i);
-					cut.conservativeResize(cut.size() + 1);
-					cut[cut.size() - 1] = floor_b[i];
-					out() << "cut has been added: (" << cut.transpose() << ")\n";
-					res_cuts.push_back(std::move(cut));
-				}
-			}*/
 		}
 
 		std::sort(res_cuts.begin(), res_cuts.end(), Utility::SparseVecComp<rs_vec>());

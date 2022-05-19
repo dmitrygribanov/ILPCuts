@@ -70,7 +70,7 @@ namespace ILPCuts
             gen_type &_gen;
 
         public:
-            ConvUniform(gen_type &gen, size_t rand_dir_num = 3)
+            ConvUniform(gen_type &gen, size_t rand_dir_num)
                 : DirectionsStrategyBase(), _gen(gen), _rand_dir_num(rand_dir_num) {}
 
             std::vector<rs_vec> generate_directons(const is_mat &A) override

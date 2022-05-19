@@ -29,10 +29,6 @@ namespace ILPCuts
 		using rs_vec = typename generator_base::rs_vec;
 		using Strategies = typename generator_base::Strategies;
 
-		/*using base::tolerance;
-		using base::adjust_normal_cone;
-		using base::base;*/
-
 		bool lazy_constraints_on = false;
 
 		std::unique_ptr<generator_base> generator_ptr;
@@ -71,10 +67,8 @@ namespace ILPCuts
 			IloExpr::LinearIterator iter = obj.getLinearIterator();
 			if (obj.getSense() == IloObjective::Sense::Maximize)
 			{
-				// cout << "Max " << endl;
 				while (iter.ok())
 				{
-					// cout << iter.getCoef() << endl;
 					c.insertBack(var_index_map[iter.getVar().getId()]) = iter.getCoef();
 					++iter;
 				}
@@ -134,7 +128,6 @@ namespace ILPCuts
 					++basis_i;
 				}
 			}
-			// cin.ignore();
 
 			for (size_t i = 0; i < vars.getSize(); ++i)
 			{
@@ -177,9 +170,9 @@ namespace ILPCuts
 			cplex_optLP.end();
 		}
 
-		A_basis = generator_ptr->adjust_normal_cone(A_basis.transpose(), c);
+		A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
 
-		return std::move(std::make_tuple(A_basis, c, optLP));
+		return std::make_tuple(A_basis, c, optLP);
 	}
 
 	template <typename cutsGenT>

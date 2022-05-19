@@ -10,6 +10,7 @@
 #include <chrono>
 #include <atomic>
 #include <memory>
+#include <sstream>
 
 #include "gmp_eigen_supp.h"
 
@@ -90,7 +91,7 @@ namespace ILPCuts
 	{
 	public:
 		ToleranceErrorException()
-			: std::runtime_error("") {}
+			: std::runtime_error("ILPCuts lib error: a tolerance-error has occurred.") {}
 
 		ToleranceErrorException(std::string msg)
 			: std::runtime_error(msg) {}
@@ -144,7 +145,7 @@ namespace ILPCuts
 		};
 
 		template <typename intT, typename ratT>
-		intT rat_to_int(const ratT &rat_x, const ratT &err_tolerance)
+		intT rat_to_int(const ratT &rat_x, double err_tolerance)
 		{
 			intT int_x = static_cast<intT>(round(rat_x));
 			if (abs(rat_x - int_x) <= err_tolerance)
@@ -157,13 +158,18 @@ namespace ILPCuts
 				msg << "rat_to_int tolerance error (" << abs(rat_x - int_x) << ")";
 				throw ToleranceErrorException(msg.str());
 			}
-			return intT(0);
 		}
 
 		template <typename intT>
 		intT mod2_unaryop(const intT &x)
 		{
 			return abs(x % intT(2));
+		}
+
+		template <>
+		int64_t mod2_unaryop(const int64_t &x)
+		{
+			return x & 1;
 		}
 
 		template <typename intT>
@@ -391,7 +397,25 @@ namespace ILPCuts
 		}
 
 		template <typename intT, typename randGenT>
-		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT &rgen);
+		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT &rgen)
+		{
+			using int_type = intT;
+			using is_vec = SparseVector<int_type>;
+
+			std::bernoulli_distribution bd(0.5);
+
+			// generation of a random rhs
+			is_vec res(n);
+			res.reserve(size_t(0.7 * n));
+			for (size_t i = 0; i < n; ++i)
+			{
+				bool flip = bd(rgen);
+				if (flip)
+					res.insert(i) = 1;
+			}
+
+			return std::move(res);
+		}
 
 		template <typename intT>
 		class KeepIntFunc
@@ -400,7 +424,7 @@ namespace ILPCuts
 			const intT zero;
 
 		public:
-			KeepIntFunc() : zero(intT(0)) {}
+			KeepIntFunc() : zero(0) {}
 
 			bool operator()(const intT &x) const { return x != zero; }
 		};
@@ -428,33 +452,25 @@ namespace ILPCuts
 			for (size_t k = 0; k < A.outerSize(); ++k)
 				for (typename mat_type::InnerIterator it(A, k); it; ++it)
 				{
-					res = max(res, static_cast<valT>(abs(it.value())));
+					res = max(res, abs(it.value()));
 				}
 
 			return std::move(res);
 		}
 
-	};
-
-	template <typename intT, typename randGenT>
-	SparseVector<intT> Utility::bernouly_vec_generate(size_t n, randGenT &rgen)
-	{
-		using int_type = intT;
-		using is_vec = SparseVector<int_type>;
-
-		std::bernoulli_distribution bd(0.5);
-
-		// generation of a random rhs
-		is_vec res(n);
-		res.reserve((2 * n) / 3);
-		for (size_t i = 0; i < n; ++i)
+		template <typename valT>
+		bool is_zero(const SparseVector<valT> &v)
 		{
-			bool flip = bd(rgen);
-			if (flip)
-				res.insert(i) = 1;
-		}
+			for (typename SparseVector<valT>::InnerIterator it(v); it; ++it)
+			{
+				if (it.value() != valT(0))
+				{
+					return false;
+				}
+			}
 
-		return std::move(res);
-	}
+			return true;
+		}
+	};
 
 }

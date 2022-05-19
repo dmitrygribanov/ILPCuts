@@ -49,12 +49,6 @@ namespace ILPCuts
                     min_bit_index = std::min(min_bit_index, bit_index);
                 }
             }
-            /*while (
-                (vec_copy.unaryExpr(std::ref(mod2_unaryop)) == 0).all()
-                ) {
-                res *= 2;
-                vec_copy /= 2;
-            }*/
 
             mpz_setbit(res.get_mpz_t(), min_bit_index);
 
@@ -115,7 +109,6 @@ namespace ILPCuts
         {
             using rat_type = rationalT;
             using rat_mat = SparseMatrix<rat_type>;
-            using rat_vec = SparseVector<rationalT>;
 
             SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
 
@@ -125,10 +118,6 @@ namespace ILPCuts
         template <typename rationalT, typename solverT>
         SparseVector<rationalT> system_solve(const SparseVector<rationalT> &b, solverT &solver)
         {
-            using rat_type = rationalT;
-            using rat_vec = SparseVector<rationalT>;
-            using solver_type = solverT;
-
             return std::move(solver.solve(b));
         }
     } // namespace Utility

@@ -195,11 +195,7 @@ void run_cplex_experiment(
 	else if (solver_type == "lu")
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(&env.out(), &env.error());
 	else if (solver_type == "zp")
-	{
-		std::unique_ptr<CutsGen_Zp> gen_ptr = std::make_unique<CutsGen_Zp>(&env.out(), &env.error());
-		gen_ptr->max_conservative_prime = cprime;
-		cuts_gen_adapter.generator_ptr.reset(gen_ptr.release());
-	}
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(&env.out(), &env.error());
 	else
 	{
 		env.error() << "Wrong value of the CLI parameter -cg(--cgen): " << solver_type << std::endl;
@@ -215,6 +211,8 @@ void run_cplex_experiment(
 	cuts_gen_ptr->threads = threads_cuts_gen;
 	cuts_gen_adapter.lazy_constraints_on = lazy_constraints_on;
 	cuts_gen_ptr->rgen = &engine;
+	if (solver_type == "zp")
+		static_cast<CutsGen_Zp *>(cuts_gen_ptr)->max_conservative_prime = cprime;
 
 	// set strategies for cutting generation
 	if (rand_directions > 0)
@@ -322,9 +320,9 @@ int main(int argc, char **argv)
 		.default_value(std::string(""))
 		.help("specify the output file. (not implemented yet)");
 
-	program.add_argument("-cg", "--cgen")
+	program.add_argument("--cgen")
 		.default_value(std::string("adj"))
-		.help("type of cutting generation algorithm; can be \"adj\" or \"lu\"");
+		.help("type of cutting generation algorithm; can be \"adj\", \"lu\" or \"zp\"");
 
 	program.add_argument("-t", "--tolerance")
 		.default_value(0.000001)
@@ -332,7 +330,7 @@ int main(int argc, char **argv)
 		.scan<'g', double>();
 
 	program.add_argument("--cprime")
-		.default_value(size_t(11))
+		.default_value(size_t(101))
 		.help("max conservative prime for ILPCuts with Zp")
 		.scan<'i', size_t>();
 
@@ -351,9 +349,9 @@ int main(int argc, char **argv)
 		.help("number of directions in random cone strategy")
 		.scan<'i', size_t>();
 
-	program.add_argument("-s", "--some_strategy")
+	program.add_argument("--sum_strat")
 		.default_value(false)
-		.help("add \"some\" cone strategy")
+		.help("add \"sum\" cone strategy")
 		.implicit_value(true);
 
 	program.add_argument("-w", "--workers", "--threads")
@@ -361,12 +359,12 @@ int main(int argc, char **argv)
 		.help("global number of threads")
 		.scan<'i', size_t>();
 
-	program.add_argument("-wcgn", "--workers_cuts", "--threads_cuts")
+	program.add_argument("--wcgn", "--workers_cuts", "--threads_cuts")
 		.default_value(size_t(0))
 		.help("number of threads for cutting generation algorithm")
 		.scan<'i', size_t>();
 
-	program.add_argument("-wcpl", "--workers_cplex", "--threads_cplex")
+	program.add_argument("--wcpl", "--workers_cplex", "--threads_cplex")
 		.default_value(size_t(0))
 		.help("number of threads for CPlex solver")
 		.scan<'i', size_t>();
@@ -376,12 +374,12 @@ int main(int argc, char **argv)
 		.help("use baseline solver only")
 		.implicit_value(true);
 
-	program.add_argument("-lz", "--lazy")
+	program.add_argument("--lazy")
 		.default_value(false)
 		.help("turns on addition of CPlex lazy constraints")
 		.implicit_value(true);
 
-	program.add_argument("-it", "--iterations")
+	program.add_argument("--iters")
 		.default_value(size_t(1))
 		.help("number of boosting iterations in the root-node")
 		.scan<'i', size_t>();
@@ -405,12 +403,12 @@ int main(int argc, char **argv)
 			program.get<size_t>("--cone_limit"),
 			program.get<std::string>("--output"),
 			program.get<size_t>("--rand_strategy"),
-			program.get<bool>("--some_strategy"),
+			program.get<bool>("--sum_strat"),
 			threads_cuts_gen,
 			threads_cplex,
 			program.get<bool>("--baseline"),
 			program.get<bool>("--lazy"),
-			program.get<size_t>("--iterations"),
+			program.get<size_t>("--iters"),
 			program.get<std::string>("--cgen"),
 			program.get<size_t>("--cprime"));
 	}

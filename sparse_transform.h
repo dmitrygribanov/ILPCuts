@@ -168,6 +168,8 @@ namespace ILPCuts
         transform_base(const double &a_tol, const double &a_err_tol)
             : _tolerance(a_tol), _lrat_to_lint(a_err_tol), _rat_to_int(a_err_tol) {}
 
+        const double &get_tolerance() const { return _tolerance; }
+
         virtual is_vec operator()(const is_mat &A) const = 0;
         virtual lint_type operator[](const lint_type &det) const = 0;
         virtual rs_vec compute_coeffs(const rs_vec &old_coefs) const = 0;
@@ -176,8 +178,9 @@ namespace ILPCuts
     };
 
     template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-    struct sparse_transform : public transform_base<intT, rationalT, lintT, lrationalT>
+    class sparse_transform : public transform_base<intT, rationalT, lintT, lrationalT>
     {
+    private:
         using base = transform_base<intT, rationalT, lintT, lrationalT>;
 
         using typename base::int_type;
@@ -201,6 +204,7 @@ namespace ILPCuts
 
         Utility::sparse_transform<int_type> data;
 
+    public:
         sparse_transform(const double &a_tol, const double &a_err_tol, size_t ai,
                          const is_vec &at, const int_type &adenum)
             : base(a_tol, a_err_tol), data{ai, at, adenum}
@@ -236,7 +240,8 @@ namespace ILPCuts
             size_t n = old_adjA.cols();
             is_mat Q = compute_adj_Q(n, data);
             old_adjA = ((Q.template cast<lint_type>() * old_adjA).template cast<lrational_type>() / data.denum)
-                           .unaryExpr(_lrat_to_lint);
+                           .unaryExpr(_lrat_to_lint)
+                           .eval();
 
             return std::move(old_adjA);
         }
@@ -245,6 +250,7 @@ namespace ILPCuts
     template <typename intT, typename rationalT, typename lintT, typename lrationalT>
     struct lsparse_transform : public transform_base<intT, rationalT, lintT, lrationalT>
     {
+    private:
         using base = transform_base<intT, rationalT, lintT, lrationalT>;
 
         using typename base::int_type;
@@ -271,6 +277,7 @@ namespace ILPCuts
         Utility::ToSingle<lint_type, int_type> _to_single_int;
         Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
 
+    public:
         lsparse_transform(const double &a_tol, const double &a_err_tol, size_t ai,
                           const lis_vec &at, const lint_type &adenum)
             : base(a_tol, a_err_tol), data{ai, at, adenum}
@@ -306,7 +313,8 @@ namespace ILPCuts
             size_t n = old_adjA.cols();
             lis_mat Q = compute_adj_Q(n, data);
             old_adjA = ((Q * old_adjA).template cast<lrational_type>() / data.denum)
-                           .unaryExpr(_lrat_to_lint);
+                           .unaryExpr(_lrat_to_lint)
+                           .eval();
 
             return std::move(old_adjA);
         }

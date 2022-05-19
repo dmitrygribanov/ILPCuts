@@ -32,14 +32,14 @@
             "args": [
                 "-i",
                 "../problems/cplex/cod105_vc1024.mps.gz",
-                "-wcgn",
+                "--wcgn",
                 "1",
-                "-wcpl",
+                "--wcpl",
                 "15",
                 "--cgen",
                 "zp",
                 "--cprime",
-                "11"
+                "101"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",
