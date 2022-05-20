@@ -121,6 +121,32 @@ namespace ILPCuts
                     return res;
                 }
 
+                template <typename T>
+                size_t sparsest_row_index(const Mat<T> &A)
+                {
+                    size_t n = A.NumCols();
+                    size_t m = A.NumRows();
+                    size_t i_min_nonzeros = 0;
+                    size_t min_nonzeros = n;
+
+                    for (size_t i = 0; i < m; ++i)
+                    {
+                        size_t nonzeros = 0;
+                        for (size_t j = 0; j < n; ++j)
+                        {
+                            if (A[i][j] != 0)
+                                ++nonzeros;
+                        }
+                        if (nonzeros < min_nonzeros)
+                        {
+                            min_nonzeros = nonzeros;
+                            i_min_nonzeros = i;
+                        }
+                    }
+
+                    return i_min_nonzeros;
+                }
+
             }
 
             template <typename int_type>
@@ -137,7 +163,9 @@ namespace ILPCuts
 
                 kernel(X_ntl, A_ntl);
 
-                return Internal::ntl_to_eigen<GF2, int_type>(X_ntl[0]);
+                size_t sprsest_row_idx = Internal::sparsest_row_index(X_ntl);
+
+                return Internal::ntl_to_eigen<GF2, int_type>(X_ntl[sprsest_row_idx]);
             }
 
             template <typename int_type>
@@ -159,7 +187,9 @@ namespace ILPCuts
 
                 kernel(X_ntl, A_ntl);
 
-                return Internal::ntl_to_eigen<zz_p, int64_t>(X_ntl[0]);
+                size_t sprsest_row_idx = Internal::sparsest_row_index(X_ntl);
+
+                return Internal::ntl_to_eigen<zz_p, int64_t>(X_ntl[sprsest_row_idx]);
             }
 
             // template <>
