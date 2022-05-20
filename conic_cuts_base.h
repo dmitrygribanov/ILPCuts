@@ -6,6 +6,9 @@
 #include "sparse_transform.h"
 #include "flint_module.h"
 
+#include <omp.h>
+#include <atomic>
+
 namespace ILPCuts
 {
 	template <typename intT, typename rationalT, typename lintT, typename lrationalT>

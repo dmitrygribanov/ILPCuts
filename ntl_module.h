@@ -239,6 +239,21 @@ namespace ILPCuts
 
                 return Internal::ZZ_to_mpz(d);
             }
+
+            template <typename int_type>
+            std::tuple<SparseMatrix<int_type>, int_type> compute_inverse(const SparseMatrix<int_type> &A);
+
+            template <>
+            std::tuple<SparseMatrix<mpz_class>, mpz_class> compute_inverse(const SparseMatrix<mpz_class> &A)
+            {
+                mat_ZZ A_ntl = Internal::eigen_to_ntl<mpz_class, ZZ>(A);
+
+                ZZ d_ntl;
+                mat_ZZ Ai_ntl;
+                inv(d_ntl, Ai_ntl, A_ntl);
+
+                return std::make_tuple(Internal::ntl_to_eigen<ZZ, mpz_class>(Ai_ntl), Internal::ZZ_to_mpz(d_ntl));
+            }
         }
     }
 }

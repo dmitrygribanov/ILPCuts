@@ -2,10 +2,7 @@
 
 #include "conic_cuts_base.h"
 #include "Eigen_solving_utilities.h"
-
-#include <omp.h>
-#include <atomic>
-
+#include "ntl_module.h"
 namespace ILPCuts
 {
 
@@ -209,17 +206,18 @@ namespace ILPCuts
 	{
 		try
 		{
-			lrational_type det(0.0);
-			lrs_mat adjA;
+			lint_type det(0);
+			lis_mat adjA;
 
 			auto start = std::chrono::steady_clock::now();
-			std::tie(adjA, det) = std::move(
-				Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
+			std::tie(adjA, det) = Utility::NTL::compute_inverse(A.template cast<lint_type>().eval());
+			// std::tie(adjA, det) = std::move(
+			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
 
-			return std::move(generate_cuts(A, adjA.unaryExpr(_lrat_to_lint), optLP, _lrat_to_lint(det)));
+			return std::move(generate_cuts(A, adjA, optLP, abs(det)));
 		}
 		catch (ToleranceErrorException exc)
 		{
