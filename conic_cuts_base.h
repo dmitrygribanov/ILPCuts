@@ -4,6 +4,7 @@
 #include "cuts_strategies.h"
 #include "Eigen_solving_utilities.h"
 #include "sparse_transform.h"
+#include "flint_module.h"
 
 namespace ILPCuts
 {
