@@ -33,7 +33,7 @@ namespace ILPCuts
                     SparseMatrix<int64_t> res(n, n);
 
                     for (size_t i = 0; i < n; ++i)
-                        for (size_t j = 0; i < n; ++j)
+                        for (size_t j = 0; j < n; ++j)
                         {
                             fmpz *flint_entry = fmpz_mat_entry(A_flint, i, j);
                             if (*flint_entry != 0)
@@ -46,6 +46,12 @@ namespace ILPCuts
 
             template <typename int_type>
             void compute_HNF(const SparseMatrix<int_type> &A, SparseMatrix<int_type> &P, SparseMatrix<int_type> &H);
+
+            template <typename int_type>
+            void compute_HNF(const SparseMatrix<int_type> &A, SparseMatrix<int_type> &H);
+
+            template <typename int_type>
+            void compute_HNF(const SparseMatrix<int_type> &A, const int_type &det_mul, SparseMatrix<int_type> &H);
 
             template <>
             void compute_HNF(const SparseMatrix<int64_t> &A, SparseMatrix<int64_t> &P, SparseMatrix<int64_t> &H)
@@ -70,6 +76,52 @@ namespace ILPCuts
                 fmpz_mat_clear(A_flint);
                 fmpz_mat_clear(H_flint);
                 fmpz_mat_clear(P_flint);
+            }
+
+            template <>
+            void compute_HNF(const SparseMatrix<int64_t> &A, SparseMatrix<int64_t> &H)
+            {
+                size_t n = A.cols();
+                fmpz_mat_t A_flint, H_flint;
+                fmpz_mat_init(A_flint, n, n);
+                fmpz_mat_init(H_flint, n, n);
+
+                fmpz_mat_zero(A_flint);
+                fmpz_mat_zero(H_flint);
+
+                Internal::fill_mat(A, A_flint);
+
+                fmpz_mat_hnf(H_flint, A_flint);
+
+                H = Internal::flint_to_Eigen<int64_t>(n, H_flint);
+
+                fmpz_mat_clear(A_flint);
+                fmpz_mat_clear(H_flint);
+            }
+
+            template <typename int_type>
+            void compute_HNF(const SparseMatrix<int_type> &A, const int_type &det_mul, SparseMatrix<int_type> &H)
+            {
+                size_t n = A.cols();
+                fmpz_mat_t A_flint, H_flint;
+                fmpz_t det_mul_flint;
+                fmpz_mat_init(A_flint, n, n);
+                fmpz_mat_init(H_flint, n, n);
+                fmpz_init(det_mul_flint);
+
+                fmpz_mat_zero(A_flint);
+                fmpz_mat_zero(H_flint);
+
+                Internal::fill_mat(A, A_flint);
+                fmpz_set_si(det_mul_flint, det_mul);
+
+                fmpz_mat_hnf_modular(H_flint, A_flint, det_mul_flint);
+
+                H = Internal::flint_to_Eigen<int64_t>(n, H_flint);
+
+                fmpz_mat_clear(A_flint);
+                fmpz_mat_clear(H_flint);
+                fmpz_clear(det_mul_flint);
             }
 
             template <typename int_type>

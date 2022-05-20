@@ -7,6 +7,7 @@
 #include <NTL/mat_lzz_p.h>
 #include <NTL/mat_ZZ_p.h>
 #include <NTL/mat_ZZ.h>
+#include <NTL/HNF.h>
 
 namespace ILPCuts
 {
@@ -35,6 +36,12 @@ namespace ILPCuts
                 struct Conversion
                 {
                     out_type operator()(const in_type &a) const { return out_type(a); }
+                };
+
+                template <>
+                struct Conversion<ZZ, int64_t>
+                {
+                    int64_t operator()(const ZZ &a) const { return conv<int64_t>(a); }
                 };
 
                 template <>
@@ -253,6 +260,19 @@ namespace ILPCuts
                 inv(d_ntl, Ai_ntl, A_ntl);
 
                 return std::make_tuple(Internal::ntl_to_eigen<ZZ, mpz_class>(Ai_ntl), Internal::ZZ_to_mpz(d_ntl));
+            }
+
+            template <typename int_type>
+            SparseMatrix<int_type> compute_HNF(const SparseMatrix<int_type> &A, const int_type &det_mul)
+            {
+                mat_ZZ A_ntl = Internal::eigen_to_ntl<int_type, ZZ>(A);
+
+                ZZ det_mul_ntl = Internal::Conversion<int_type, ZZ>()(det_mul);
+
+                mat_ZZ H_ntl;
+                HNF(H_ntl, A_ntl, det_mul_ntl);
+
+                return Internal::ntl_to_eigen<ZZ, int_type>(H_ntl);
             }
         }
     }

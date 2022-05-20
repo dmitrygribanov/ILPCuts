@@ -5,6 +5,7 @@
 #include "Eigen_solving_utilities.h"
 #include "sparse_transform.h"
 #include "flint_module.h"
+#include "ntl_module.h"
 
 #include <omp.h>
 #include <atomic>
@@ -169,6 +170,66 @@ namespace ILPCuts
 			return std::move(directions_pool);
 		}
 
+		std::vector<is_vec> generate_cuts_from_row_matrix(const is_mat &cuts_mat, const rs_vec &optLP)
+		{
+			std::vector<is_vec> res_cuts;
+
+			rs_vec rat_b = cuts_mat.template cast<rational_type>() * optLP;
+			is_vec rounded_b = rat_b.unaryExpr(Utility::Round<rational_type>()).template cast<int_type>();
+			is_vec floor_b = rat_b.unaryExpr(Utility::Floor<rational_type>()).template cast<int_type>();
+
+			rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
+
+			typename rs_vec::InnerIterator diff_it(diff_b);
+			while (diff_it)
+			{
+				if (diff_it.value() > rational_type(tolerance))
+				{
+					is_vec cut = cuts_mat.row(diff_it.index());
+
+					size_t n = cut.size();
+					cut.conservativeResize(n + 1);
+					cut.insert(n) = floor_b.coeff(diff_it.index());
+
+					res_cuts.push_back(std::move(cut));
+				}
+				++diff_it;
+			}
+
+			return res_cuts;
+		}
+
+		is_mat make_cuts_from_normal_cone(const cone_traits &C)
+		{
+			size_t n = C.A.cols();
+			is_mat Pi, H, Hi;
+			int_type denum;
+
+			out() << "ILPCuts: computation of the HNF is started..." << endl;
+			auto start = std::chrono::steady_clock::now();
+			// Utility::flint::compute_HNF(C.A, C.A);
+			H = Utility::NTL::compute_HNF(C.A, _to_single_int(C.det));
+			// Utility::flint::compute_HNF(C.A, _to_single_int(C.det), H);
+			auto end = std::chrono::steady_clock::now();
+			std::chrono::duration<double> elapsed_seconds = end - start;
+			out() << "ILPCuts: HNF computation time: " << elapsed_seconds.count() << "s\n";
+
+			out() << "ILPCuts: computation of the H^-1 is started..." << endl;
+			start = std::chrono::steady_clock::now();
+			Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
+			end = std::chrono::steady_clock::now();
+			elapsed_seconds = end - start;
+			out() << "ILPCuts: HNF^-1 computation time: " << elapsed_seconds.count() << "s\n";
+			out() << "ILPCuts: computation of the P^-1 is started..." << endl;
+			start = std::chrono::steady_clock::now();
+			Pi = C.A * Hi;
+			end = std::chrono::steady_clock::now();
+			elapsed_seconds = end - start;
+			out() << "ILPCuts: P^-1 computation time: " << elapsed_seconds.count() << "s\n";
+
+			return Pi;
+		}
+
 	public:
 		double tolerance = 0.000001;
 		double err_tolerance = 0.01;
@@ -176,6 +237,10 @@ namespace ILPCuts
 		size_t threads = 8;
 		std::vector<std::unique_ptr<typename Strategies::DirectionsStrategyBase>> direction_strategies;
 		std::mt19937 *rgen = nullptr;
+
+		using size_func = std::function<size_t(size_t)>;
+		size_func determinant_cut_limit = [](size_t n) -> size_t
+		{ return n; };
 
 		ConicCutsGenerator_Base(std::ostream *outs = &std::cout, std::ostream *errs = &std::cout)
 			: _out(outs), _err(errs), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
@@ -214,6 +279,7 @@ namespace ILPCuts
 	std::vector<typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::is_mat>
 	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::partial_uni_decomp(std::unique_ptr<const cone_traits> C)
 	{
+		size_t n = C->A.cols();
 		omp_set_dynamic(std::max(threads, size_t(1)));
 		std::vector<std::unique_ptr<const cone_traits>> current_layer;
 		std::vector<std::vector<is_mat>> result_by_treads(threads);
@@ -242,8 +308,12 @@ namespace ILPCuts
 				int tid = omp_get_thread_num();
 				for (auto &next_node : next_node_layer)
 				{
-					if (next_node->det == 1)
-						result_by_treads[tid].push_back(std::move(next_node->A));
+					if (next_node->det <= determinant_cut_limit(n))
+					{
+						out() << "ILPCuts: Determinant is cutted on the value of " << determinant_cut_limit(n) << ", " << endl
+							  << "full cuts procedure is started..." << endl;
+						result_by_treads[tid].push_back(make_cuts_from_normal_cone(std::move(*next_node)));
+					}
 					else
 						next_layers_by_treads[tid].push_back(std::move(next_node));
 				}
@@ -328,42 +398,9 @@ namespace ILPCuts
 
 		for (const is_mat &uni_mat : uni_mat_pool)
 		{
-			rs_vec rat_b = uni_mat.template cast<rational_type>() * optLP;
-			is_vec rounded_b = rat_b.unaryExpr(Utility::Round<rational_type>()).template cast<int_type>();
-			is_vec floor_b = rat_b.unaryExpr(Utility::Floor<rational_type>()).template cast<int_type>();
-
-			rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
-
-			/*std::cout << uni_mat << std::endl;
-			std::cout << optLP.transpose() << std::endl;
-			std::cout << rat_b.transpose() << std::endl;
-			std::cout << rounded_b.transpose() << std::endl;
-			std::cout << floor_b.transpose() << std::endl;
-			std::cout << diff_b.transpose() << std::endl;*/
-
-			typename rs_vec::InnerIterator diff_it(diff_b);
-			// rs_vec::InnerIterator floor_it(floor_b);
-			// size_t jjjj = 0;
-			while (diff_it)
-			{
-				/*if (diff_it.value() != 0)
-				{
-					cout << ++jjjj << ", " << rat_b.coeff(diff_it.index()) - floor_b.coeff(diff_it.index()) << endl;
-					cin.ignore();
-				}*/
-				if (diff_it.value() > rational_type(tolerance))
-				{
-					is_vec cut = uni_mat.row(diff_it.index());
-					// cut.reserve(1);
-					size_t n = cut.size();
-					cut.conservativeResize(n + 1);
-					cut.insert(n) = floor_b.coeff(diff_it.index());
-					// cout << cut << endl;
-					// out() << "cut has been added: (" << cut.transpose() << ")\n";
-					res_cuts.push_back(std::move(cut));
-				}
-				++diff_it;
-			}
+			auto new_cuts = generate_cuts_from_row_matrix(uni_mat, optLP);
+			res_cuts.insert(res_cuts.end(), std::make_move_iterator(new_cuts.begin()),
+							std::make_move_iterator(new_cuts.end()));
 		}
 
 		std::sort(res_cuts.begin(), res_cuts.end(), Utility::SparseVecComp<rs_vec>());
