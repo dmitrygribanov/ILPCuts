@@ -234,17 +234,14 @@ namespace ILPCuts
             }
 
             template <typename int_type>
-            int_type det(Eigen::SparseMatrix<int_type> A);
-
-            template <>
-            mpz_class det(Eigen::SparseMatrix<mpz_class> A)
+            int_type det(Eigen::SparseMatrix<int_type> A)
             {
-                mat_ZZ A_ntl = Internal::eigen_to_ntl<mpz_class, ZZ>(A);
+                mat_ZZ A_ntl = Internal::eigen_to_ntl<int_type, ZZ>(A);
 
                 ZZ d;
                 determinant(d, A_ntl);
 
-                return Internal::ZZ_to_mpz(d);
+                return Internal::Conversion<ZZ, int_type>()(d);
             }
 
             template <typename int_type>

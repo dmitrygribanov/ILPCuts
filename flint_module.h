@@ -24,6 +24,17 @@ namespace ILPCuts
                         }
                 }
 
+                template <>
+                void fill_mat(const SparseMatrix<mpz_class> &A, fmpz_mat_t A_flint)
+                {
+                    for (size_t k = 0; k < A.outerSize(); ++k)
+                        for (typename SparseMatrix<mpz_class>::InnerIterator it(A, k); it; ++it)
+                        {
+                            fmpz *fmpz_entry = fmpz_mat_entry(A_flint, it.row(), it.col());
+                            fmpz_set_mpz(fmpz_entry, it.value().get_mpz_t());
+                        }
+                }
+
                 template <typename int_type>
                 SparseMatrix<int_type> flint_to_Eigen(size_t n, fmpz_mat_t A_flint);
 
@@ -147,6 +158,30 @@ namespace ILPCuts
                 fmpz_mat_clear(A_flint);
                 fmpz_mat_clear(Ai_flint);
                 fmpz_clear(denum_flint);
+            }
+
+            template <typename int_type>
+            void compute_det(const SparseMatrix<int_type> &A, mpz_class &det);
+
+            template <>
+            void compute_det(const SparseMatrix<mpz_class> &A, mpz_class &det)
+            {
+                size_t n = A.cols();
+                fmpz_mat_t A_flint;
+                fmpz_t det_flint;
+                fmpz_mat_init(A_flint, n, n);
+                fmpz_init(det_flint);
+
+                fmpz_mat_zero(A_flint);
+
+                Internal::fill_mat<mpz_class>(A, A_flint);
+
+                fmpz_mat_det(det_flint, A_flint);
+
+                fmpz_get_mpz(det.get_mpz_t(), det_flint);
+
+                fmpz_mat_clear(A_flint);
+                fmpz_clear(det_flint);
             }
         } // namespace flint
     }     // namespace Utility

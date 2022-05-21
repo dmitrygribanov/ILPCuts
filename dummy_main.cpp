@@ -7,6 +7,8 @@
 #include <NTL/ZZ.h>
 
 #include "linbox_module.h"
+#include "ntl_module.h"
+#include "flint_module.h"
 #include "primes_downloader.h"
 
 using namespace ILPCuts;
@@ -59,23 +61,20 @@ int main(int argc, char **argv)
     Eigen::SparseMatrix<int64_t> A(2, 2);
     A.insert(0, 0) = 1;
     A.insert(0, 1) = 2;
-    A.insert(1, 0) = 3;
-    A.insert(1, 1) = 11;
+    A.insert(1, 0) = 2;
+    A.insert(1, 1) = 1;
 
-    mpz_class dettt = Utility::LinBox::compute_det(A.cast<mpz_class>().eval());
-    cout << dettt << endl;
+    int64_t det = abs(Utility::NTL::det(A));
 
-    Eigen::SparseVector<int64_t> kernel_vec = Utility::LinBox::compute_some_kernel_vec(A, int64_t(abs(dettt.get_si())));
+    Eigen::SparseMatrix<int64_t> H = Utility::NTL::compute_HNF(A, det);
+    Eigen::SparseMatrix<int64_t> H1;
+    Utility::flint::compute_HNF(A, H1);
 
-    cout << kernel_vec << endl;
+    cout
+        << H << endl;
 
-    Eigen::SparseVector<mpz_class> b(2);
-    b.insert(0) = -10;
-    b.insert(1) = -65;
-
-    Eigen::SparseVector<mpz_class> x = Utility::LinBox::solve_ZZ(A.cast<mpz_class>().eval(), b);
-
-    cout << x << endl;
+    cout
+        << H1 << endl;
 
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);

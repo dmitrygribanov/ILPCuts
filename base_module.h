@@ -471,6 +471,18 @@ namespace ILPCuts
 
 			return true;
 		}
-	};
 
+		template <typename valT>
+		bool is_upper_triang(const SparseMatrix<valT> &A)
+		{
+			for (size_t k = 0; k < A.outerSize(); ++k)
+				for (typename SparseMatrix<valT>::InnerIterator it(A, k); it; ++it)
+				{
+					if ((it.value() != 0) && (it.row() > it.col()))
+						return false;
+				}
+
+			return true;
+		}
+	};
 }

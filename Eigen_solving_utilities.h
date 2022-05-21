@@ -56,24 +56,26 @@ namespace ILPCuts
         }
 
         template <typename rationalT, typename solverT>
-        SparseMatrix<rationalT> compute_inverse(const SparseMatrix<rationalT> &A, solverT &solver)
+        SparseMatrix<rationalT> compute_inverse(solverT &solver)
         {
             using rat_mat = SparseMatrix<rationalT>;
 
-            size_t n = A.cols();
+            size_t n = solver.cols();
 
             rat_mat I(n, n);
             I.reserve(VectorXi::Constant(n, 2));
             for (size_t i = 0; i < n; ++i)
                 I.insert(i, i) = 1;
 
-            rat_mat res(n, n);
-            /*for (size_t i = 0; i < n; ++i) {
-                res.col(i) = solver.solve(I.col(i));
-            }*/
-            res = std::move(solver.solve(I));
+            return std::move(solver.solve(I));
+        }
 
-            return std::move(res);
+        template <typename rationalT>
+        SparseMatrix<rationalT> compute_inverse(const SparseMatrix<rationalT> &A)
+        {
+            SparseLU<SparseMatrix<rationalT>, COLAMDOrdering<int>> decomp_LU(A);
+
+            return compute_inverse<rationalT, decltype(decomp_LU)>(decomp_LU);
         }
 
         template <typename rationalT>

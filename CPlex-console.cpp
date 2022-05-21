@@ -4,7 +4,7 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-#define ILPCUTS_PARALLEL_OFF
+//#define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen_adj.h"
@@ -415,6 +415,12 @@ int main(int argc, char **argv)
 	catch (const std::exception &err)
 	{
 		std::cerr << err.what() << std::endl;
+		std::cerr << program;
+		std::exit(1);
+	}
+	catch (const IloException &err)
+	{
+		std::cerr << err << std::endl;
 		std::cerr << program;
 		std::exit(1);
 	}

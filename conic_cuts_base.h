@@ -199,35 +199,110 @@ namespace ILPCuts
 			return res_cuts;
 		}
 
+		void fill_parall_vectors(const std::vector<std::vector<int_type>> &A, size_t i, std::vector<rational_type> &x, std::vector<int_type> &y, std::vector<std::vector<int_type>> &R)
+		{
+			size_t n = x.size();
+			rational_type r_i = 0;
+			for (size_t k = i + 1; k < n; ++k)
+				r_i += x[k] * A[i][k];
+			int_type ceil_r_i = static_cast<int_type>(ceil(r_i));
+			int_type initial_y = ceil_r_i;
+			int_type H_ii = A[i][i];
+			for (int_type y_i = initial_y; y_i < initial_y + H_ii; ++y_i)
+			{
+				rational_type x_i = (y_i - r_i) / H_ii;
+				x[i] = x_i;
+				y[i] = y_i;
+				if (i != 0)
+					fill_parall_vectors(A, i - 1, x, y, R);
+				else
+					R.emplace_back(y);
+			}
+		}
+
+		is_mat compute_parall_vectors(const std::vector<std::vector<int_type>> &A)
+		{
+			size_t n = A.size();
+			std::vector<std::vector<int_type>> R_dense;
+
+			std::vector<rational_type> x(n, 0.0);
+			std::vector<int_type> y(n, 0);
+			fill_parall_vectors(A, n - 1, x, y, R_dense);
+
+			size_t m = R_dense.size();
+			is_mat R_sparse(n, m);
+
+			for (size_t j = 0; j < m; ++j)
+			{
+				for (size_t i = 0; i < n; ++i)
+				{
+					if (R_dense[j][i] != 0)
+						R_sparse.insert(i, j) = R_dense[j][i];
+				}
+			}
+
+			return R_sparse;
+		}
+
 		is_mat make_cuts_from_normal_cone(const cone_traits &C)
 		{
 			size_t n = C.A.cols();
-			is_mat Pi, H, Hi;
-			int_type denum;
+			is_mat Pi, H;
+			rs_mat Hi;
+			// int_type denum;
 
 			out() << "ILPCuts: computation of the HNF is started..." << endl;
 			auto start = std::chrono::steady_clock::now();
 			// Utility::flint::compute_HNF(C.A, C.A);
-			H = Utility::NTL::compute_HNF(C.A, _to_single_int(C.det));
-			// Utility::flint::compute_HNF(C.A, _to_single_int(C.det), H);
+			// H = Utility::NTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
+			Utility::flint::compute_HNF(C.A, _to_single_int(C.det), H);
+
+			cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
+
 			auto end = std::chrono::steady_clock::now();
 			std::chrono::duration<double> elapsed_seconds = end - start;
 			out() << "ILPCuts: HNF computation time: " << elapsed_seconds.count() << "s\n";
 
 			out() << "ILPCuts: computation of the H^-1 is started..." << endl;
 			start = std::chrono::steady_clock::now();
-			Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
+			Hi = Utility::compute_inverse(H.template cast<rational_type>().eval());
+			//  Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
 			end = std::chrono::steady_clock::now();
 			elapsed_seconds = end - start;
 			out() << "ILPCuts: HNF^-1 computation time: " << elapsed_seconds.count() << "s\n";
+
 			out() << "ILPCuts: computation of the P^-1 is started..." << endl;
 			start = std::chrono::steady_clock::now();
-			Pi = C.A * Hi;
+			Pi = (C.A.template cast<rational_type>() * Hi).unaryExpr(_rat_to_int);
 			end = std::chrono::steady_clock::now();
 			elapsed_seconds = end - start;
 			out() << "ILPCuts: P^-1 computation time: " << elapsed_seconds.count() << "s\n";
 
-			return Pi;
+			std::vector<std::vector<int_type>> H_dense;
+			for (size_t i = 0; i < n; ++i)
+			{
+				H_dense.emplace_back(std::vector<int_type>(n, 0));
+			}
+
+			for (size_t k = 0; k < H.outerSize(); ++k)
+				for (typename is_mat::InnerIterator it(H, k); it; ++it)
+				{
+					if (it.value() != 0)
+						H_dense[it.row()][it.col()] = it.value();
+				}
+
+			out() << "ILPCuts: parall vectors computation is started..." << endl;
+			start = std::chrono::steady_clock::now();
+			is_mat parall_vectors = compute_parall_vectors(H_dense);
+			end = std::chrono::steady_clock::now();
+			elapsed_seconds = end - start;
+			out() << "ILPCuts: parall vectors computation time: " << elapsed_seconds.count() << "s\n";
+
+			is_mat res(n, n + parall_vectors.cols());
+			res.leftCols(n) = C.A;
+			res.middleCols(n, parall_vectors.cols()) = Pi * parall_vectors;
+
+			return res;
 		}
 
 	public:
