@@ -45,6 +45,30 @@ namespace ILPCuts
                 };
 
                 template <>
+                struct Conversion<mpz_class, ZZ_p>
+                {
+                    ZZ_p operator()(const mpz_class &a) const { return conv<ZZ_p>(mpz_to_ZZ(a)); }
+                };
+
+                template <>
+                struct Conversion<ZZ_p, mpz_class>
+                {
+                    mpz_class operator()(const ZZ_p &a) const { return ZZ_to_mpz(conv<ZZ>(a)); }
+                };
+
+                template <>
+                struct Conversion<mpz_class, GF2>
+                {
+                    GF2 operator()(const mpz_class &a) const { return conv<GF2>(a.get_si()); }
+                };
+
+                template <>
+                struct Conversion<GF2, mpz_class>
+                {
+                    mpz_class operator()(const GF2 &a) const { return mpz_class(conv<int>(a)); }
+                };
+
+                template <>
                 struct Conversion<zz_p, int64_t>
                 {
                     int64_t operator()(const zz_p &a) const { return conv<int64_t>(a); }
@@ -197,6 +221,27 @@ namespace ILPCuts
                 size_t sprsest_row_idx = Internal::sparsest_row_index(X_ntl);
 
                 return Internal::ntl_to_eigen<zz_p, int64_t>(X_ntl[sprsest_row_idx]);
+            }
+
+            template <>
+            Eigen::SparseVector<mpz_class> kernel_vec_Zp(Eigen::SparseMatrix<mpz_class> A, const mpz_class &p)
+            {
+                size_t n = A.cols();
+
+                ZZ_p::init(Internal::mpz_to_ZZ(p));
+
+                A = A.unaryExpr(mod_unaryop(p)).eval();
+                prune_zeroes_int(A);
+                A = A.transpose().eval();
+
+                mat_ZZ_p A_ntl = Internal::eigen_to_ntl<mpz_class, ZZ_p>(A);
+                mat_ZZ_p X_ntl;
+
+                kernel(X_ntl, A_ntl);
+
+                size_t sprsest_row_idx = Internal::sparsest_row_index(X_ntl);
+
+                return Internal::ntl_to_eigen<ZZ_p, mpz_class>(X_ntl[sprsest_row_idx]);
             }
 
             // template <>

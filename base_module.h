@@ -452,7 +452,7 @@ namespace ILPCuts
 			for (size_t k = 0; k < A.outerSize(); ++k)
 				for (typename mat_type::InnerIterator it(A, k); it; ++it)
 				{
-					res = max(res, abs(it.value()));
+					res = max(res, value_type(abs(it.value())));
 				}
 
 			return std::move(res);
