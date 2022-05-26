@@ -273,6 +273,9 @@ void run_cplex_experiment(
 		cuts_gen_adapter.add_cuts(cplex_main, vars);*/
 
 		env.out() << "cutting generation finished:" << endl;
+		env.out() << "original LP optimum: " << originalRelaxedObjVal << endl;
+		env.out() << "boosted object value increase: "
+				  << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
 	}
 
 	// setting parameters for solving in integer variables
@@ -302,7 +305,9 @@ void run_cplex_experiment(
 	env.out() << "solution value  is " << cplex_main.getObjValue() << endl;
 
 	if (baseline == false)
+	{
 		env.out() << "duality gap decrease: " << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getObjValue()) << endl;
+	}
 
 	env.end();
 }
