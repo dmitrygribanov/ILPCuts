@@ -7,12 +7,12 @@
 #include <numeric>
 #include <functional>
 #include <random>
-#include <chrono>
 #include <atomic>
 #include <memory>
 #include <sstream>
 
 #include "gmp_eigen_supp.h"
+#include "timer.h"
 
 namespace ILPCuts
 {

@@ -252,31 +252,25 @@ namespace ILPCuts
 			// int_type denum;
 
 			out() << "ILPCuts: computation of the HNF is started..." << endl;
-			auto start = std::chrono::steady_clock::now();
+			timer.start();
 			// Utility::flint::compute_HNF(C.A, C.A);
 			// H = Utility::NTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
 			Utility::flint::compute_HNF(C.A, _to_single_int(C.det), H);
 
-			cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
+			// cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
 
-			auto end = std::chrono::steady_clock::now();
-			std::chrono::duration<double> elapsed_seconds = end - start;
-			out() << "ILPCuts: HNF computation time: " << elapsed_seconds.count() << "s\n";
+			out() << "ILPCuts: HNF computation time: " << timer.finish_str();
 
 			out() << "ILPCuts: computation of the H^-1 is started..." << endl;
-			start = std::chrono::steady_clock::now();
+			timer.start();
 			Hi = Utility::compute_inverse(H.template cast<rational_type>().eval());
 			//  Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
-			end = std::chrono::steady_clock::now();
-			elapsed_seconds = end - start;
-			out() << "ILPCuts: HNF^-1 computation time: " << elapsed_seconds.count() << "s\n";
+			out() << "ILPCuts: HNF^-1 computation time: " << timer.finish_str();
 
 			out() << "ILPCuts: computation of the P^-1 is started..." << endl;
-			start = std::chrono::steady_clock::now();
+			timer.start();
 			Pi = (C.A.template cast<rational_type>() * Hi).unaryExpr(_rat_to_int);
-			end = std::chrono::steady_clock::now();
-			elapsed_seconds = end - start;
-			out() << "ILPCuts: P^-1 computation time: " << elapsed_seconds.count() << "s\n";
+			out() << "ILPCuts: P^-1 computation time: " << timer.finish_str();
 
 			std::vector<std::vector<int_type>> H_dense;
 			for (size_t i = 0; i < n; ++i)
@@ -292,11 +286,9 @@ namespace ILPCuts
 				}
 
 			out() << "ILPCuts: parall vectors computation is started..." << endl;
-			start = std::chrono::steady_clock::now();
+			timer.start();
 			is_mat parall_vectors = compute_parall_vectors(H_dense);
-			end = std::chrono::steady_clock::now();
-			elapsed_seconds = end - start;
-			out() << "ILPCuts: parall vectors computation time: " << elapsed_seconds.count() << "s\n";
+			out() << "ILPCuts: parall vectors computation time: " << timer.finish_str();
 
 			is_mat res(n, n + parall_vectors.cols());
 			res.leftCols(n) = C.A;
@@ -459,7 +451,7 @@ namespace ILPCuts
 	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
 	{
 
-		auto start = std::chrono::steady_clock::now();
+		timer.start();
 
 		std::vector<is_vec> res_cuts;
 
@@ -482,9 +474,7 @@ namespace ILPCuts
 		auto last = std::unique(res_cuts.begin(), res_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
 		res_cuts.erase(last, res_cuts.end());
 
-		auto end = std::chrono::steady_clock::now();
-		std::chrono::duration<double> elapsed_seconds = end - start;
-		out() << "ConicCuts: cuts generation time: " << elapsed_seconds.count() << "s\n";
+		out() << "ConicCuts: cuts generation time: " << timer.finish_str();
 		out() << "ConicCuts: total cuts: " << res_cuts.size() << "\n";
 
 		return std::move(res_cuts);

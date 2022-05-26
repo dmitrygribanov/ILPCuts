@@ -198,17 +198,13 @@ namespace ILPCuts
         {
             try
             {
-                auto start = std::chrono::steady_clock::now();
+                timer.start();
                 // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
                 lint_type det = Utility::NTL::det(A.template cast<lint_type>().eval());
                 // lint_type det;
                 // Utility::flint::compute_det(A.template cast<lint_type>().eval(), det);
                 // //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
-                auto end = std::chrono::steady_clock::now();
-
-                std::chrono::duration<double> elapsed_seconds = end - start;
-
-                out() << "ConicCuts: determinant computation time: " << elapsed_seconds.count() << endl;
+                out() << "ConicCuts: determinant computation time: " << timer.finish_str();
                 out() << "ConicCuts: determinant is: " << det << endl;
 
                 return generate_cuts(A, optLP, abs(det));

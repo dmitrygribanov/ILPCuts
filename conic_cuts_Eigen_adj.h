@@ -209,13 +209,11 @@ namespace ILPCuts
 			lint_type det(0);
 			lis_mat adjA;
 
-			auto start = std::chrono::steady_clock::now();
+			timer.start();
 			std::tie(adjA, det) = Utility::NTL::compute_inverse(A.template cast<lint_type>().eval());
 			// std::tie(adjA, det) = std::move(
 			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
-			auto end = std::chrono::steady_clock::now();
-			std::chrono::duration<double> elapsed_seconds = end - start;
-			out() << "ConicCuts: matrix inversion time: " << elapsed_seconds.count() << "s\n";
+			out() << "ConicCuts: matrix inversion time: " << timer.finish_str();
 
 			return std::move(generate_cuts(A, adjA, optLP, abs(det)));
 		}
