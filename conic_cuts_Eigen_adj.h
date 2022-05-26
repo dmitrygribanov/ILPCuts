@@ -206,6 +206,7 @@ namespace ILPCuts
 	{
 		try
 		{
+			Timer timer;
 			lint_type det(0);
 			lis_mat adjA;
 

@@ -198,6 +198,7 @@ namespace ILPCuts
         {
             try
             {
+                Timer timer;
                 timer.start();
                 // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
                 lint_type det = Utility::NTL::det(A.template cast<lint_type>().eval());

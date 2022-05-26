@@ -275,7 +275,7 @@ namespace ILPCuts
 
 		std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) override
 		{
-
+			Timer timer;
 			timer.start();
 			lint_type det = abs(Utility::NTL::det(A.template cast<lint_type>().eval()));
 			// lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));

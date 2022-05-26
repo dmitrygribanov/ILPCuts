@@ -31,5 +31,5 @@ namespace ILPCuts
         }
     };
 
-    Timer timer;
+    Timer global_timer;
 } // namespace ILPCuts

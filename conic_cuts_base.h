@@ -246,6 +246,7 @@ namespace ILPCuts
 
 		is_mat make_cuts_from_normal_cone(const cone_traits &C)
 		{
+			Timer timer;
 			size_t n = C.A.cols();
 			is_mat Pi, H;
 			rs_mat Hi;
@@ -451,6 +452,7 @@ namespace ILPCuts
 	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
 	{
 
+		Timer timer;
 		timer.start();
 
 		std::vector<is_vec> res_cuts;
