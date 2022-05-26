@@ -132,6 +132,31 @@ namespace ILPCuts
                 fmpz_clear(det_mul_flint);
             }
 
+            template <>
+            void compute_HNF(const SparseMatrix<int64_t> &A, const int64_t &det_mul, SparseMatrix<int64_t> &H)
+            {
+                size_t n = A.cols();
+                fmpz_mat_t A_flint, H_flint;
+                fmpz_t det_mul_flint;
+                fmpz_mat_init(A_flint, n, n);
+                fmpz_mat_init(H_flint, n, n);
+                fmpz_init(det_mul_flint);
+
+                fmpz_mat_zero(A_flint);
+                fmpz_mat_zero(H_flint);
+
+                Internal::fill_mat(A, A_flint);
+                fmpz_set_si(det_mul_flint, det_mul);
+
+                fmpz_mat_hnf_modular(H_flint, A_flint, det_mul_flint);
+
+                H = Internal::flint_to_Eigen<int64_t>(n, H_flint);
+
+                fmpz_mat_clear(A_flint);
+                fmpz_mat_clear(H_flint);
+                fmpz_clear(det_mul_flint);
+            }
+
             template <typename int_type>
             void compute_inverse(const SparseMatrix<int64_t> &A, int64_t &denum, SparseMatrix<int64_t> &Ai)
             {
