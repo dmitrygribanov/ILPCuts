@@ -136,14 +136,14 @@ namespace ILPCuts
 				if (vars_basis[i] == IloCplex::BasisStatus::AtUpper)
 				{
 					// cout << "AtUpper Var" << endl;
-					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
+					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
 					// A_basis(basis_i, var_index_map[var.getId()]) = 1;
 					++basis_i;
 				}
 				else if (vars_basis[i] == IloCplex::BasisStatus::AtLower)
 				{
 					// cout << "AtLower Var" << endl;
-					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
+					triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
 					// A_basis(basis_i, var_index_map[var.getId()]) = -1;
 					++basis_i;
 				}
