@@ -13,9 +13,9 @@ ILOSTLBEGIN
 #include "dependencies/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-using int_type = int64_t;
+using int_type = mpz_class;
 using lint_type = mpz_class;
-using rational_type = double;
+using rational_type = mpq_class;
 using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
@@ -176,11 +176,11 @@ void run_cplex_experiment(
 	if (!cplex_relaxed.solve())
 	{
 		env.error() << "Failed to optimize." << endl;
+		env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
 		throw(-1);
 	}
 	double originalRelaxedObjVal = cplex_relaxed.getObjValue();
 	double boostedRelaxedObjVal = 0;
-	env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
 	env.out() << "solution value  is " << originalRelaxedObjVal << endl;
 
 	// put the original model into the solver
@@ -259,11 +259,11 @@ void run_cplex_experiment(
 			if (!cplex_relaxed.solve())
 			{
 				env.error() << "Failed to optimize." << endl;
+				env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
 				throw(-1);
 			}
 			boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 
-			env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
 			env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
 		}
 		// env.out() << "root node boosting finished." << endl;
@@ -298,10 +298,9 @@ void run_cplex_experiment(
 	if (!cplex_main.solve())
 	{
 		env.error() << "Failed to optimize." << endl;
+		env.out() << "solution status is " << cplex_main.getStatus() << endl;
 		throw(-1);
 	}
-
-	env.out() << "solution status is " << cplex_main.getStatus() << endl;
 	env.out() << "solution value  is " << cplex_main.getObjValue() << endl;
 
 	if (baseline == false)
