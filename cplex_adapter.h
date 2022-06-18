@@ -1,20 +1,10 @@
 #pragma once
 
-#include "base_module.h"
+#include "basic_utils.h"
 #include <ilcplex/ilocplex.h>
 
 namespace ILPCuts
 {
-
-	// namespace Utility {
-	//	template<>
-	//	struct ToSingle<mpz_class, IloInt> {
-	//		IloInt operator()(const mpz_class& input) const {
-	//			return input.get_si();
-	//		}
-	//	};
-	// }
-
 	template <typename cutsGenT>
 	class CPlexAdapter
 	{
@@ -36,7 +26,8 @@ namespace ILPCuts
 	private:
 		std::vector<is_vec> cuts_Eigen;
 
-		Utility::ToSingle<int_type, IloInt> to_IloInt;
+		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>;
+		// Utility::ToSingle<int_type, IloInt> to_IloInt;
 
 		std::tuple<is_mat, is_vec, rs_vec>
 		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);

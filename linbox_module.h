@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base_module.h"
+#include "basic_utils.h"
 
 #include <givaro/modular.h>
 #include <linbox/matrix/sparse-matrix.h>

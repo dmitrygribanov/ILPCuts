@@ -4,6 +4,8 @@
 
 #include <eigen3/Eigen/Core>
 
+#include "basic_utils.h"
+
 namespace Eigen
 {
     template <>
@@ -119,4 +121,52 @@ mpq_class round(const mpq_class &x)
     }
     // return mpq_class(ceil(x));
     //  return floor(x); // (x > mpf_class(0)) ? mpf_class(floor(x + mpf_class(0.5))) : mpf_class(ceil(x - mpf_class(0.5)));
+}
+
+namespace ILPCuts
+{
+    namespace Utility
+    {
+
+        template <>
+        int64_t conv<mpz_class, int64_t>(const mpz_class &a) { return a.get_si(); }
+
+        template <>
+        int32_t conv<mpz_class, int32_t>(const mpz_class &a) { return a.get_si(); }
+
+        template <>
+        double conv<mpf_class, double>(const mpf_class &a) { return a.get_si(); }
+
+        template <>
+        double conv<mpq_class, double>(const mpq_class &a) { return a.get_d(); }
+
+        template <>
+        int64_t conv<mpf_class, int64_t>(const mpf_class &a) { return static_cast<int64_t>(a.get_d()); }
+
+        template <>
+        mpz_class mod_equation_solve(const mpz_class &a, const mpz_class &b, const mpz_class &mod)
+        {
+#ifdef _DEBUG
+            assert(mod > 0 && a >= 1 && b >= 0 && b < mod);
+#endif
+
+            mpz_class x = 0, y = 0;
+            mpz_class gcd_a_mod = 0; // = Internal::euclid_bezout(a, mod, x, y);
+
+            mpz_gcdext(gcd_a_mod.get_mpz_t(), x.get_mpz_t(), y.get_mpz_t(), a.get_mpz_t(), mod.get_mpz_t());
+
+            if (x < 0)
+                x += mod;
+
+#ifdef _DEBUG
+            assert(x > 0);
+            assert(b % gcd_a_mod == 0, "No solutions in _mod_equation_solve.");
+#endif
+            x *= (b / gcd_a_mod);
+
+            return x;
+        }
+
+    }
+
 }

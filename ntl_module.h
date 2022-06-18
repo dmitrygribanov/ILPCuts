@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base_module.h"
+#include "basic_utils.h"
 
 #include <sstream>
 #include <NTL/mat_GF2.h>
@@ -22,7 +22,7 @@ namespace ILPCuts
                 ZZ mpz_to_ZZ(const mpz_class &a)
                 {
                     std::string str = a.get_str();
-                    return conv<ZZ>(str.c_str());
+                    return ::NTL::conv<ZZ>(str.c_str());
                 }
 
                 mpz_class ZZ_to_mpz(const ZZ &a)
@@ -59,7 +59,7 @@ namespace ILPCuts
                 template <>
                 struct Conversion<mpz_class, GF2>
                 {
-                    GF2 operator()(const mpz_class &a) const { return conv<GF2>(a.get_si()); }
+                    GF2 operator()(const mpz_class &a) const { return ::NTL::conv<GF2>(a.get_si()); }
                 };
 
                 template <>

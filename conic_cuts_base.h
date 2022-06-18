@@ -1,9 +1,7 @@
 #pragma once
 
 #include "base_module.h"
-#include "cuts_strategies.h"
 #include "Eigen_solving_utilities.h"
-#include "sparse_transform.h"
 #include "flint_module.h"
 #include "ntl_module.h"
 
@@ -52,9 +50,8 @@ namespace ILPCuts
 		RatToInt_Unary _rat_to_int;
 		LRatToLInt_Unary _lrat_to_lint;
 
-		Utility::ToSingle<lint_type, int_type> _to_single_int;
-		Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
-
+		static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>;
+		static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>;
 		struct dir_coeffs
 		{
 			rs_vec coeffs;
@@ -175,8 +172,8 @@ namespace ILPCuts
 			std::vector<is_vec> res_cuts;
 
 			rs_vec rat_b = cuts_mat.template cast<rational_type>() * optLP;
-			is_vec rounded_b = rat_b.unaryExpr(Utility::Round<rational_type>()).template cast<int_type>();
-			is_vec floor_b = rat_b.unaryExpr(Utility::Floor<rational_type>()).template cast<int_type>();
+			is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).template cast<int_type>();
+			is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).template cast<int_type>();
 
 			rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
 
@@ -205,7 +202,7 @@ namespace ILPCuts
 			rational_type r_i = 0;
 			for (size_t k = i + 1; k < n; ++k)
 				r_i += x[k] * A[i][k];
-			int_type ceil_r_i = static_cast<int_type>(ceil(r_i));
+			int_type ceil_r_i = Utility::conv<rational_type, int_type>(ceil(r_i));
 			int_type initial_y = ceil_r_i;
 			int_type H_ii = A[i][i];
 			for (int_type y_i = initial_y; y_i < initial_y + H_ii; ++y_i)

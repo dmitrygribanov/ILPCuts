@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base_module.h"
+#include "basic_utils.h"
 
 namespace ILPCuts
 {
@@ -274,8 +274,11 @@ namespace ILPCuts
 
         Utility::sparse_transform<lint_type> data;
 
-        Utility::ToSingle<lint_type, int_type> _to_single_int;
-        Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
+        static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>;
+        static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>;
+
+        // Utility::ToSingle<lint_type, int_type> _to_single_int;
+        // Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
 
     public:
         lsparse_transform(const double &a_tol, const double &a_err_tol, size_t ai,

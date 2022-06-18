@@ -1,8 +1,6 @@
 #pragma once
 
-#include "base_module.h"
-
-#include "cuts_strategies.h"
+#include "basic_utils.h"
 
 namespace ILPCuts
 {

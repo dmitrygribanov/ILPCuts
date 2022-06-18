@@ -15,7 +15,7 @@ using namespace ILPCuts;
 
 using int_type = mpz_class;
 using lint_type = mpz_class;
-using rational_type = mpq_class;
+using rational_type = mpf_class;
 using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
