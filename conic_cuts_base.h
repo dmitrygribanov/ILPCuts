@@ -1,6 +1,9 @@
 #pragma once
 
 #include "base_module.h"
+
+// all optional modules are added at the moment
+// to simplify experiments
 #include "Eigen_solving_utilities.h"
 #include "flint_module.h"
 #include "ntl_module.h"
@@ -172,8 +175,8 @@ namespace ILPCuts
 			std::vector<is_vec> res_cuts;
 
 			rs_vec rat_b = cuts_mat.template cast<rational_type>() * optLP;
-			is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).template cast<int_type>();
-			is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).template cast<int_type>();
+			is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(_rat_to_int);
+			is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(_rat_to_int);
 
 			rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
 

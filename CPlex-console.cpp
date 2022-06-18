@@ -13,9 +13,9 @@ ILOSTLBEGIN
 #include "dependencies/argparse/argparse.hpp"
 using namespace ILPCuts;
 
-using int_type = mpz_class;
+using int_type = int64_t;
 using lint_type = mpz_class;
-using rational_type = mpf_class;
+using rational_type = mpq_class;
 using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
@@ -127,7 +127,7 @@ void run_cplex_experiment(
 	IloEnv env;
 
 	// set global presision for long arithmetics
-	mpf_set_default_prec(200);
+	mpf_set_default_prec(256);
 
 	// create main model object
 	IloModel master_model(env);

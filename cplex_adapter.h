@@ -27,6 +27,7 @@ namespace ILPCuts
 		std::vector<is_vec> cuts_Eigen;
 
 		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>;
+		static constexpr auto from_IloNum = Utility::conv<IloNum, int_type>;
 		// Utility::ToSingle<int_type, IloInt> to_IloInt;
 
 		std::tuple<is_mat, is_vec, rs_vec>
@@ -46,7 +47,8 @@ namespace ILPCuts
 		size_t n = vars.getSize();
 
 		is_mat A_basis(n, n);
-		rs_vec optLP(n), c(n);
+		rs_vec optLP(n);
+		is_vec c(n);
 
 		std::map<IloInt, size_t> var_index_map;
 		for (size_t i = 0; i < n; ++i)
@@ -60,7 +62,7 @@ namespace ILPCuts
 			{
 				while (iter.ok())
 				{
-					c.insertBack(var_index_map[iter.getVar().getId()]) = iter.getCoef();
+					c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum(iter.getCoef());
 					++iter;
 				}
 			}
@@ -70,7 +72,7 @@ namespace ILPCuts
 				while (iter.ok())
 				{
 					// cout << iter.getCoef() << endl;
-					c.insertBack(var_index_map[iter.getVar().getId()]) = -iter.getCoef();
+					c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum(-iter.getCoef());
 					++iter;
 				}
 			}
@@ -82,7 +84,7 @@ namespace ILPCuts
 			cplex.getBasisStatuses(vars_basis, vars, constrs_basis, constrs);
 			size_t basis_i = 0;
 
-			using Trilpl = Triplet<rational_type>;
+			using Trilpl = Triplet<int_type>;
 			std::vector<Trilpl> triplets;
 
 			for (size_t i = 0; i < constrs.getSize(); ++i)
@@ -100,7 +102,7 @@ namespace ILPCuts
 					while (iter.ok())
 					{
 						// cout << "AtUpper Row" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], iter.getCoef()));
+						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], from_IloNum(iter.getCoef())));
 						// A_basis(basis_i, var_index_map[iter.getVar().getId()]) = iter.getCoef();
 						++iter;
 					}
@@ -112,7 +114,7 @@ namespace ILPCuts
 					while (iter.ok())
 					{
 						// cout << "AtLower Row" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], -iter.getCoef()));
+						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], from_IloNum(-iter.getCoef())));
 						// A_basis(basis_i, var_index_map[iter.getVar().getId()]) = -iter.getCoef();
 						++iter;
 					}

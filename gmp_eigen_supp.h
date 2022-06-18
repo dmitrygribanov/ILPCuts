@@ -132,9 +132,6 @@ namespace ILPCuts
         int64_t conv<mpz_class, int64_t>(const mpz_class &a) { return a.get_si(); }
 
         template <>
-        int32_t conv<mpz_class, int32_t>(const mpz_class &a) { return a.get_si(); }
-
-        template <>
         double conv<mpf_class, double>(const mpf_class &a) { return a.get_si(); }
 
         template <>
@@ -142,6 +139,9 @@ namespace ILPCuts
 
         template <>
         int64_t conv<mpf_class, int64_t>(const mpf_class &a) { return static_cast<int64_t>(a.get_d()); }
+
+        template <>
+        int64_t conv<mpq_class, int64_t>(const mpq_class &a) { return mpz_class(a.get_num() / a.get_den()).get_si(); }
 
         template <>
         mpz_class mod_equation_solve(const mpz_class &a, const mpz_class &b, const mpz_class &mod)

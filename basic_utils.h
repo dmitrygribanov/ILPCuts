@@ -11,8 +11,6 @@
 #include <memory>
 #include <sstream>
 
-#include "timer.h"
-
 namespace ILPCuts
 {
 	using namespace Eigen;
