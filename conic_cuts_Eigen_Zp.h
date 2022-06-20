@@ -35,12 +35,11 @@ namespace ILPCuts
         using typename base::sparse_transform;
         using typename base::transform_base;
 
+        using base::_log;
         using typename base::base;
 
         using base::_lrat_to_lint;
-        using base::err;
         using base::err_tolerance;
-        using base::out;
         using base::tolerance;
 
         size_t max_conservative_prime = 101;
@@ -160,22 +159,22 @@ namespace ILPCuts
 
             if (p == 2)
             {
-                out() << "even step..." << std::endl;
+                _log.out() << "even step...\n";
                 process_even_case(C, pf);
             }
             else if (p != 0 && p <= max_conservative_prime)
             {
-                out() << "odd conservative zp step..." << std::endl;
+                _log.out() << "odd conservative zp step...\n";
                 process_odd_conservative_case_zp(C, pf, p);
             }
             else if (p != 0)
             {
-                out() << "odd zp step..." << std::endl;
+                _log.out() << "odd zp step...\n";
                 process_odd_case_zp(C, pf, p);
             }
             else
             {
-                out() << "odd basic step..." << std::endl;
+                _log.out() << "odd basic step...\n";
                 process_odd_case_basic(C, pf);
             }
         }
@@ -205,15 +204,14 @@ namespace ILPCuts
                 // lint_type det;
                 // Utility::flint::compute_det(A.template cast<lint_type>().eval(), det);
                 // //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
-                out() << "ConicCuts: determinant computation time: " << timer.finish_str();
-                out() << "ConicCuts: determinant is: " << det << endl;
+                _log.out() << "ConicCuts: determinant computation time: " << timer.finish_str();
+                _log.out() << "ConicCuts: determinant is: " << det << endl;
 
                 return generate_cuts(A, optLP, abs(det));
             }
             catch (ToleranceErrorException exc)
             {
-                out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
-                err() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
+                _log.out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << endl;
 
                 return std::vector<is_vec>();
             }

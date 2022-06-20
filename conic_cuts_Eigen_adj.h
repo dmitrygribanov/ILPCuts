@@ -41,13 +41,12 @@ namespace ILPCuts
 		using base::_to_single_rat;
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
-		using base::err;
 		using base::err_tolerance;
-		using base::out;
 		using base::rgen;
 		using base::threads;
 		using base::tolerance;
 
+		using base::_log;
 		using base::base;
 
 	private:
@@ -94,8 +93,7 @@ namespace ILPCuts
 			}
 			catch (ToleranceErrorException exc)
 			{
-				out() << "Adj. recompute tolerance error: " << exc.what() << '\n';
-				err() << "Adj. recompute tolerance error: " << exc.what() << '\n';
+				_log.out() << "Adj. recompute tolerance error: " << exc.what() << endl;
 			}
 
 			return std::move(new_cone);
@@ -169,12 +167,12 @@ namespace ILPCuts
 
 			if (C.det % lint_type(2) == 0)
 			{
-				out() << "even step..." << std::endl;
+				_log.out() << "even step...\n";
 				process_even_case(C, pf);
 			}
 			else
 			{
-				out() << "odd step..." << std::endl;
+				_log.out() << "odd step...\n";
 				process_odd_case(C, pf);
 			}
 		}
@@ -214,14 +212,13 @@ namespace ILPCuts
 			std::tie(adjA, det) = Utility::NTL::compute_inverse(A.template cast<lint_type>().eval());
 			// std::tie(adjA, det) = std::move(
 			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
-			out() << "ConicCuts: matrix inversion time: " << timer.finish_str();
+			_log.out() << "ConicCuts: matrix inversion time: " << timer.finish_str();
 
 			return std::move(generate_cuts(A, adjA, optLP, abs(det)));
 		}
 		catch (ToleranceErrorException exc)
 		{
-			out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
-			err() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << '\n';
+			_log.out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << endl;
 
 			return std::vector<is_vec>();
 		}

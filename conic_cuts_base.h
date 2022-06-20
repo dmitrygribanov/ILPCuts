@@ -40,9 +40,6 @@ namespace ILPCuts
 	private:
 		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
 
-		std::ostream *_out;
-		std::ostream *_err;
-
 	protected:
 		using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
 		using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
@@ -55,6 +52,8 @@ namespace ILPCuts
 
 		static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>;
 		static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>;
+
+		logger &_log;
 		struct dir_coeffs
 		{
 			rs_vec coeffs;
@@ -98,8 +97,7 @@ namespace ILPCuts
 			}
 			catch (ToleranceErrorException exc)
 			{
-				out() << "A-column construction tolerance error: " << exc.what() << '\n';
-				err() << "A-column construction tolerance error: " << exc.what() << '\n';
+				_log.out() << "A-column construction tolerance error: " << exc.what() << endl;
 			}
 
 			try
@@ -108,8 +106,7 @@ namespace ILPCuts
 			}
 			catch (ToleranceErrorException exc)
 			{
-				out() << "Determinant recompute tolerance error: " << exc.what() << '\n';
-				err() << "Determinant recompute tolerance error: " << exc.what() << '\n';
+				_log.out() << "Determinant recompute tolerance error: " << exc.what() << endl;
 			}
 
 			return std::move(new_cone);
@@ -252,7 +249,7 @@ namespace ILPCuts
 			rs_mat Hi;
 			// int_type denum;
 
-			out() << "ILPCuts: computation of the HNF is started..." << endl;
+			_log.out() << "ILPCuts: computation of the HNF is started...\n";
 			timer.start();
 			// Utility::flint::compute_HNF(C.A, C.A);
 			// H = Utility::NTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
@@ -260,18 +257,18 @@ namespace ILPCuts
 
 			// cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
 
-			out() << "ILPCuts: HNF computation time: " << timer.finish_str();
+			_log.out() << "ILPCuts: HNF computation time: " << timer.finish_str();
 
-			out() << "ILPCuts: computation of the H^-1 is started..." << endl;
+			_log.out() << "ILPCuts: computation of the H^-1 is started...\n";
 			timer.start();
 			Hi = Utility::compute_inverse(H.template cast<rational_type>().eval());
 			//  Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
-			out() << "ILPCuts: HNF^-1 computation time: " << timer.finish_str();
+			_log.out() << "ILPCuts: HNF^-1 computation time: " << timer.finish_str();
 
-			out() << "ILPCuts: computation of the P^-1 is started..." << endl;
+			_log.out() << "ILPCuts: computation of the P^-1 is started...\n";
 			timer.start();
 			Pi = (C.A.template cast<rational_type>() * Hi).unaryExpr(_rat_to_int);
-			out() << "ILPCuts: P^-1 computation time: " << timer.finish_str();
+			_log.out() << "ILPCuts: P^-1 computation time: " << timer.finish_str();
 
 			std::vector<std::vector<int_type>> H_dense;
 			for (size_t i = 0; i < n; ++i)
@@ -286,10 +283,10 @@ namespace ILPCuts
 						H_dense[it.row()][it.col()] = it.value();
 				}
 
-			out() << "ILPCuts: parall vectors computation is started..." << endl;
+			_log.out() << "ILPCuts: parall vectors computation is started...\n";
 			timer.start();
 			is_mat parall_vectors = compute_parall_vectors(H_dense);
-			out() << "ILPCuts: parall vectors computation time: " << timer.finish_str();
+			_log.out() << "ILPCuts: parall vectors computation time: " << timer.finish_str();
 
 			is_mat res(n, n + parall_vectors.cols());
 			res.leftCols(n) = C.A;
@@ -310,14 +307,12 @@ namespace ILPCuts
 		size_func determinant_cut_limit = [](size_t n) -> size_t
 		{ return n; };
 
-		ConicCutsGenerator_Base(std::ostream *outs = &std::cout, std::ostream *errs = &std::cout)
-			: _out(outs), _err(errs), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
+		ConicCutsGenerator_Base(logger &log)
+			: _log(log), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
 		{
 		}
 
-		std::ostream &out() { return *_out; }
-
-		std::ostream &err() { return *_err; }
+		logger &get_logger() { return _log; }
 
 		is_mat adjust_normal_cone(is_mat A, const is_vec &c)
 		{
@@ -378,8 +373,8 @@ namespace ILPCuts
 				{
 					if (next_node->det <= determinant_cut_limit(n))
 					{
-						out() << "ILPCuts: Determinant is cutted on the value of " << determinant_cut_limit(n) << ", " << endl
-							  << "full cuts procedure is started..." << endl;
+						_log.out() << "ILPCuts: Determinant is cutted on the value of " << determinant_cut_limit(n) << ",\n"
+								   << "full cuts procedure is started..." << endl;
 						result_by_treads[tid].push_back(make_cuts_from_normal_cone(std::move(*next_node)));
 					}
 					else
@@ -421,9 +416,9 @@ namespace ILPCuts
 		const auto &det = C->det;
 		size_t n = A.cols();
 
-		out() << "Current determinant: " << det << std::endl;
-		out() << "Nonzeros: " << A.nonZeros() << std::endl;
-		out() << "A's inifinity norm: " << Utility::max_norm(A) << std::endl;
+		_log.out() << "Current determinant: " << det << "\n"
+				   << "Nonzeros: " << A.nonZeros() << "\n"
+				   << "A's inifinity norm: " << Utility::max_norm(A) << endl;
 
 		auto process_new_candidate = [&](const transform_base &trans)
 		{
@@ -438,7 +433,7 @@ namespace ILPCuts
 					C, trans, std::move(dirr_coeffs_pull)));
 
 				result.push_back(std::move(new_cone));
-				out() << "Adding step done..." << std::endl;
+				_log.out() << "Adding step done..." << std::endl;
 			}
 		};
 
@@ -476,8 +471,8 @@ namespace ILPCuts
 		auto last = std::unique(res_cuts.begin(), res_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
 		res_cuts.erase(last, res_cuts.end());
 
-		out() << "ConicCuts: cuts generation time: " << timer.finish_str();
-		out() << "ConicCuts: total cuts: " << res_cuts.size() << "\n";
+		_log.out() << "ConicCuts: cuts generation time: " << timer.finish_str()
+				   << "ConicCuts: total cuts: " << res_cuts.size() << endl;
 
 		return std::move(res_cuts);
 	}

@@ -4,11 +4,8 @@
 #include <eigen3/Eigen/SparseLU>
 
 #include <vector>
-#include <numeric>
-#include <functional>
 #include <random>
 #include <atomic>
-#include <memory>
 #include <sstream>
 
 namespace ILPCuts

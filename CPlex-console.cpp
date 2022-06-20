@@ -1,6 +1,4 @@
 ﻿
-#include <iostream>
-#include <random>
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
@@ -122,9 +120,12 @@ void run_cplex_experiment(
 	std::string solver_type,
 	size_t cprime)
 {
+	logger log;
 	// TO DO: дописать сохраниение в формат csv
 	// create CPLEX envirement
 	IloEnv env;
+	env.setOut(log.out());
+	env.setError(log.out());
 
 	// set global presision for long arithmetics
 	mpf_set_default_prec(128);
@@ -191,11 +192,11 @@ void run_cplex_experiment(
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Adj>(&env.out(), &env.error());
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Adj>(log);
 	else if (solver_type == "lu")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(&env.out(), &env.error());
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(log);
 	else if (solver_type == "zp")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(&env.out(), &env.error());
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(log);
 	else
 	{
 		env.error() << "Wrong value of the CLI parameter -cg(--cgen): " << solver_type << std::endl;

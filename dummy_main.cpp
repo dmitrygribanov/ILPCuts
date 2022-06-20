@@ -6,6 +6,7 @@
 #include <NTL/lzz_p.h>
 #include <NTL/ZZ.h>
 
+#include "base_module.h"
 #include "linbox_module.h"
 #include "ntl_module.h"
 #include "flint_module.h"
@@ -35,13 +36,14 @@ int main(int argc, char **argv)
     // triplets.back().value().init(7l);
 
     // m.setFromTriplets(triplets.begin(), triplets.end());
+    logger log;
 
     std::vector<int64_t> res = Utility::primes::download<int64_t>(10);
     for (auto p : res)
     {
-        cout << p << " ";
+        log.out() << p << " ";
     }
-    cout << endl;
+    log.out() << endl;
 
     // using Field1 = Givaro::Modular<Givaro::Integer>;
     // Field1 F1(101);
@@ -70,10 +72,10 @@ int main(int argc, char **argv)
     Eigen::SparseMatrix<int64_t> H1;
     Utility::flint::compute_HNF(A, H1);
 
-    cout
+    log.out()
         << H << endl;
 
-    cout
+    log.out()
         << H1 << endl;
 
     // nmodxx_ctx n(7ul);

@@ -43,13 +43,12 @@ namespace ILPCuts
 		using base::_to_single_rat;
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
-		using base::err;
 		using base::err_tolerance;
-		using base::out;
 		using base::rgen;
 		using base::threads;
 		using base::tolerance;
 
+		using base::_log;
 		using base::base;
 
 	private:
@@ -87,8 +86,7 @@ namespace ILPCuts
 			}
 			catch (ToleranceErrorException exc)
 			{
-				out() << "Decomp. recompute tolerance error: " << exc.what() << '\n';
-				err() << "Decomp. recompute tolerance error: " << exc.what() << '\n';
+				_log.out() << "Decomp. recompute tolerance error: " << exc.what() << endl;
 			}
 
 			return std::move(new_cone);
@@ -137,12 +135,12 @@ namespace ILPCuts
 
 			if (C.det % 2 == 0)
 			{
-				out() << "even step..." << endl;
+				_log.out() << "even step...\n";
 				process_even_case(C, pf);
 			}
 			else
 			{
-				out() << "odd step..." << endl;
+				_log.out() << "odd step...\n";
 				process_odd_case(C, pf);
 			}
 		}
@@ -234,7 +232,7 @@ namespace ILPCuts
 				if (res.nonZeros() > 0)
 				{
 					nonzero_component_generated = true;
-					cout << "res odd: " << res << endl;
+					_log.out() << "res odd: " << res << "\n";
 				}
 			}
 
@@ -279,7 +277,7 @@ namespace ILPCuts
 			timer.start();
 			lint_type det = abs(Utility::NTL::det(A.template cast<lint_type>().eval()));
 			// lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
-			out() << "ConicCuts: determinant computation time: " << timer.finish_str();
+			_log.out() << "ConicCuts: determinant computation time: " << timer.finish_str();
 
 			return std::move(generate_cuts(A, optLP, det));
 		}
