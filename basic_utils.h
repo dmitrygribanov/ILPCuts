@@ -109,7 +109,9 @@ namespace ILPCuts
 			else
 			{
 				std::stringstream msg;
-				msg << "rat_to_int tolerance error (" << diff << ")";
+				msg << "rat_to_int tolerance error:\n diff = (" << diff
+					<< ")\n value = (" << rat_x
+					<< ")\n rounded value = (" << rounded_x << ")";
 				throw ToleranceErrorException(msg.str());
 			}
 		}

@@ -31,7 +31,7 @@
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/cplex/sorrell3.mps.gz",
+                "../problems/seymour.mps.gz",
                 "--wcgn",
                 "1",
                 "--wcpl",
@@ -39,7 +39,9 @@
                 "--cgen",
                 "zp",
                 "--cprime",
-                "2457"
+                "100000",
+                "--iters",
+                "10"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",

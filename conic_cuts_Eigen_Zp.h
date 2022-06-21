@@ -36,6 +36,8 @@ namespace ILPCuts
         using typename base::transform_base;
 
         using base::_log;
+        using base::out;
+
         using typename base::base;
 
         using base::_lrat_to_lint;
@@ -159,22 +161,22 @@ namespace ILPCuts
 
             if (p == 2)
             {
-                _log.out() << "even step...\n";
+                out() << "even step...\n";
                 process_even_case(C, pf);
             }
             else if (p != 0 && p <= max_conservative_prime)
             {
-                _log.out() << "odd conservative zp step...\n";
+                out() << "odd conservative zp step...\n";
                 process_odd_conservative_case_zp(C, pf, p);
             }
             else if (p != 0)
             {
-                _log.out() << "odd zp step...\n";
+                out() << "odd zp step...\n";
                 process_odd_case_zp(C, pf, p);
             }
             else
             {
-                _log.out() << "odd basic step...\n";
+                out() << "odd basic step...\n";
                 process_odd_case_basic(C, pf);
             }
         }
@@ -182,15 +184,29 @@ namespace ILPCuts
     public:
         std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP, const lint_type &det)
         {
+            out() << "Generating directions pool ..." << endl;
+
             auto directions_pool = std::move(base::generate_directions_pool(A));
 
             size_t n = A.cols();
+            Timer timer;
+            timer.start();
+
+            out() << "Primes downloading is started ..." << endl;
+
             size_t primes_num = std::min(Utility::primes::max_download, n * n);
             _primes_data = Utility::primes::download<int_type>(primes_num);
 
-            return std::move(base::generate_cuts(
-                create_cone_traits(A, det, directions_pool),
-                optLP));
+            out() << "Primes downloading is finished, time = " << timer.finish_str();
+
+            out() << "Constructing initial cone ..." << endl;
+            timer.start();
+
+            auto initial_cone = create_cone_traits(A, det, directions_pool);
+
+            out() << "Initial cone construction is finished, time = " << timer.finish_str();
+
+            return std::move(base::generate_cuts(std::move(initial_cone), optLP));
         }
 
         std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) override
@@ -199,19 +215,21 @@ namespace ILPCuts
             {
                 Timer timer;
                 timer.start();
+
+                out() << "Determinant computation is started ..." << endl;
                 // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
                 lint_type det = Utility::NTL::det(A.template cast<lint_type>().eval());
                 // lint_type det;
                 // Utility::flint::compute_det(A.template cast<lint_type>().eval(), det);
                 // //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
-                _log.out() << "ConicCuts: determinant computation time: " << timer.finish_str();
-                _log.out() << "ConicCuts: determinant is: " << det << endl;
+                out() << "determinant computation time: " << timer.finish_str()
+                      << "determinant is: " << det << endl;
 
                 return generate_cuts(A, optLP, abs(det));
             }
             catch (ToleranceErrorException exc)
             {
-                _log.out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << endl;
+                out() << "determinant computing tolerance error: " << exc.what() << endl;
 
                 return std::vector<is_vec>();
             }

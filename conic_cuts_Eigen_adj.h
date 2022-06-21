@@ -47,6 +47,8 @@ namespace ILPCuts
 		using base::tolerance;
 
 		using base::_log;
+		using base::out;
+
 		using base::base;
 
 	private:
@@ -93,7 +95,7 @@ namespace ILPCuts
 			}
 			catch (ToleranceErrorException exc)
 			{
-				_log.out() << "Adj. recompute tolerance error: " << exc.what() << endl;
+				out() << "Adj. matrix recompute tolerance error: " << exc.what() << endl;
 			}
 
 			return std::move(new_cone);
@@ -167,12 +169,12 @@ namespace ILPCuts
 
 			if (C.det % lint_type(2) == 0)
 			{
-				_log.out() << "even step...\n";
+				out() << "even step...\n";
 				process_even_case(C, pf);
 			}
 			else
 			{
-				_log.out() << "odd step...\n";
+				out() << "odd step...\n";
 				process_odd_case(C, pf);
 			}
 		}
@@ -212,13 +214,13 @@ namespace ILPCuts
 			std::tie(adjA, det) = Utility::NTL::compute_inverse(A.template cast<lint_type>().eval());
 			// std::tie(adjA, det) = std::move(
 			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
-			_log.out() << "ConicCuts: matrix inversion time: " << timer.finish_str();
+			out() << "matrix inversion time: " << timer.finish_str();
 
 			return std::move(generate_cuts(A, adjA, optLP, abs(det)));
 		}
 		catch (ToleranceErrorException exc)
 		{
-			_log.out() << "ILPCuts generator: determinant computing tolerance error: " << exc.what() << endl;
+			out() << "determinant computing tolerance error: " << exc.what() << endl;
 
 			return std::vector<is_vec>();
 		}

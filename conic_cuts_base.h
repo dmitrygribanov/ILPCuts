@@ -89,6 +89,7 @@ namespace ILPCuts
 
 			try
 			{
+				out() << "Updating " << i << "-th column of A ...\n";
 				new_cone->A = C->A;
 
 				new_cone->A.col(i) = trans(C->A);
@@ -97,16 +98,17 @@ namespace ILPCuts
 			}
 			catch (ToleranceErrorException exc)
 			{
-				_log.out() << "A-column construction tolerance error: " << exc.what() << endl;
+				out() << "A-column construction tolerance error: " << exc.what() << endl;
 			}
 
 			try
 			{
+				out() << "Updating a determinant ...\n";
 				new_cone->det = trans[C->det];
 			}
 			catch (ToleranceErrorException exc)
 			{
-				_log.out() << "Determinant recompute tolerance error: " << exc.what() << endl;
+				out() << "Determinant recompute tolerance error: " << exc.what() << endl;
 			}
 
 			return std::move(new_cone);
@@ -249,7 +251,7 @@ namespace ILPCuts
 			rs_mat Hi;
 			// int_type denum;
 
-			_log.out() << "ILPCuts: computation of the HNF is started...\n";
+			out() << "computation of the HNF is started...\n";
 			timer.start();
 			// Utility::flint::compute_HNF(C.A, C.A);
 			// H = Utility::NTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
@@ -257,18 +259,18 @@ namespace ILPCuts
 
 			// cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
 
-			_log.out() << "ILPCuts: HNF computation time: " << timer.finish_str();
+			out() << "HNF computation time: " << timer.finish_str();
 
-			_log.out() << "ILPCuts: computation of the H^-1 is started...\n";
+			out() << "computation of the H^-1 is started...\n";
 			timer.start();
 			Hi = Utility::compute_inverse(H.template cast<rational_type>().eval());
 			//  Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
-			_log.out() << "ILPCuts: HNF^-1 computation time: " << timer.finish_str();
+			out() << "HNF^-1 computation time: " << timer.finish_str();
 
-			_log.out() << "ILPCuts: computation of the P^-1 is started...\n";
+			out() << "computation of the P^-1 is started...\n";
 			timer.start();
 			Pi = (C.A.template cast<rational_type>() * Hi).unaryExpr(_rat_to_int);
-			_log.out() << "ILPCuts: P^-1 computation time: " << timer.finish_str();
+			out() << "P^-1 computation time: " << timer.finish_str();
 
 			std::vector<std::vector<int_type>> H_dense;
 			for (size_t i = 0; i < n; ++i)
@@ -283,10 +285,10 @@ namespace ILPCuts
 						H_dense[it.row()][it.col()] = it.value();
 				}
 
-			_log.out() << "ILPCuts: parall vectors computation is started...\n";
+			out() << "parall vectors computation is started...\n";
 			timer.start();
 			is_mat parall_vectors = compute_parall_vectors(H_dense);
-			_log.out() << "ILPCuts: parall vectors computation time: " << timer.finish_str();
+			out() << "parall vectors computation time: " << timer.finish_str();
 
 			is_mat res(n, n + parall_vectors.cols());
 			res.leftCols(n) = C.A;
@@ -313,21 +315,21 @@ namespace ILPCuts
 		}
 
 		logger &get_logger() { return _log; }
+		logger::stream &out()
+		{
+			get_logger().out() << "ILPCuts-Generator: ";
+			return get_logger().out();
+		}
 
 		is_mat adjust_normal_cone(is_mat A, const is_vec &c)
 		{
 			rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c.template cast<rational_type>().eval());
-			/*cout << c << endl << endl;
-			cout << t << endl;
-			cin.ignore();*/
 
 			for (typename rs_vec::InnerIterator it(t); it; ++it)
 			{
 				// it.value() < tolerance previouse code. working fast but its must be not correct
 				if (it.value() < 0 && abs(it.value()) > tolerance)
 				{
-					/*cout << it.value() << endl;
-					cin.ignore();*/
 					A.col(it.index()) = -A.col(it.index());
 				}
 			}
@@ -352,9 +354,6 @@ namespace ILPCuts
 
 		while (!current_layer.empty())
 		{
-
-			// out() << "Curr level size: " << current_layer.size() << std::endl;
-
 			std::vector<Atomic<size_t>> directions_evaluation_counter(directions_pool_size);
 
 			size_t dynamic_threads = std::min(threads, current_layer.size());
@@ -367,14 +366,15 @@ namespace ILPCuts
 			for (size_t i = 0; i < current_layer.size(); ++i)
 			{
 				auto node = current_layer[i].get();
+				out() << "Computing next layer ..." << endl;
 				auto next_node_layer = compute_layer(node, directions_evaluation_counter);
 				int tid = omp_get_thread_num();
 				for (auto &next_node : next_node_layer)
 				{
 					if (next_node->det <= determinant_cut_limit(n))
 					{
-						_log.out() << "ILPCuts: Determinant is cutted on the value of " << determinant_cut_limit(n) << ",\n"
-								   << "full cuts procedure is started..." << endl;
+						out() << "Determinant is cutted on the value of " << determinant_cut_limit(n) << ",\n"
+							  << "Total Gomory's cuts procedure is started..." << endl;
 						result_by_treads[tid].push_back(make_cuts_from_normal_cone(std::move(*next_node)));
 					}
 					else
@@ -416,24 +416,26 @@ namespace ILPCuts
 		const auto &det = C->det;
 		size_t n = A.cols();
 
-		_log.out() << "Current determinant: " << det << "\n"
-				   << "Nonzeros: " << A.nonZeros() << "\n"
-				   << "A's inifinity norm: " << Utility::max_norm(A) << endl;
+		out() << "Current determinant: " << det << "\n"
+			  << "Nonzeros in A: " << A.nonZeros() << "\n"
+			  << "A's inifinity norm: " << Utility::max_norm(A) << endl;
 
 		auto process_new_candidate = [&](const transform_base &trans)
 		{
+			// out() << "Processing new cone candidate ...\n"
+			// 	  << "Computing new directions coeff. pull ... \n";
 			auto dirr_coeffs_pull = std::move(compute_dirr_coeffs_pull(
 				*C, trans, directions_evaluation_counter));
 
 			if (!dirr_coeffs_pull.empty())
 			{
+				// out() << "New candidate cone is approved ...\n";
 				++directions_evaluation_counter[dirr_coeffs_pull[0].dir_ID];
 
 				std::unique_ptr<cone_traits> new_cone = std::move(compute_cone_traits(
 					C, trans, std::move(dirr_coeffs_pull)));
 
 				result.push_back(std::move(new_cone));
-				_log.out() << "Adding step done..." << std::endl;
 			}
 		};
 
@@ -452,13 +454,20 @@ namespace ILPCuts
 
 		std::vector<is_vec> res_cuts;
 
+		out() << "Cone decomposition procedure is started ..." << endl;
+
 		std::vector<is_mat> uni_mat_pool = std::move(partial_uni_decomp(
 			std::move(C)));
+
+		out() << "Cone decomposition procedure is finished, time = " << timer.finish_str();
 
 		for (is_mat &uni_mat : uni_mat_pool)
 		{
 			uni_mat = uni_mat.transpose().eval();
 		}
+
+		out() << "Transforming cones to cuts..." << endl;
+		timer.start();
 
 		for (const is_mat &uni_mat : uni_mat_pool)
 		{
@@ -467,12 +476,12 @@ namespace ILPCuts
 							std::make_move_iterator(new_cuts.end()));
 		}
 
+		out() << "Transforming is finished, time = " << timer.finish_str()
+			  << "Filtering duplicate cuts..." << endl;
+
 		std::sort(res_cuts.begin(), res_cuts.end(), Utility::SparseVecComp<rs_vec>());
 		auto last = std::unique(res_cuts.begin(), res_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
 		res_cuts.erase(last, res_cuts.end());
-
-		_log.out() << "ConicCuts: cuts generation time: " << timer.finish_str()
-				   << "ConicCuts: total cuts: " << res_cuts.size() << endl;
 
 		return std::move(res_cuts);
 	}

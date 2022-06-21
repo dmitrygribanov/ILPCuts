@@ -1,6 +1,6 @@
 #pragma once
 
-#include "basic_utils.h"
+#include "base_module.h"
 #include <ilcplex/ilocplex.h>
 
 namespace ILPCuts
@@ -34,6 +34,12 @@ namespace ILPCuts
 		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
 	public:
+		logger &get_logger() { return generator_ptr->get_logger(); }
+		logger::stream &out()
+		{
+			get_logger().out() << "ILPCuts-CPlex-Adapter: ";
+			return get_logger().out();
+		}
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
 		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 		void transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr);
@@ -56,6 +62,8 @@ namespace ILPCuts
 			var_index_map[vars[i].getId()] = i;
 		}
 
+		out() << "reading objective..." << endl;
+
 		{
 			IloExpr::LinearIterator iter = obj.getLinearIterator();
 			if (obj.getSense() == IloObjective::Sense::Maximize)
@@ -77,6 +85,8 @@ namespace ILPCuts
 				}
 			}
 		}
+
+		out() << "reading active constraints..." << endl;
 
 		{
 			IloCplex::BasisStatusArray vars_basis(cplex.getEnv());
@@ -122,6 +132,8 @@ namespace ILPCuts
 				}
 			}
 
+			out() << "reading active variables..." << endl;
+
 			for (size_t i = 0; i < vars.getSize(); ++i)
 			{
 				IloNumVar var = vars[i];
@@ -150,6 +162,8 @@ namespace ILPCuts
 			constrs_basis.end();
 		}
 
+		out() << "reading optimal LP solution (vertex)..." << endl;
+
 		{
 			IloNumArray cplex_optLP(cplex.getEnv());
 			cplex.getValues(vars, cplex_optLP);
@@ -162,6 +176,8 @@ namespace ILPCuts
 
 			cplex_optLP.end();
 		}
+
+		out() << "normal cone adjusting..." << endl;
 
 		A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
 
@@ -191,11 +207,26 @@ namespace ILPCuts
 		rs_vec optLP;
 		is_vec c;
 
+		out() << "transforming data from ILOFormat to ILPCuts format ..." << endl;
+
+		Timer timer;
+		timer.start();
+
 		tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+
+		out() << "transformation time: " << timer.finish_str();
 
 		generator_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
 
-		cuts_Eigen = std::move(generator_ptr->generate_cuts(A, optLP));
+		timer.start();
+		out() << "cutting plane generation is started..." << endl;
+
+		cuts_Eigen = generator_ptr->generate_cuts(A, optLP);
+
+		out() << "cutting plane generation is finished,\n"
+			  << "total time: " << timer.finish_str() << "\n"
+			  << "number of added cuts: " << cuts_Eigen.size() << "\n"
+			  << endl;
 
 		generator_ptr->direction_strategies.pop_back();
 	}

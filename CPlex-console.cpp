@@ -128,7 +128,7 @@ void run_cplex_experiment(
 	env.setError(log.out());
 
 	// set global presision for long arithmetics
-	mpf_set_default_prec(128);
+	mpf_set_default_prec(256);
 
 	// create main model object
 	IloModel master_model(env);
@@ -226,7 +226,7 @@ void run_cplex_experiment(
 
 	if (baseline == false)
 	{
-		env.out() << "cutting generation started:" << endl;
+		env.out() << "cutting generation started..." << endl;
 
 		if (iterations_number < 1)
 		{
@@ -236,9 +236,11 @@ void run_cplex_experiment(
 
 		// do some iterations to add cuts as constraints into the relaxed model
 		// simultaniously we add cuts to the main model
+		Timer boosting_timer;
+		boosting_timer.start();
 		for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx)
 		{
-			env.out() << "root node boosting iteration " << iteration_idx << " is started :" << endl;
+			env.out() << "root node boosting iteration " << iteration_idx << " is started..." << endl;
 
 			// generate cuts from the relaxed model
 			env.out() << "constraints generation ..." << endl;
@@ -265,7 +267,11 @@ void run_cplex_experiment(
 			}
 			boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 
-			env.out() << "solution value  is " << cplex_relaxed.getObjValue() << endl;
+			env.out() << "root node boosting iteration (" << iteration_idx << ") is finished\n"
+					  << "elspsed time is " << boosting_timer.finish_str() << "\n"
+					  << "current relaxed ILP solution value: " << cplex_relaxed.getObjValue() << "\n"
+					  << "original LP optimum: " << originalRelaxedObjVal << "\n"
+					  << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
 		}
 		// env.out() << "root node boosting finished." << endl;
 
@@ -273,10 +279,11 @@ void run_cplex_experiment(
 		/*cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
 		cuts_gen_adapter.add_cuts(cplex_main, vars);*/
 
-		env.out() << "cutting generation finished:" << endl;
-		env.out() << "original LP optimum: " << originalRelaxedObjVal << endl;
-		env.out() << "boosted object value increase: "
-				  << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
+		env.out() << "Cutting generation finished!\n"
+				  << "Number of performed iterations: " << iterations_number << "\n"
+				  << "Total time (with boosting) is " << boosting_timer.finish_str()
+				  << "original LP optimum: " << originalRelaxedObjVal << "\n"
+				  << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
 	}
 
 	// setting parameters for solving in integer variables
@@ -302,11 +309,13 @@ void run_cplex_experiment(
 		env.out() << "solution status is " << cplex_main.getStatus() << endl;
 		throw(-1);
 	}
-	env.out() << "solution value  is " << cplex_main.getObjValue() << endl;
+	env.out() << "ILP solution value  is " << cplex_main.getObjValue() << endl;
 
 	if (baseline == false)
 	{
-		env.out() << "duality gap decrease: " << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getObjValue()) << endl;
+		env.out() << "Duality gap decrease: "
+				  << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getObjValue())
+				  << endl;
 	}
 
 	env.end();
