@@ -193,6 +193,8 @@ namespace ILPCuts
 	ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
 	{
 
+		out() << "Generating directions pool ..." << endl;
+
 		auto directions_pool = std::move(base::generate_directions_pool(A));
 
 		return std::move(base::generate_cuts(
@@ -210,6 +212,7 @@ namespace ILPCuts
 			lint_type det(0);
 			lis_mat adjA;
 
+			out() << "matrix inversion is started..." << endl;
 			timer.start();
 			std::tie(adjA, det) = Utility::NTL::compute_inverse(A.template cast<lint_type>().eval());
 			// std::tie(adjA, det) = std::move(
