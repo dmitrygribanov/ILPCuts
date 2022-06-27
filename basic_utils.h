@@ -416,5 +416,69 @@ namespace ILPCuts
 
 			return true;
 		}
+
+		template <typename valT>
+		string vec_to_str_dense(const SparseVector<valT> &v)
+		{
+			stringstream res;
+
+			typename SparseVector<valT>::InnerIterator it(v);
+
+			assert(v.size() != 0);
+
+			size_t i = 0;
+			size_t n = v.size();
+
+			// invariant: i <= it.index()
+
+			if (i < it.index())
+				res << "0";
+			else
+			{
+				res << it.value();
+				++it;
+			}
+
+			++i;
+
+			while (it)
+			{
+				assert(i <= it.index());
+
+				while (i < it.index())
+				{
+					res << " 0";
+					++i;
+				}
+
+				res << " " << it.value();
+
+				++i;
+				++it;
+			}
+
+			assert(i <= it.index());
+
+			while (i < n)
+			{
+				res << " 0";
+				++i;
+			}
+
+			return res.str();
+		}
+
+		template <typename valT>
+		string export_cuts(const vector<SparseVector<valT>> &cuts_collection)
+		{
+			stringstream res;
+
+			for (size_t i = 0; i < cuts_collection.size(); ++i)
+			{
+				res << vec_to_str_dense(cuts_collection[i]) << "\n";
+			}
+
+			return res.str();
+		}
 	};
 }

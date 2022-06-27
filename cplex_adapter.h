@@ -44,6 +44,12 @@ namespace ILPCuts
 		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 		void transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr);
 		void add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars);
+
+		std::vector<is_vec> get_cuts() const { return cuts_Eigen; }
+		void export_cuts(ofstream &out_file)
+		{
+			out_file << Utility::export_cuts(cuts_Eigen);
+		}
 	};
 
 	template <typename cutsGenT>

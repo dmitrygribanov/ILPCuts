@@ -238,6 +238,9 @@ void run_cplex_experiment(
 		// simultaniously we add cuts to the main model
 		Timer boosting_timer;
 		boosting_timer.start();
+
+		ofstream cuts_export_file("cuts_export.txt");
+
 		for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx)
 		{
 			env.out() << "root node boosting iteration " << iteration_idx << " is started..." << endl;
@@ -253,6 +256,10 @@ void run_cplex_experiment(
 			// adding cuts to the original model
 			env.out() << "adding cuts to original model ..." << endl;
 			cuts_gen_adapter.add_cuts(cplex_main, vars);
+
+			// exporting cuts to a file
+			env.out() << "exporting cuts to a file ..." << endl;
+			cuts_gen_adapter.export_cuts(cuts_export_file);
 
 			// put relaxed model to the solver
 			cplex_relaxed.extract(relaxed_model);
