@@ -106,11 +106,11 @@ using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lra
 
 void run_cplex_experiment(
 	logger &log,
-	std::string input_path,
+	string input_path,
+	string cuts_output_path,
 	double tolerance,
 	double err_tolerance,
 	size_t cone_limit_per_direction,
-	std::string output_path,
 	size_t rand_directions,
 	bool some_direction,
 	size_t threads_cuts_gen,
@@ -176,8 +176,8 @@ void run_cplex_experiment(
 	// run solver
 	if (!cplex_relaxed.solve())
 	{
-		env.error() << "Failed to optimize." << endl;
-		env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
+		env.out() << "Optimization is terminated." << endl;
+		env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
 		exit(0);
 	}
 	double originalRelaxedObjVal = cplex_relaxed.getObjValue();
@@ -239,7 +239,7 @@ void run_cplex_experiment(
 		Timer boosting_timer;
 		boosting_timer.start();
 
-		ofstream cuts_export_file("cuts_export.txt");
+		ofstream cuts_export_file(cuts_output_path);
 
 		for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx)
 		{
@@ -268,7 +268,7 @@ void run_cplex_experiment(
 			// solve relaxed model
 			if (!cplex_relaxed.solve())
 			{
-				env.error() << "Failed to optimize." << endl;
+				env.out() << "Optimization is terminated." << endl;
 				env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
 				exit(0);
 			}
@@ -280,11 +280,6 @@ void run_cplex_experiment(
 					  << "original LP optimum: " << originalRelaxedObjVal << "\n"
 					  << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
 		}
-		// env.out() << "root node boosting finished." << endl;
-
-		// final cuts generation
-		/*cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
-		cuts_gen_adapter.add_cuts(cplex_main, vars);*/
 
 		env.out() << "Cutting generation finished!\n"
 				  << "Number of performed iterations: " << iterations_number << "\n"
@@ -312,9 +307,9 @@ void run_cplex_experiment(
 	// solve the ILP model
 	if (!cplex_main.solve())
 	{
-		env.error() << "Failed to optimize." << endl;
-		env.out() << "solution status is " << cplex_main.getStatus() << endl;
-		throw(-1);
+		env.out() << "Optimization is terminated." << endl;
+		env.out() << "Solution status is " << cplex_main.getStatus() << endl;
+		exit(0);
 	}
 	env.out() << "ILP solution value  is " << cplex_main.getObjValue() << endl;
 
@@ -330,8 +325,6 @@ void run_cplex_experiment(
 
 int main(int argc, char **argv)
 {
-	logger log;
-
 	argparse::ArgumentParser program("IPLCutsCLI");
 
 	program.add_argument("-i", "--input")
@@ -340,8 +333,12 @@ int main(int argc, char **argv)
 		.help("specify the input file.");
 
 	program.add_argument("-o", "--output")
-		.default_value(std::string(""))
-		.help("specify the output file. (not implemented yet)");
+		.default_value(std::string("log.txt"))
+		.help("output log file; default is \"log.txt\"");
+
+	program.add_argument("--cuts_output")
+		.default_value(std::string("cuts_export.txt"))
+		.help("cuts export file; default is \"cuts_export.txt\"");
 
 	program.add_argument("--cgen")
 		.default_value(std::string("adj"))
@@ -410,7 +407,17 @@ int main(int argc, char **argv)
 	try
 	{
 		program.parse_args(argc, argv);
+	}
+	catch (const std::exception &err)
+	{
+		cerr << err.what() << endl;
+		cerr << program << endl;
+	}
 
+	logger log(program.get<std::string>("--output"));
+
+	try
+	{
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");
 		size_t threads_global = program.get<size_t>("--threads");
@@ -422,10 +429,10 @@ int main(int argc, char **argv)
 		run_cplex_experiment(
 			log,
 			program.get<std::string>("--input"),
+			program.get<std::string>("--cuts_output"),
 			program.get<double>("--tolerance"),
 			program.get<double>("--err_tolerance"),
 			program.get<size_t>("--cone_limit"),
-			program.get<std::string>("--output"),
 			program.get<size_t>("--rand_strategy"),
 			program.get<bool>("--sum_strat"),
 			threads_cuts_gen,

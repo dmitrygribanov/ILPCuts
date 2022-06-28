@@ -19,9 +19,15 @@ namespace ILPCuts
         stream _stream;
 
     public:
-        logger(string log_file_name = "log.txt", ostream &a_ostr = cout)
+        logger(string log_file_name, ostream &a_ostr = cout)
             : _file(log_file_name), _tee_dev(a_ostr, _file), _stream(_tee_dev)
         {
+        }
+
+        void reset_output_file(string log_file_name)
+        {
+            _file.close();
+            _file.open(log_file_name);
         }
 
         stream &out() { return _stream; }
