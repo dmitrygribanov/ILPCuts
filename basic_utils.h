@@ -81,14 +81,24 @@ namespace ILPCuts
 		}
 	};
 
-	class ToleranceErrorException : public std::runtime_error
+	class Exception : public std::runtime_error
+	{
+	public:
+		Exception()
+			: std::runtime_error("ILPCuts lib error") {}
+
+		Exception(std::string msg)
+			: std::runtime_error(msg) {}
+	};
+
+	class ToleranceErrorException : public Exception
 	{
 	public:
 		ToleranceErrorException()
-			: std::runtime_error("ILPCuts lib error: a tolerance-error has occurred.") {}
+			: Exception("ILPCuts lib error: a tolerance-error has occurred.") {}
 
 		ToleranceErrorException(std::string msg)
-			: std::runtime_error(msg) {}
+			: Exception(msg) {}
 	};
 
 	namespace Utility

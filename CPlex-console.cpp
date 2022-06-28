@@ -105,6 +105,7 @@ using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lra
 // }
 
 void run_cplex_experiment(
+	logger &log,
 	std::string input_path,
 	double tolerance,
 	double err_tolerance,
@@ -120,7 +121,6 @@ void run_cplex_experiment(
 	std::string solver_type,
 	size_t cprime)
 {
-	logger log;
 	// TO DO: дописать сохраниение в формат csv
 	// create CPLEX envirement
 	IloEnv env;
@@ -178,7 +178,7 @@ void run_cplex_experiment(
 	{
 		env.error() << "Failed to optimize." << endl;
 		env.out() << "solution status is " << cplex_relaxed.getStatus() << endl;
-		throw(-1);
+		exit(0);
 	}
 	double originalRelaxedObjVal = cplex_relaxed.getObjValue();
 	double boostedRelaxedObjVal = 0;
@@ -200,7 +200,7 @@ void run_cplex_experiment(
 	else
 	{
 		env.error() << "Wrong value of the CLI parameter -cg(--cgen): " << solver_type << std::endl;
-		throw(-1);
+		exit(0);
 	}
 	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
@@ -231,7 +231,7 @@ void run_cplex_experiment(
 		if (iterations_number < 1)
 		{
 			env.error() << "Wrong value of the CLI parameter -it(--iterations): " << iterations_number << std::endl;
-			throw(-1);
+			exit(0);
 		}
 
 		// do some iterations to add cuts as constraints into the relaxed model
@@ -270,7 +270,7 @@ void run_cplex_experiment(
 			{
 				env.error() << "Failed to optimize." << endl;
 				env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
-				throw(-1);
+				exit(0);
 			}
 			boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 
@@ -330,6 +330,8 @@ void run_cplex_experiment(
 
 int main(int argc, char **argv)
 {
+	logger log;
+
 	argparse::ArgumentParser program("IPLCutsCLI");
 
 	program.add_argument("-i", "--input")
@@ -418,6 +420,7 @@ int main(int argc, char **argv)
 			threads_cplex = threads_global;
 
 		run_cplex_experiment(
+			log,
 			program.get<std::string>("--input"),
 			program.get<double>("--tolerance"),
 			program.get<double>("--err_tolerance"),
@@ -433,16 +436,25 @@ int main(int argc, char **argv)
 			program.get<std::string>("--cgen"),
 			program.get<size_t>("--cprime"));
 	}
+	catch (const FractionalElementException &err)
+	{
+		// it is not error, just can not optimize
+		log.out() << err.what() << endl;
+		log.out() << "ILPCuts Console: failed to optimize." << endl;
+		// log.out() << program << endl;
+		//  it is not error, just can not optimize
+		exit(0);
+	}
 	catch (const std::exception &err)
 	{
-		std::cerr << err.what() << std::endl;
-		std::cerr << program;
+		log.out() << err.what() << endl;
+		// log.out() << program << endl;
 		std::exit(1);
 	}
 	catch (const IloException &err)
 	{
-		std::cerr << err << std::endl;
-		std::cerr << program;
+		log.out() << err << std::endl;
+		// log.out() << program << endl;
 		std::exit(1);
 	}
 

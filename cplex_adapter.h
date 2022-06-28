@@ -5,6 +5,15 @@
 
 namespace ILPCuts
 {
+	class FractionalElementException : public Exception
+	{
+	public:
+		FractionalElementException()
+			: Exception("ILPCuts lib error: fractional element in A-matrix has been found") {}
+
+		FractionalElementException(std::string msg)
+			: Exception(msg) {}
+	};
 	template <typename cutsGenT>
 	class CPlexAdapter
 	{
@@ -27,11 +36,48 @@ namespace ILPCuts
 		std::vector<is_vec> cuts_Eigen;
 
 		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>;
-		static constexpr auto from_IloNum = Utility::conv<IloNum, int_type>;
+		static constexpr auto from_IloNum_to_int = Utility::conv<IloNum, int_type>;
+		static constexpr auto from_IloNum_to_rat = Utility::conv<IloNum, rational_type>;
 		// Utility::ToSingle<int_type, IloInt> to_IloInt;
 
-		std::tuple<is_mat, is_vec, rs_vec>
+		std::tuple<is_mat, rs_vec, rs_vec>
 		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+
+		using Trilpl = Triplet<int_type>;
+		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
+		{
+			while (ilo_iter->ok())
+			{
+				rational_type coeff = from_IloNum_to_rat(ilo_iter->getCoef());
+
+				int_type coeff_int = 0;
+
+				try
+				{
+					coeff_int = generator_ptr->_rat_to_int(coeff);
+				}
+				catch (ToleranceErrorException)
+				{
+					stringstream msg;
+
+					msg << "ILPCuts lib error: fracttional elemen in A has located;\n"
+						<< "ConstrID = " << constr.getId() << "\n"
+						<< "VarID = " << ilo_iter->getVar().getId() << "\n"
+						<< "value = " << coeff;
+
+					throw FractionalElementException(msg.str());
+				}
+
+				// rational_type rounded_coeff = round(coeff);
+				// if (abs(coeff - rounded_coeff) >= generator_ptr->err_tolerance)
+				// 	throw FractionalElementException();
+
+				triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
+
+				++(*ilo_iter);
+			}
+			++basis_i;
+		}
 
 	public:
 		logger &get_logger() { return generator_ptr->get_logger(); }
@@ -53,7 +99,7 @@ namespace ILPCuts
 	};
 
 	template <typename cutsGenT>
-	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::is_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
+	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
 	CPlexAdapter<cutsGenT>::transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 	{
 		size_t n = vars.getSize();
@@ -76,7 +122,7 @@ namespace ILPCuts
 			{
 				while (iter.ok())
 				{
-					c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum(iter.getCoef());
+					c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(iter.getCoef());
 					++iter;
 				}
 			}
@@ -86,7 +132,7 @@ namespace ILPCuts
 				while (iter.ok())
 				{
 					// cout << iter.getCoef() << endl;
-					c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum(-iter.getCoef());
+					c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(-iter.getCoef());
 					++iter;
 				}
 			}
@@ -100,40 +146,22 @@ namespace ILPCuts
 			cplex.getBasisStatuses(vars_basis, vars, constrs_basis, constrs);
 			size_t basis_i = 0;
 
-			using Trilpl = Triplet<int_type>;
 			std::vector<Trilpl> triplets;
 
 			for (size_t i = 0; i < constrs.getSize(); ++i)
 			{
 				IloRange constr = constrs[i];
-				// cout << "LB, UB" << constr.getLB() << ", " << constr.getUB() << endl;
-				/*if (constr.getLB() == constr.getUB()) {
-					cout << "LB = UB" << endl;
-					cin.ignore();
-				}*/
+
+				IloExpr::LinearIterator iter = constr.getLinearIterator();
 
 				if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper)
 				{
-					IloExpr::LinearIterator iter = constr.getLinearIterator();
-					while (iter.ok())
-					{
-						// cout << "AtUpper Row" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], from_IloNum(iter.getCoef())));
-						// A_basis(basis_i, var_index_map[iter.getVar().getId()]) = iter.getCoef();
-						++iter;
-					}
+					_fill_triplets_IloRow(&triplets, &iter, 1, basis_i, var_index_map, constr);
 					++basis_i;
 				}
 				else if (constrs_basis[i] == IloCplex::BasisStatus::AtLower)
 				{
-					IloExpr::LinearIterator iter = constr.getLinearIterator();
-					while (iter.ok())
-					{
-						// cout << "AtLower Row" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[iter.getVar().getId()], from_IloNum(-iter.getCoef())));
-						// A_basis(basis_i, var_index_map[iter.getVar().getId()]) = -iter.getCoef();
-						++iter;
-					}
+					_fill_triplets_IloRow(&triplets, &iter, -1, basis_i, var_index_map, constr);
 					++basis_i;
 				}
 			}
@@ -211,7 +239,7 @@ namespace ILPCuts
 	{
 		is_mat A;
 		rs_vec optLP;
-		is_vec c;
+		rs_vec c;
 
 		out() << "transforming data from ILOFormat to ILPCuts format ..." << endl;
 

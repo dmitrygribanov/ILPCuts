@@ -40,6 +40,8 @@ namespace ILPCuts
 	private:
 		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
 
+		friend class CPlexAdapter<my_type>;
+
 	protected:
 		using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
 		using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
@@ -321,9 +323,9 @@ namespace ILPCuts
 			return get_logger().out();
 		}
 
-		is_mat adjust_normal_cone(is_mat A, const is_vec &c)
+		is_mat adjust_normal_cone(is_mat A, const rs_vec &c)
 		{
-			rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c.template cast<rational_type>().eval());
+			rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c);
 
 			for (typename rs_vec::InnerIterator it(t); it; ++it)
 			{
