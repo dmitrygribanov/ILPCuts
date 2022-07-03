@@ -2,6 +2,8 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
+#include <map>
+
 //#define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
@@ -104,6 +106,27 @@ using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lra
 //     //mod.end();
 // }
 
+map<string, IloCplex::IntParam> init_cplex_cut_types()
+{
+	map<string, IloCplex::IntParam> res;
+
+	res["clique"] = IloCplex::Param::MIP::Cuts::Cliques;
+	res["cover"] = IloCplex::Param::MIP::Cuts::Covers;
+	res["gomory"] = IloCplex::Param::MIP::Cuts::Gomory;
+	res["disj"] = IloCplex::Param::MIP::Cuts::Disjunctive;
+	res["flowc"] = IloCplex::Param::MIP::Cuts::FlowCovers;
+	res["flowp"] = IloCplex::Param::MIP::Cuts::PathCut;
+	res["gub"] = IloCplex::Param::MIP::Cuts::GUBCovers;
+	res["liftp"] = IloCplex::Param::MIP::Cuts::LiftProj;
+	res["mcf"] = IloCplex::Param::MIP::Cuts::MCFCut;
+	res["mir"] = IloCplex::Param::MIP::Cuts::MIRCut;
+	res["zeroh"] = IloCplex::Param::MIP::Cuts::ZeroHalfCut;
+	res["impliedl"] = IloCplex::Param::MIP::Cuts::LocalImplied;
+	res["impliedg"] = IloCplex::Param::MIP::Cuts::Implied;
+
+	return res;
+}
+
 void run_cplex_experiment(
 	logger &log,
 	string input_path,
@@ -116,12 +139,15 @@ void run_cplex_experiment(
 	size_t threads_cuts_gen,
 	size_t threads_cplex,
 	bool baseline,
-	string is_lazy,
+	string is_lazy_param,
 	size_t iterations_number,
 	std::string solver_type,
-	size_t cprime)
+	size_t cprime,
+	string cplex_cuts_param)
 {
-	// TO DO: дописать сохраниение в формат csv
+	// set cplex cuts types
+	auto cplex_cut_types = init_cplex_cut_types();
+
 	// create CPLEX envirement
 	IloEnv env;
 	env.setOut(log.out());
@@ -210,9 +236,9 @@ void run_cplex_experiment(
 	cuts_gen_ptr->err_tolerance = err_tolerance;
 	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_ptr->threads = threads_cuts_gen;
-	if (!cuts_gen_adapter.set_lazy(is_lazy))
+	if (!cuts_gen_adapter.set_lazy(is_lazy_param))
 	{
-		env.error() << "Wrong value of the CLI parameter --lazy: " << is_lazy << endl;
+		env.error() << "Wrong value of the CLI parameter --lazy: " << is_lazy_param << endl;
 		exit(0);
 	}
 	cuts_gen_ptr->rgen = &engine;
@@ -294,16 +320,31 @@ void run_cplex_experiment(
 
 	// setting parameters for solving in integer variables
 	cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
-	/*cplex_main.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::MIRCut, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::Implied, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::Gomory, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::FlowCovers, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::PathCut, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::LiftProj, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::ZeroHalfCut, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::Cliques, -1);
-	cplex_main.setParam(IloCplex::Param::MIP::Cuts::Covers, -1);*/
+
+	// cplex_main.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+
+	if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
+	{
+		env.error() << "Wrong value of the CLI parameter --cplex_cuts_param: " << cplex_cuts_param << std::endl;
+		exit(0);
+	}
+	// if all-type is used, we run defoul cplex solver
+	if (cplex_cuts_param != "all")
+	{
+		// in the opposite case, if type == none, we turn off all cplex cuts
+		if (cplex_cuts_param == "none")
+		{
+			for (auto types_iter = cplex_cut_types.begin(); types_iter != cplex_cut_types.end(); ++types_iter)
+				cplex_main.setParam(types_iter->second, -1);
+		}
+		// if type != none, we turn off all cuts except (cplex_cuts_param)-variable
+		else
+		{
+			for (auto types_iter = cplex_cut_types.begin(); types_iter != cplex_cut_types.end(); ++types_iter)
+				if (types_iter->first != cplex_cuts_param)
+					cplex_main.setParam(types_iter->second, -1);
+		}
+	}
 
 	// cplex_main.setParam(IloCplex::Param::MIP::Interval, 1000);
 	// cplex_main.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
@@ -407,6 +448,10 @@ int main(int argc, char **argv)
 		.help("number of boosting iterations in the root-node")
 		.scan<'i', size_t>();
 
+	program.add_argument("--cplex_cuts")
+		.default_value(std::string("all"))
+		.help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -444,7 +489,8 @@ int main(int argc, char **argv)
 			program.get<string>("--lazy"),
 			program.get<size_t>("--iters"),
 			program.get<string>("--cgen"),
-			program.get<size_t>("--cprime"));
+			program.get<size_t>("--cprime"),
+			program.get<string>("--cplex_cuts"));
 	}
 	catch (const FractionalElementException &err)
 	{
