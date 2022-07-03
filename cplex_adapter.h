@@ -28,7 +28,14 @@ namespace ILPCuts
 		using rs_vec = typename generator_base::rs_vec;
 		using Strategies = typename generator_base::Strategies;
 
-		bool lazy_constraints_on = false;
+		enum class IsLazy
+		{
+			on,
+			off,
+			hybrid
+		};
+
+		IsLazy is_lazy = IsLazy::off;
 
 		std::unique_ptr<generator_base> generator_ptr;
 
@@ -95,6 +102,20 @@ namespace ILPCuts
 		void export_cuts(ofstream &out_file)
 		{
 			out_file << Utility::export_cuts(cuts_Eigen);
+		}
+
+		bool set_lazy(string str_par)
+		{
+			if (str_par == "on")
+				is_lazy = IsLazy::on;
+			else if (str_par == "off")
+				is_lazy = IsLazy::off;
+			else if (str_par == "hybrid")
+				is_lazy == IsLazy::hybrid;
+			else
+				return false;
+
+			return true;
 		}
 	};
 
@@ -227,9 +248,19 @@ namespace ILPCuts
 
 		transform_cuts_to_ilo_constraints(cplex, vars, ilo_cuts);
 
-		cplex.addUserCuts(ilo_cuts);
-		if (lazy_constraints_on)
+		if (is_lazy == IsLazy::off)
+		{
+			cplex.addUserCuts(ilo_cuts);
+		}
+		else if (is_lazy == IsLazy::on)
+		{
 			cplex.addLazyConstraints(ilo_cuts);
+		}
+		else
+		{
+			cplex.addUserCuts(ilo_cuts);
+			cplex.addLazyConstraints(ilo_cuts);
+		}
 
 		ilo_cuts.end();
 	}

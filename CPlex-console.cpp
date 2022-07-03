@@ -116,7 +116,7 @@ void run_cplex_experiment(
 	size_t threads_cuts_gen,
 	size_t threads_cplex,
 	bool baseline,
-	bool lazy_constraints_on,
+	string is_lazy,
 	size_t iterations_number,
 	std::string solver_type,
 	size_t cprime)
@@ -210,7 +210,11 @@ void run_cplex_experiment(
 	cuts_gen_ptr->err_tolerance = err_tolerance;
 	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_ptr->threads = threads_cuts_gen;
-	cuts_gen_adapter.lazy_constraints_on = lazy_constraints_on;
+	if (!cuts_gen_adapter.set_lazy(is_lazy))
+	{
+		env.error() << "Wrong value of the CLI parameter --lazy: " << is_lazy << endl;
+		exit(0);
+	}
 	cuts_gen_ptr->rgen = &engine;
 	if (solver_type == "zp")
 		static_cast<CutsGen_Zp *>(cuts_gen_ptr)->max_conservative_prime = cprime;
@@ -395,9 +399,8 @@ int main(int argc, char **argv)
 		.implicit_value(true);
 
 	program.add_argument("--lazy")
-		.default_value(false)
-		.help("turns on addition of CPlex lazy constraints")
-		.implicit_value(true);
+		.default_value(string("off"))
+		.help("manages CPlex lazy constraints; can be \"on\", \"off\" or \"hybrid\"");
 
 	program.add_argument("--iters")
 		.default_value(size_t(1))
@@ -428,8 +431,8 @@ int main(int argc, char **argv)
 
 		run_cplex_experiment(
 			log,
-			program.get<std::string>("--input"),
-			program.get<std::string>("--cuts_output"),
+			program.get<string>("--input"),
+			program.get<string>("--cuts_output"),
 			program.get<double>("--tolerance"),
 			program.get<double>("--err_tolerance"),
 			program.get<size_t>("--cone_limit"),
@@ -438,9 +441,9 @@ int main(int argc, char **argv)
 			threads_cuts_gen,
 			threads_cplex,
 			program.get<bool>("--baseline"),
-			program.get<bool>("--lazy"),
+			program.get<string>("--lazy"),
 			program.get<size_t>("--iters"),
-			program.get<std::string>("--cgen"),
+			program.get<string>("--cgen"),
 			program.get<size_t>("--cprime"));
 	}
 	catch (const FractionalElementException &err)
