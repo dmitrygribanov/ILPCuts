@@ -31,7 +31,7 @@
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/seymour.mps.gz",
+                "../problems/pure_int_bench/seymour.mps.gz",
                 "--wcgn",
                 "1",
                 "--wcpl",
@@ -42,6 +42,42 @@
                 "100000",
                 "--iters",
                 "10"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${command:cmake.launchTargetDirectory}",
+            "environment": [
+                {
+                    // add the directory where our target was built to the PATHs
+                    // it gets resolved by CMake Tools:
+                    "name": "PATH",
+                    "value": "$PATH:${command:cmake.launchTargetDirectory}"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) CPlexNodeExps",
+            "type": "cppdbg",
+            "request": "launch",
+            // Resolved by CMake Tools:
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [
+                "-i",
+                "../problems/pure_int_bench/sorrell3.mps.gz",
+                "--wcgn",
+                "1",
+                "--wcpl",
+                "15",
+                "--cprime",
+                "100000"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",

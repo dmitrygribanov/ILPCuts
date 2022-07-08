@@ -25,87 +25,6 @@ using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, l
 using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
-// ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs) {
-//     IloEnv env = getEnv();
-//     IloModel mod = getModel();
-//
-//     if (getNnodes() == 0) {
-//         //env.out() << "--------------My cut Callback----------------" << std::endl;
-//
-//         using CutsGen = ILPCuts::CPlexAdapter<mpz_class, mpz_class>;
-//         CutsGen cuts_gen;
-//
-//         typename CutsGen::int_mat A;
-//         typename CutsGen::rat_vec optLP;
-//
-//         tie(A, optLP) = cuts_gen.transform_to_corner_polyhedron(cplex, mod, obj, rangs, vars);
-//
-//         //env.out() << "---------------------------------------------" << std::endl;
-//     }
-//
-//     //{A, optLP} = cuts_gen.transform_to_corner_polyhedron(cplex, model);
-//
-//     /*IloIterator<IloExpr> citer = IloIterator<IloExpr>(env);
-//     IloModel::Iterator iter = IloModel::Iterator(mod);
-//     IloConstraintArray carr(env);
-//     IloNumVarArray varr(env);
-//     IloExprArray earr(env);
-//     while (iter.ok()) {
-//         if ((*iter).isConstraint())
-//             carr.add((*iter).asConstraint());
-//         else if ((*iter).isVariable())
-//             varr.add((*iter).asVariable());
-//         else if ((*iter).isNumExpr())
-//             earr.add((*iter).asNumExpr());
-//         else if ((*iter).isIntExpr())
-//             earr.add((*iter).asIntExpr());
-//         ++iter;
-//     }*/
-//
-//     /*env.out() << "=====variables==========" << endl;
-//     for (size_t i = 0; i < varr.getSize(); ++i) {
-//         env.out() << varr[i].getName() << ", ";
-//     }
-//     env.out() << endl;
-//
-//     env.out() << "=====constraints==========" << endl;
-//     for (size_t i = 0; i < carr.getSize(); ++i) {
-//         env.out() << carr[i].getName() << ", ";
-//     }
-//     env.out() << endl;*/
-//
-//     //env.out() << "=====constraints 2.0==========" << endl;
-//     //size_t expr_count = 0;
-//     //while (citer.ok()) {
-//     //    if ((*citer).isNumExpr())
-//     //    {
-//     //        //env.out() << (*citer).asNumExpr() << ", ";
-//     //        ++expr_count;
-//     //    }
-//     //    else if ((*citer).isIntExpr()) {
-//     //        //env.out() << (*citer).asIntExpr() << ", ";
-//     //        ++expr_count;
-//     //    }
-//     //
-//     //    ++citer;
-//     //
-//     //}
-//
-//     //env.out()<< expr_count << '\n';
-//     /*
-//     env.out() << "=====exprs==========" << endl;
-//     for (size_t i = 0; i < earr.getSize(); ++i) {
-//         env.out() << earr[i].getName() << ", ";
-//     }
-//
-//     */
-//
-//     /*carr.end();
-//     varr.end();
-//     earr.end();*/
-//     //mod.end();
-// }
-
 map<string, IloCplex::IntParam> init_cplex_cut_types()
 {
 	map<string, IloCplex::IntParam> res;
@@ -281,7 +200,7 @@ void run_cplex_experiment(
 
 			// adding cuts to the relaxed model as constraints
 			env.out() << "adding constraints to relaxed model ..." << endl;
-			cuts_gen_adapter.add_cuts_as_constraints(cplex_relaxed, relaxed_model, rngs, vars);
+			cuts_gen_adapter.add_cuts_as_constraints(env, relaxed_model, rngs, vars);
 
 			// adding cuts to the original model
 			env.out() << "adding cuts to original model ..." << endl;

@@ -95,8 +95,12 @@ namespace ILPCuts
 		}
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
 		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
-		void transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr);
-		void add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars);
+		void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
+		void add_cuts_as_constraints(IloEnv env, IloModel model, IloRangeArray constrs, IloNumVarArray vars);
+		void clear_cuts()
+		{
+			cuts_Eigen.clear();
+		}
 
 		std::vector<is_vec> get_cuts() const { return cuts_Eigen; }
 		void export_cuts(ofstream &out_file)
@@ -246,7 +250,7 @@ namespace ILPCuts
 
 		IloRangeArray ilo_cuts(env);
 
-		transform_cuts_to_ilo_constraints(cplex, vars, ilo_cuts);
+		transform_cuts_to_ilo_constraints(env, vars, ilo_cuts);
 
 		if (is_lazy == IsLazy::off)
 		{
@@ -297,10 +301,8 @@ namespace ILPCuts
 	}
 
 	template <typename cutsGenT>
-	void CPlexAdapter<cutsGenT>::transform_cuts_to_ilo_constraints(IloCplex cplex, IloNumVarArray vars, IloRangeArray ilo_constr)
+	void CPlexAdapter<cutsGenT>::transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr)
 	{
-		IloEnv env = cplex.getEnv();
-
 		size_t n = vars.getSize();
 
 		for (size_t i = 0; i < cuts_Eigen.size(); ++i)
@@ -321,13 +323,11 @@ namespace ILPCuts
 	}
 
 	template <typename cutsGenT>
-	void CPlexAdapter<cutsGenT>::add_cuts_as_constraints(IloCplex cplex, IloModel model, IloRangeArray constrs, IloNumVarArray vars)
+	void CPlexAdapter<cutsGenT>::add_cuts_as_constraints(IloEnv env, IloModel model, IloRangeArray constrs, IloNumVarArray vars)
 	{
-		IloEnv env = cplex.getEnv();
-
 		IloRangeArray ilo_constraints(env);
 
-		transform_cuts_to_ilo_constraints(cplex, vars, ilo_constraints);
+		transform_cuts_to_ilo_constraints(env, vars, ilo_constraints);
 
 		constrs.add(ilo_constraints);
 		model.add(ilo_constraints);
