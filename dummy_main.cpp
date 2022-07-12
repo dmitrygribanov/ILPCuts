@@ -7,18 +7,12 @@
 #include <NTL/ZZ.h>
 
 #include "base_module.h"
-#include "linbox_module.h"
 #include "ntl_module.h"
 #include "flint_module.h"
 #include "primes_downloader.h"
 
 using namespace ILPCuts;
 using namespace std;
-
-#include <givaro/modular.h>
-#include <linbox/matrix/sparse-matrix.h>
-#include <linbox/solutions/det.h>
-#include <linbox/solutions/solve.h>
 
 //#include <gmp++/gmp++.h>
 
