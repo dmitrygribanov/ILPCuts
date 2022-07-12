@@ -20,7 +20,7 @@ using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lra
 
 // ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs)
 
-ILOUSERCUTCALLBACK3(myCutsCallback, IloNumVarArray, vars, IloRangeArray, rangs, CutsGenAdapter &, adapter)
+ILOUSERCUTCALLBACK3(myCutsCallback, IloNumVarArray, vars, IloRangeArray, rngs, CutsGenAdapter &, adapter)
 {
     IloEnv env = getEnv();
     IloModel mod = getModel();
@@ -45,84 +45,110 @@ ILOUSERCUTCALLBACK3(myCutsCallback, IloNumVarArray, vars, IloRangeArray, rangs, 
             ilo_cuts.end();
         }
     }
-    else
+
+    IloIterator<IloExpr> citer = IloIterator<IloExpr>(env);
+    IloModel::Iterator iter = IloModel::Iterator(mod);
+    IloConstraintArray carr(env);
+    IloNumVarArray varr(env);
+    IloExprArray earr(env);
+    size_t cc = 0, vc = 0, ec = 0;
+    while (iter.ok())
     {
-        IloIterator<IloExpr> citer = IloIterator<IloExpr>(env);
-        IloModel::Iterator iter = IloModel::Iterator(mod);
-        IloConstraintArray carr(env);
-        IloNumVarArray varr(env);
-        IloExprArray earr(env);
-        size_t cc = 0, vc = 0, ec = 0;
-        while (iter.ok())
+        if ((*iter).isConstraint())
         {
-            if ((*iter).isConstraint())
-            {
-                carr.add((*iter).asConstraint());
-                ++cc;
-            }
-            else if ((*iter).isVariable())
-            {
-                varr.add((*iter).asVariable());
-                ++vc;
-            }
-            else if ((*iter).isNumExpr())
-            {
-                earr.add((*iter).asNumExpr());
-                ++ec;
-            }
-            else if ((*iter).isIntExpr())
-            {
-                earr.add((*iter).asIntExpr());
-                ++ec;
-            }
-            ++iter;
+            carr.add((*iter).asConstraint());
+            ++cc;
         }
-
-        env.out() << "=====variables: " << vc << endl;
-        // for (size_t i = 0; i < varr.getSize(); ++i)
-        // {
-        //     env.out() << varr[i].getName() << ", ";
-        // }
-        // env.out() << endl;
-
-        env.out() << "=====constraints: " << cc << endl;
-        // for (size_t i = 0; i < carr.getSize(); ++i)
-        // {
-        //     env.out() << carr[i].getName() << ", ";
-        // }
-        // env.out() << endl;
-
-        // env.out() << "=====constraints 2.0==========" << endl;
-        // size_t expr_count = 0;
-        // while (citer.ok())
-        // {
-        //     if ((*citer).isNumExpr())
-        //     {
-        //         env.out() << (*citer).asNumExpr() << ", ";
-        //         ++expr_count;
-        //     }
-        //     else if ((*citer).isIntExpr())
-        //     {
-        //         env.out() << (*citer).asIntExpr() << ", ";
-        //         ++expr_count;
-        //     }
-
-        //     ++citer;
-        // }
-
-        // env.out()<< expr_count << '\n';
-        /*
-        env.out() << "=====exprs==========" << endl;
-        for (size_t i = 0; i < earr.getSize(); ++i) {
-            env.out() << earr[i].getName() << ", ";
+        else if ((*iter).isVariable())
+        {
+            varr.add((*iter).asVariable());
+            ++vc;
         }
-
-        */
-
-        carr.end();
-        varr.end();
-        earr.end();
+        else if ((*iter).isNumExpr())
+        {
+            earr.add((*iter).asNumExpr());
+            ++ec;
+        }
+        else if ((*iter).isIntExpr())
+        {
+            earr.add((*iter).asIntExpr());
+            ++ec;
+        }
+        ++iter;
     }
+
+    env.out() << "=====variables: " << vc << endl;
+    // for (size_t i = 0; i < varr.getSize(); ++i)
+    // {
+    //     env.out() << varr[i].getName() << ", ";
+    // }
+    // env.out() << endl;
+
+    env.out() << "=====constraints: " << cc << endl;
+    // for (size_t i = 0; i < carr.getSize(); ++i)
+    // {
+    //     env.out() << carr[i].getName() << ", ";
+    // }
+    // env.out() << endl;
+
+    // env.out() << "=====constraints 2.0==========" << endl;
+    // size_t expr_count = 0;
+    // while (citer.ok())
+    // {
+    //     if ((*citer).isNumExpr())
+    //     {
+    //         env.out() << (*citer).asNumExpr() << ", ";
+    //         ++expr_count;
+    //     }
+    //     else if ((*citer).isIntExpr())
+    //     {
+    //         env.out() << (*citer).asIntExpr() << ", ";
+    //         ++expr_count;
+    //     }
+
+    //     ++citer;
+    // }
+
+    // env.out()<< expr_count << '\n';
+    /*
+    env.out() << "=====exprs==========" << endl;
+    for (size_t i = 0; i < earr.getSize(); ++i) {
+        env.out() << earr[i].getName() << ", ";
+    }
+
+    */
+
+    IloNumArray slacks_arr(env);
+    IloNumArray vars_arr(env);
+    IloNumArray UBs_arr(env);
+    IloNumArray LBs_arr(env);
+    getSlacks(slacks_arr, rngs);
+    getValues(vars_arr, vars);
+    getUBs(UBs_arr, vars);
+    getLBs(LBs_arr, vars);
+
+    size_t base_num = 0;
+    for (size_t i = 0; i < slacks_arr.getSize(); i++)
+    {
+        if (slacks_arr[i] == 0)
+            ++base_num;
+    }
+    for (size_t i = 0; i < vars.getSize(); i++)
+    {
+        if (vars_arr[i] == UBs_arr[i] || vars_arr[i] == UBs_arr[i])
+            ++base_num;
+    }
+    env.out() << "vars num = " << vars.getSize()
+              << "; slacks num = " << slacks_arr.getSize()
+              << "; base num = " << base_num << endl;
+
+    vars_arr.end();
+    UBs_arr.end();
+    LBs_arr.end();
+    slacks_arr.end();
+    carr.end();
+    varr.end();
+    earr.end();
 }
 
 void run_cplex_experiment(logger &log,
@@ -249,6 +275,7 @@ void run_cplex_experiment(logger &log,
 
     // setting parameters for solving in integer variables
     cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
+    cplex_main.setParam(IloCplex::Param::Preprocessing::Reduce, 0);
 
     //---------------------------------------------------------------------------------------------------
 
