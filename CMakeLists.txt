@@ -18,7 +18,8 @@ target_include_directories(CPlexConsole PUBLIC "${ILOCPLEX_INCLUDE_PATH}")
 
 target_link_directories(CPlexConsole PUBLIC "${ILOCPLEX_INCLUDE_LIB_PATH}")
 
-target_link_libraries(CPlexConsole PUBLIC -lflint -lgmp -lgmpxx -lm -lpthread -lntl -lilocplex -lconcert -lcplex -lgivaro -lblas -llinbox ${CMAKE_DL_LIBS})
+#removed deps.: -lgivaro -lblas -llinbox
+target_link_libraries(CPlexConsole PUBLIC -lflint -lgmp -lgmpxx -lm -lpthread -lntl -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
 target_link_libraries(CPlexDummy PUBLIC -lflint -lmpfr -lgmp -lgmpxx -lpthread -lntl -lgivaro -lblas -llinbox ${CMAKE_DL_LIBS})
 
 find_package(OpenMP)
