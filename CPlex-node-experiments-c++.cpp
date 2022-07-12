@@ -292,7 +292,7 @@ void run_cplex_experiment(logger &log,
 
 int main(int argc, char **argv)
 {
-    argparse::ArgumentParser program("CPlexNodeExps");
+    argparse::ArgumentParser program("CPlexNodeExpsCPP");
 
     program.add_argument("-i", "--input")
         .default_value(std::string("-"))
