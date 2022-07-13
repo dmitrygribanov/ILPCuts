@@ -58,6 +58,14 @@ int myCutCallback(CPXCENVptr env,
     return 0;
 }
 
+string create_err_string(string prefix, CPXENVptr env, int status)
+{
+    char errmsg_C[CPXMESSAGEBUFSIZE];
+    CPXXgeterrorstring(env, status, errmsg_C);
+
+    return prefix + errmsg_C;
+}
+
 void run_cplex_experiment(logger &log,
                           string input_path,
                           double tolerance,
@@ -79,31 +87,67 @@ void run_cplex_experiment(logger &log,
     //  create CPLEX envirement
     env = CPXXopenCPLEX(&status);
 
-    if (env == NULL)
+    if (env == nullptr)
     {
-        char errmsg_C[CPXMESSAGEBUFSIZE];
-        stringstream err_msg;
-        err_msg << "Could not open CPLEX environment...\n";
-        CPXXgeterrorstring(env, status, errmsg_C);
-        err_msg << errmsg_C;
-
-        throw runtime_error(err_msg.str());
+        throw runtime_error(create_err_string("Could not open CPLEX environment...\n", env, status));
     }
 
-    // env.setOut(log.out());
-    // env.setError(log.out());
+    status = CPXXsetintparam(env, CPXPARAM_ScreenOutput, CPX_ON);
+    if (status)
+    {
+        throw runtime_error(create_err_string("Failure to turn on screen indicator...\n", env, status));
+    }
 
-    // // set global presision for long arithmetics
-    // mpf_set_default_prec(256);
+    status = CPXXsetlogfilename(env, log.get_log_file_name().c_str(), "a");
 
-    // // create main model object
-    // IloModel master_model(env);
+    if (status)
+    {
+        throw runtime_error(create_err_string("Failure to set log file name into CPlex...\n", env, status));
+    }
 
-    // // create solver object
-    // IloCplex cplex_main(env);
+    // set global presision for long arithmetics
+    mpf_set_default_prec(256);
 
-    // // solver object to solve relaxed model
-    // IloCplex cplex_relaxed(env);
+    // create main model object
+    mip = CPXXcreateprob(env, &status, "MainILP");
+
+    if (mip == nullptr)
+    {
+        throw runtime_error(create_err_string("Could not create CPlex problem...\n", env, status));
+    }
+
+    status = CPXXreadcopyprob(env, mip, input_path.c_str(), nullptr);
+
+    if (status)
+    {
+        throw runtime_error(create_err_string("Could not read the ILP problem...\n", env, status));
+    }
+
+    if (!baseline)
+    {
+        string callback_info_file_name = "reduced_model.txt";
+        status = CPXXsetusercutcallbackfunc(env, myCutCallback, const_cast<char *>(callback_info_file_name.c_str()));
+
+        if (status)
+        {
+            throw runtime_error(create_err_string("Could not set callback into the CPlex solver...\n", env, status));
+        }
+
+        status = CPXXsetcntparam(env, CPXPARAM_MIP_Limits_Nodes, 1);
+    }
+
+    status = CPXXsetcntparam(env, CPX_PARAM_THREADS, static_cast<int>(threads_cplex));
+
+    status = CPXXmipopt(env, mip);
+
+    if (status)
+    {
+        throw runtime_error(create_err_string("Could not optimize the ILP problem...\n", env, status));
+    }
+
+    int solstat = CPXXgetstat(env, mip);
+    log.out() << "Optimization is finished!\n"
+              << "Solution status is " << solstat << endl;
 
     // // create objective function object
     // IloObjective obj;
