@@ -2,6 +2,7 @@
 
 #include "base_module.h"
 #include <ilcplex/ilocplex.h>
+#include <ilcplex/cplexx.h>
 
 namespace ILPCuts
 {
@@ -50,6 +51,9 @@ namespace ILPCuts
 		std::tuple<is_mat, rs_vec, rs_vec>
 		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
+		std::tuple<is_mat, rs_vec, rs_vec>
+		transform_to_corner_polyhedron(CPXCENVptr env, CPXLPptr lp);
+
 		using Trilpl = Triplet<int_type>;
 		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
 		{
@@ -94,7 +98,39 @@ namespace ILPCuts
 			return get_logger().out();
 		}
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
-		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+		void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
+		void generate_cuts(CPXCENVptr env, CPXLPptr lp)
+		{
+			is_mat A;
+			rs_vec c, optLP;
+
+			out() << "transforming data from ILO-C-Format to ILPCuts format ..." << endl;
+
+			Timer timer;
+			timer.start();
+
+			tie(A, c, optLP) = transform_to_corner_polyhedron(env, lp);
+
+			out() << "transformation time: " << timer.finish_str();
+
+			generate_cuts(move(A), move(c), move(optLP));
+		}
+		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+		{
+			is_mat A;
+			rs_vec c, optLP;
+
+			out() << "transforming data from ILO-C++-Format to ILPCuts format ..." << endl;
+
+			Timer timer;
+			timer.start();
+
+			tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+
+			out() << "transformation time: " << timer.finish_str();
+
+			generate_cuts(move(A), move(c), move(optLP));
+		}
 		void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
 		void add_cuts_as_constraints(IloEnv env, IloModel model, IloRangeArray constrs, IloNumVarArray vars);
 		void clear_cuts()
@@ -270,23 +306,11 @@ namespace ILPCuts
 	}
 
 	template <typename cutsGenT>
-	void CPlexAdapter<cutsGenT>::generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+	void CPlexAdapter<cutsGenT>::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
 	{
-		is_mat A;
-		rs_vec optLP;
-		rs_vec c;
-
-		out() << "transforming data from ILOFormat to ILPCuts format ..." << endl;
-
-		Timer timer;
-		timer.start();
-
-		tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
-
-		out() << "transformation time: " << timer.finish_str();
-
 		generator_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
 
+		Timer timer;
 		timer.start();
 		out() << "cutting plane generation is started..." << endl;
 
