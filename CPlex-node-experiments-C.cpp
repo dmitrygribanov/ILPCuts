@@ -17,14 +17,6 @@ using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
-
-string create_err_string(string prefix, CPXCENVptr env, int status)
-{
-    char errmsg_C[CPXMESSAGEBUFSIZE];
-    CPXXgeterrorstring(env, status, errmsg_C);
-
-    return prefix + errmsg_C;
-}
 struct MyCallbackData
 {
     string callback_info_file_name;
@@ -54,21 +46,21 @@ int myCutCallback(CPXCENVptr env,
         // With this, we stop the optimization after the callback is executed
         *useraction_p = CPX_CALLBACK_FAIL;
 
-        CPXLPptr nodeLP, copyLP;
+        CPXLPptr nodeLP;
         status = CPXXgetcallbacknodelp(env, cbdata, wherefrom, &nodeLP);
         if (status)
         {
             myData->out() << create_err_string("failed to get node-LP...\n", env, status);
         }
 
-        copyLP = CPXXcloneprob(env, nodeLP, &status);
-        if (status)
-        {
-            myData->out() << create_err_string("failed to clone node-LP...\n", env, status);
-        }
+        // copyLP = CPXXcloneprob(env, nodeLP, &status);
+        // if (status)
+        // {
+        //     myData->out() << create_err_string("failed to clone node-LP...\n", env, status);
+        // }
 
-        CPXDIM precols;
-        precols = CPXXgetnumcols(env, copyLP);
+        CPXDIM precols = 0;
+        precols = CPXXgetnumcols(env, nodeLP);
 
         // vector<char> var_types(precols, CPX_CONTINUOUS);
         //  char *prectype;
@@ -82,7 +74,7 @@ int myCutCallback(CPXCENVptr env,
         //     myData->out() << create_err_string("failed to change a node-LP problem type...\n", env, status);
         // }
 
-        status = CPXXlpopt(env, copyLP);
+        status = CPXXlpopt(env, nodeLP);
         if (status)
         {
             myData->out() << create_err_string("failed to optimize node-LP...\n", env, status);
@@ -93,6 +85,8 @@ int myCutCallback(CPXCENVptr env,
         // {
         //     myData->out() << "Failed to write presolve/cut MIP." << endl;
         // }
+
+        myData->cuts_gen_adapter.generate_cuts(env, nodeLP);
     }
 
     return 0;
@@ -128,6 +122,13 @@ void run_cplex_experiment(logger &log,
     if (status)
     {
         throw runtime_error(create_err_string("Failure to turn on screen indicator...\n", env, status));
+    }
+
+    // setting the CPlex-env threads parameter
+    status = CPXXsetcntparam(env, CPX_PARAM_THREADS, static_cast<int>(threads_cplex));
+    if (status)
+    {
+        throw runtime_error(create_err_string("Failed to set threads parameter for CPlex...\n", env, status));
     }
 
     // setting log-file into CPlex solver
@@ -197,12 +198,6 @@ void run_cplex_experiment(logger &log,
             cuts_gen_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
 
         // status = CPXXsetcntparam(env, CPXPARAM_MIP_Limits_Nodes, 1);
-    }
-
-    // setting the CPlex MIP-solver parameters
-    status = CPXXsetcntparam(env, CPX_PARAM_THREADS, static_cast<int>(threads_cplex));
-    {
-        throw runtime_error(create_err_string("Failed to set threads parameter for CPlex...\n", env, status));
     }
 
     // starting the optimization process

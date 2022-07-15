@@ -6,6 +6,23 @@
 
 namespace ILPCuts
 {
+	string create_err_string(string prefix, CPXCENVptr env, int status, string suff = "")
+	{
+		stringstream res_msg;
+		res_msg << prefix;
+
+		char buff_C[CPXMESSAGEBUFSIZE];
+		const char *msg_C = CPXXgeterrorstring(env, status, buff_C);
+
+		if (msg_C)
+			res_msg << msg_C;
+		else
+			res_msg << "CPlex Error " << status << ": unknown error code.\n";
+
+		res_msg << suff;
+
+		return res_msg.str();
+	}
 	class FractionalElementException : public Exception
 	{
 	public:
@@ -52,7 +69,7 @@ namespace ILPCuts
 		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
 		std::tuple<is_mat, rs_vec, rs_vec>
-		transform_to_corner_polyhedron(CPXCENVptr env, CPXLPptr lp);
+		transform_to_corner_polyhedron(CPXCENVptr env, CPXCLPptr lp);
 
 		using Trilpl = Triplet<int_type>;
 		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
@@ -99,7 +116,7 @@ namespace ILPCuts
 		}
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
 		void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
-		void generate_cuts(CPXCENVptr env, CPXLPptr lp)
+		void generate_cuts(CPXCENVptr env, CPXCLPptr lp)
 		{
 			is_mat A;
 			rs_vec c, optLP;
@@ -199,9 +216,9 @@ namespace ILPCuts
 			}
 		}
 
-		out() << "reading active constraints..." << endl;
-
 		{
+			out() << "reading active constraints..." << endl;
+
 			IloCplex::BasisStatusArray vars_basis(cplex.getEnv());
 			IloCplex::BasisStatusArray constrs_basis(cplex.getEnv());
 			cplex.getBasisStatuses(vars_basis, vars, constrs_basis, constrs);
@@ -270,6 +287,149 @@ namespace ILPCuts
 			}
 
 			cplex_optLP.end();
+		}
+
+		out() << "normal cone adjusting..." << endl;
+
+		A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
+
+		return std::make_tuple(A_basis, c, optLP);
+	}
+
+	template <typename cutsGenT>
+	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
+	CPlexAdapter<cutsGenT>::transform_to_corner_polyhedron(CPXCENVptr env, CPXCLPptr lp)
+	{
+		int status = 0;
+
+		CPXDIM n = 0, m = 0;
+		n = CPXXgetnumcols(env, lp);
+		m = CPXXgetnumrows(env, lp);
+
+		is_mat A_basis(n, n);
+		rs_vec optLP(n);
+		is_vec c(n);
+
+		{
+			out() << "reading objective..." << endl;
+
+			int sence = CPXXgetobjsen(env, lp);
+			if (sence != CPX_MIN && sence != CPX_MAX)
+			{
+				throw Exception("ILPCuts lib error: the LP problem's optimizaton sence var is = 0, so it is not defined...\n");
+			}
+			// CPX_MAX == -1 and CPX_MIN == 1 : we need to change into opposite values
+			sence *= -1;
+
+			vector<double> C_obj(n, 0.0);
+			status = CPXXgetobj(env, lp, C_obj.data(), 0, n - 1);
+			if (status)
+			{
+				throw Exception(create_err_string("ILPCuts lib error: failed to read objective using CPXXgetobj...\n",
+												  env, status));
+			}
+
+			for (size_t i = 0; i < C_obj.size(); ++i)
+			{
+				if (abs(C_obj[i]) > numeric_limits<double>::epsilon())
+				{
+					c.insertBack(i) = sence * C_obj[i];
+				}
+			}
+		}
+
+		{
+			out() << "reading basis information..." << endl;
+
+			vector<int> cols_status(n, 0);
+			vector<int> rows_status(m, 0);
+			std::vector<Trilpl> triplets;
+			size_t basis_i = 0;
+
+			status = CPXXgetbase(env, lp, cols_status.data(), rows_status.data());
+			if (status)
+			{
+				throw Exception(create_err_string("ILPCuts lib error: failed to read base using CPXXgetbase...\n",
+												  env, status));
+			}
+
+			out() << "reading active constraints..." << endl;
+			{
+				CPXNNZ nonzeros_C = 0, surplus_C = 0;
+				status = CPXXgetrows(env, lp, &nonzeros_C, nullptr, nullptr, nullptr, 0, &surplus_C, 0, m - 1);
+				if (status != CPXERR_NEGATIVE_SURPLUS)
+				{
+					stringstream msg_suff;
+					msg_suff << "surplus is " << surplus_C << "; nonzeros is " << nonzeros_C << endl;
+					throw Exception(create_err_string("ILPCuts lib error: failed to read nonzeros number in rows...\n",
+													  env, status, msg_suff.str()));
+				}
+				nonzeros_C = -surplus_C;
+
+				vector<CPXNNZ> nonzeros_beg_C(m, 0);
+				vector<CPXDIM> mat_idxcs_C(nonzeros_C, 0);
+				vector<double> mat_vals_C(nonzeros_C, 0.0);
+				status = CPXXgetrows(env, lp, &nonzeros_C, nonzeros_beg_C.data(),
+									 mat_idxcs_C.data(), mat_vals_C.data(), nonzeros_C,
+									 &surplus_C, 0, m - 1);
+				if (status && surplus_C != 0)
+				{
+					stringstream msg_suff;
+					msg_suff << "surplus is " << surplus_C << "; nonzeros is " << nonzeros_C << endl;
+					throw Exception(create_err_string("ILPCuts lib error: failed to read nonzeros from CPLex rows...\n",
+													  env, status, msg_suff.str()));
+				}
+
+				for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
+				{
+					int mult = 0;
+					if (rows_status[base_row_idx] == CPX_AT_UPPER)
+						mult = 1;
+					else if (rows_status[base_row_idx] == CPX_AT_LOWER)
+						mult = -1;
+
+					if (mult != 0)
+					{
+						CPXNNZ row_st_C = 0, row_end_C = 0;
+						row_st_C = nonzeros_beg_C[base_row_idx];
+						row_end_C = nonzeros_beg_C[base_row_idx + 1];
+						for (CPXNNZ nonzeros_idx = row_st_C; nonzeros_idx < row_end_C; ++nonzeros_idx)
+						{
+							CPXDIM col_idx = mat_idxcs_C[nonzeros_idx];
+							double val = mult * mat_vals_C[nonzeros_idx];
+
+							if (abs(val) > numeric_limits<double>::epsilon())
+							{
+								triplets.emplace_back(Trilpl(basis_i, col_idx, val));
+							}
+						}
+
+						++basis_i;
+					}
+				}
+			}
+
+			out() << "reading active variables..." << endl;
+
+			for (size_t base_var_idx = 0; base_var_idx < cols_status.size(); ++base_var_idx)
+			{
+				int sign = 0;
+				if (cols_status[base_var_idx] == CPX_AT_UPPER)
+					sign = 1;
+				else if (cols_status[base_var_idx] == CPX_AT_LOWER)
+					sign = -1;
+
+				if (sign != 0)
+				{
+					triplets.push_back(Trilpl(basis_i, base_var_idx, sign));
+					++basis_i;
+				}
+			}
+
+			A_basis.setFromTriplets(triplets.begin(), triplets.end());
+
+			cout << "basis_i = " << basis_i << endl;
+			cin.ignore();
 		}
 
 		out() << "normal cone adjusting..." << endl;
