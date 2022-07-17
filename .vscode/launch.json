@@ -107,7 +107,7 @@
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/pure_int_bench/sorrell3.mps.gz",
+                "../problems/pure_int_bench/pb-market-split8-70-4.mps.gz",
                 "--wcgn",
                 "1",
                 "--wcpl",

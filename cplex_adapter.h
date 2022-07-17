@@ -184,7 +184,7 @@ namespace ILPCuts
 
 		is_mat A_basis(n, n);
 		rs_vec optLP(n);
-		is_vec c(n);
+		rs_vec c(n);
 
 		std::map<IloInt, size_t> var_index_map;
 		for (size_t i = 0; i < n; ++i)
@@ -308,7 +308,7 @@ namespace ILPCuts
 
 		is_mat A_basis(n, n);
 		rs_vec optLP(n);
-		is_vec c(n);
+		rs_vec c(n);
 
 		{
 			out() << "reading objective..." << endl;
@@ -380,6 +380,17 @@ namespace ILPCuts
 													  env, status, msg_suff.str()));
 				}
 
+				size_t bc = 0;
+				for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
+				{
+
+					if (rows_status[base_row_idx] == CPX_AT_UPPER)
+						++bc;
+					else if (rows_status[base_row_idx] == CPX_AT_LOWER)
+						++bc;
+				}
+				out() << "BC = " << bc << endl;
+
 				for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
 				{
 					int mult = 0;
@@ -401,11 +412,27 @@ namespace ILPCuts
 						{
 							CPXDIM col_idx = mat_idxcs_C[nonzeros_idx];
 							double val = mult * mat_vals_C[nonzeros_idx];
+							int_type val_int = 0;
 
-							if (abs(val) > numeric_limits<double>::epsilon())
+							// out() << "(" << basis_i << ", " << col_idx << ", " << val << ")" << endl;
+
+							try
 							{
-								triplets.emplace_back(Trilpl(basis_i, col_idx, val));
+								val_int = generator_ptr->_rat_to_int(val);
 							}
+							catch (ToleranceErrorException)
+							{
+								stringstream msg;
+
+								msg << "ILPCuts lib error: fracttional elemen in A has located;\n"
+									<< "ConstrNum = " << base_row_idx << "\n"
+									<< "VarNum = " << col_idx << "\n"
+									<< "value = " << val;
+
+								throw FractionalElementException(msg.str());
+							}
+
+							triplets.emplace_back(Trilpl(basis_i, col_idx, val_int));
 						}
 
 						++basis_i;
@@ -436,7 +463,29 @@ namespace ILPCuts
 			// cin.ignore();
 		}
 
+		{
+			out() << "reading optimal LP solution (vertex)..." << endl;
+
+			vector<double> x_C(n, 0.0);
+			status = CPXXsolution(env, lp, nullptr, nullptr, x_C.data(), nullptr, nullptr, nullptr);
+			if (status)
+			{
+				throw Exception(create_err_string("ILPCuts lib error: failed to read lp-solution...\n",
+												  env, status));
+			}
+			for (size_t i = 0; i < n; ++i)
+			{
+				if (abs(x_C[i]) > numeric_limits<double>::epsilon())
+				{
+					optLP.insertBack(i) = x_C[i];
+				}
+			}
+		}
+
 		out() << "normal cone adjusting..." << endl;
+
+		// cout << A_basis << endl;
+		// cout << A_basis.cols() << ",  " << A_basis.rows() << endl;
 
 		A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
 
