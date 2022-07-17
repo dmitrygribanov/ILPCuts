@@ -392,7 +392,11 @@ namespace ILPCuts
 					{
 						CPXNNZ row_st_C = 0, row_end_C = 0;
 						row_st_C = nonzeros_beg_C[base_row_idx];
-						row_end_C = nonzeros_beg_C[base_row_idx + 1];
+						if (base_row_idx == rows_status.size() - 1)
+							row_end_C = nonzeros_C - 1;
+						else
+							row_end_C = nonzeros_beg_C[base_row_idx + 1];
+
 						for (CPXNNZ nonzeros_idx = row_st_C; nonzeros_idx < row_end_C; ++nonzeros_idx)
 						{
 							CPXDIM col_idx = mat_idxcs_C[nonzeros_idx];
@@ -428,8 +432,8 @@ namespace ILPCuts
 
 			A_basis.setFromTriplets(triplets.begin(), triplets.end());
 
-			cout << "basis_i = " << basis_i << endl;
-			cin.ignore();
+			// cout << "basis_i = " << basis_i << endl;
+			// cin.ignore();
 		}
 
 		out() << "normal cone adjusting..." << endl;
