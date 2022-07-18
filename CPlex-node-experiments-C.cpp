@@ -23,10 +23,32 @@ struct MyCallbackData
 {
     string callback_info_file_name;
     logger *log;
-    size_t node_max_depth = 0;
-    size_t max_iters = 1;
+    size_t node_max_depth;
+    size_t max_iters;
     CutsGenAdapter cuts_gen_adapter;
     map<CPXINT, size_t> node_counters;
+
+    bool is_node_permited_for_cuts(CPXINT nodeID, CPXINT nodeDepth)
+    {
+        if (node_counters.find(nodeID) != node_counters.end())
+        {
+            if (node_counters[nodeID] < max_iters)
+            {
+                ++node_counters[nodeID];
+            }
+            else
+                return false;
+        }
+        else
+        {
+            node_counters[nodeID] = 1;
+        }
+
+        if (nodeDepth > node_max_depth)
+            return false;
+
+        return true;
+    }
 
     logger::stream &out()
     {
@@ -46,6 +68,7 @@ int myCutCallback(CPXCENVptr env,
     *useraction_p = CPX_CALLBACK_DEFAULT;
     CPXINT curr_node_depth = 0, curr_node_ID = 0;
 
+    // CPX_CALLBACK_MIP_CUT_LAST indicates that CPLEX is done adding cuts and the user has a last chance to add cuts
     if (wherefrom == CPX_CALLBACK_MIP_CUT_LAST)
     {
 
@@ -53,35 +76,17 @@ int myCutCallback(CPXCENVptr env,
                                         0, CPX_CALLBACK_INFO_NODE_DEPTH, &curr_node_depth);
         if (status)
         {
-            myData->out() << create_err_string("failed to read curr. node depth...\n", env, status);
+            throw(Exception(create_err_string("CPLex CutCallback: failed to read curr. node depth...\n", env, status)));
         }
 
         status = CPXgetcallbacknodeinfo(env, cbdata, wherefrom,
                                         0, CPX_CALLBACK_INFO_NODE_SEQNUM, &curr_node_ID);
         if (status)
         {
-            myData->out() << create_err_string("failed to read curr. node ID...\n", env, status);
+            throw(Exception(create_err_string("CPLex CutCallback: failed to read curr. node ID...\n", env, status)));
         }
 
-        bool is_node_permited_to_add_cuts = true;
-        if (myData->node_counters.find(curr_node_ID) != myData->node_counters.end())
-        {
-            if (myData->node_counters[curr_node_ID] < myData->max_iters)
-            {
-                ++myData->node_counters[curr_node_ID];
-            }
-            else
-                is_node_permited_to_add_cuts = false;
-        }
-        else
-        {
-            myData->node_counters[curr_node_ID] = 1;
-        }
-        if (curr_node_depth > myData->node_max_depth)
-            is_node_permited_to_add_cuts = false;
-
-        // CPX_CALLBACK_MIP_CUT_LAST indicates that CPLEX is done adding cuts and the user has a last chance to add cuts
-        if (is_node_permited_to_add_cuts)
+        if (myData->is_node_permited_for_cuts(curr_node_ID, curr_node_depth))
         {
             *useraction_p = CPX_CALLBACK_SET;
 
@@ -89,8 +94,7 @@ int myCutCallback(CPXCENVptr env,
             status = CPXXgetcallbacknodelp(env, cbdata, wherefrom, &nodeLP);
             if (status)
             {
-                myData->out() << create_err_string("failed to get node-LP...\n", env, status);
-                *useraction_p = CPX_CALLBACK_FAIL;
+                throw(Exception(create_err_string("CPLex CutCallback: failed to get node-LP...\n", env, status)));
             }
 
             // copyLP = CPXXcloneprob(env, nodeLP, &status);
@@ -99,8 +103,8 @@ int myCutCallback(CPXCENVptr env,
             //     myData->out() << create_err_string("failed to clone node-LP...\n", env, status);
             // }
 
-            CPXDIM precols = 0;
-            precols = CPXXgetnumcols(env, nodeLP);
+            // CPXDIM precols = 0;
+            // precols = CPXXgetnumcols(env, nodeLP);
 
             // vector<char> var_types(precols, CPX_CONTINUOUS);
             //  char *prectype;
@@ -117,8 +121,7 @@ int myCutCallback(CPXCENVptr env,
             status = CPXXlpopt(env, nodeLP);
             if (status)
             {
-                myData->out() << create_err_string("failed to optimize node-LP...\n", env, status);
-                *useraction_p = CPX_CALLBACK_FAIL;
+                throw(Exception(create_err_string("CPLex CutCallback: failed to optimize node-LP...\n", env, status)));
             }
             // myData->out() << "callback file name ===== " << myData->callback_info_file_name.c_str() << endl;
             // status = CPXXwriteprob(env, copyLP, myData->callback_info_file_name.c_str(), NULL);
@@ -127,47 +130,23 @@ int myCutCallback(CPXCENVptr env,
             //     myData->out() << "Failed to write presolve/cut MIP." << endl;
             // }
 
+            Timer timer;
+
+            myData->log->out() << "CPLex CutCallback: starting ILPCuts cutting plane generation..." << endl;
+
+            timer.start();
+
             myData->cuts_gen_adapter.generate_cuts(env, nodeLP);
 
-            const auto &generated_cuts = myData->cuts_gen_adapter.get_cuts();
-            for (size_t i = 0; i < generated_cuts.size(); ++i)
-            {
-                const auto &cut_Eigen = generated_cuts[i];
-                CPXNNZ nonzeros_C = 0;
-                int_type rhs_C = 0;
+            myData->log->out() << "CPLex CutCallback: generation time is " << timer.finish_str();
 
-                nonzeros_C = cut_Eigen.nonZeros();
-                rhs_C = cut_Eigen.coeff(cut_Eigen.size() - 1);
-                if (rhs_C != 0)
-                    --nonzeros_C;
+            myData->log->out() << "CPLex CutCallback: adding cuts into CPlex..." << endl;
 
-                vector<CPXDIM> nonzero_idxs_C;
-                vector<double> nonzero_vals_C;
-                for (typename SparseVector<int_type>::InnerIterator it(cut_Eigen); it; ++it)
-                {
-                    if (it.index() != cut_Eigen.size() - 1)
-                    {
-                        nonzero_idxs_C.push_back(it.index());
-                        nonzero_vals_C.push_back(it.value());
-                        // myData->log->out() << "VALLL = " << it.value() << endl;
-                    }
-                }
+            timer.start();
 
-                // for (size_t i = 0; i < nonzeros_C; i++)
-                // {
-                //     cout << nonzero_vals_C[i] << " ";
-                // }
-                // cout << endl;
+            myData->cuts_gen_adapter.add_cuts(env, cbdata, wherefrom);
 
-                status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, rhs_C, 'L',
-                                                 nonzero_idxs_C.data(), nonzero_vals_C.data());
-                // FOR GLOBAL CUTS: could be CPX_USECUT_FORCE, CPX_USECUT_PURGE or CPX_USECUT_FILTER
-                if (status)
-                {
-                    myData->out() << create_err_string("fail to add an user cut...\n", env, status);
-                    *useraction_p = CPX_CALLBACK_FAIL;
-                }
-            }
+            myData->log->out() << "CPLex CutCallback: adding time is " << timer.finish_str();
         }
     }
 

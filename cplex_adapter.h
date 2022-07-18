@@ -63,7 +63,7 @@ namespace ILPCuts
 		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>;
 		static constexpr auto from_IloNum_to_int = Utility::conv<IloNum, int_type>;
 		static constexpr auto from_IloNum_to_rat = Utility::conv<IloNum, rational_type>;
-		// Utility::ToSingle<int_type, IloInt> to_IloInt;
+		// static constexpr auto from_CPXINT_to_int = Utility::conv<CPXINT, rational_type>;
 
 		std::tuple<is_mat, rs_vec, rs_vec>
 		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
@@ -115,6 +115,7 @@ namespace ILPCuts
 			return get_logger().out();
 		}
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
+		void add_cuts(CPXCENVptr env, void *cbdata, int wherefrom);
 		void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
 		void generate_cuts(CPXCENVptr env, CPXCLPptr lp)
 		{
@@ -333,7 +334,7 @@ namespace ILPCuts
 			{
 				if (abs(C_obj[i]) > numeric_limits<double>::epsilon())
 				{
-					c.insertBack(i) = sence * C_obj[i];
+					c.insertBack(i) = from_IloNum_to_rat(sence * C_obj[i]);
 				}
 			}
 		}
@@ -380,16 +381,17 @@ namespace ILPCuts
 													  env, status, msg_suff.str()));
 				}
 
-				size_t bc = 0;
-				for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
-				{
+				// size_t bc = 0;
+				// for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
+				// {
 
-					if (rows_status[base_row_idx] == CPX_AT_UPPER)
-						++bc;
-					else if (rows_status[base_row_idx] == CPX_AT_LOWER)
-						++bc;
-				}
-				out() << "BC = " << bc << endl;
+				// 	if (rows_status[base_row_idx] == CPX_AT_UPPER)
+				// 		++bc;
+				// 	else if (rows_status[base_row_idx] == CPX_AT_LOWER)
+				// 		++bc;
+				// }
+
+				// out() << "BC = " << bc << endl;
 
 				for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
 				{
@@ -477,7 +479,7 @@ namespace ILPCuts
 			{
 				if (abs(x_C[i]) > numeric_limits<double>::epsilon())
 				{
-					optLP.insertBack(i) = x_C[i];
+					optLP.insertBack(i) = from_IloNum_to_rat(x_C[i]);
 				}
 			}
 		}
@@ -490,6 +492,54 @@ namespace ILPCuts
 		A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
 
 		return std::make_tuple(A_basis, c, optLP);
+	}
+
+	template <typename cutsGenT>
+	void CPlexAdapter<cutsGenT>::add_cuts(CPXCENVptr env, void *cbdata, int wherefrom)
+	{
+		int status = 0;
+
+		for (size_t i = 0; i < cuts_Eigen.size(); ++i)
+		{
+			const auto &cut = cuts_Eigen[i];
+			CPXNNZ nonzeros_C = 0;
+			int_type rhs_C = 0;
+
+			nonzeros_C = cut.nonZeros();
+			rhs_C = cut.coeff(cut.size() - 1);
+			if (rhs_C != 0)
+				--nonzeros_C;
+
+			vector<CPXDIM> nonzero_idxs_C;
+			vector<double> nonzero_vals_C;
+			for (typename SparseVector<int_type>::InnerIterator it(cut); it; ++it)
+			{
+				if (it.index() != cut.size() - 1)
+				{
+					IloInt int_val = to_IloInt(it.value());
+					nonzero_idxs_C.push_back(it.index());
+					nonzero_vals_C.push_back(int_val);
+					// myData->log->out() << "VALLL = " << it.value() << endl;
+				}
+			}
+
+			// for (size_t i = 0; i < nonzeros_C; i++)
+			// {
+			//     cout << nonzero_vals_C[i] << " ";
+			// }
+			// cout << endl;
+
+			status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, rhs_C, 'L',
+											 nonzero_idxs_C.data(), nonzero_vals_C.data());
+			// FOR GLOBAL CUTS: could be CPX_USECUT_FORCE, CPX_USECUT_PURGE or CPX_USECUT_FILTER
+			if (status)
+			{
+				stringstream msg_suff;
+				msg_suff << "the cut sequential number is " << i << endl;
+				throw(Exception(create_err_string("fail to add an user cut...\n", env, status,
+												  msg_suff.str())));
+			}
+		}
 	}
 
 	template <typename cutsGenT>
