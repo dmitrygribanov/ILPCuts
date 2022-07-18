@@ -14,15 +14,18 @@ namespace ILPCuts
         using stream = boost::iostreams::stream<tee_device>;
 
     private:
+        string _log_file_name;
         ofstream _file;
         tee_device _tee_dev;
         stream _stream;
 
     public:
         logger(string log_file_name = "log.txt", ostream &a_ostr = cout)
-            : _file(log_file_name), _tee_dev(a_ostr, _file), _stream(_tee_dev)
+            : _log_file_name(log_file_name), _file(_log_file_name), _tee_dev(a_ostr, _file), _stream(_tee_dev)
         {
         }
+
+        string get_log_file_name() const { return _log_file_name; }
 
         void reset_output_file(string log_file_name)
         {

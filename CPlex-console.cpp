@@ -200,7 +200,7 @@ void run_cplex_experiment(
 
 			// adding cuts to the relaxed model as constraints
 			env.out() << "adding constraints to relaxed model ..." << endl;
-			cuts_gen_adapter.add_cuts_as_constraints(cplex_relaxed, relaxed_model, rngs, vars);
+			cuts_gen_adapter.add_cuts_as_constraints(env, relaxed_model, rngs, vars);
 
 			// adding cuts to the original model
 			env.out() << "adding cuts to original model ..." << endl;
