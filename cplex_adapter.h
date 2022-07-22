@@ -130,7 +130,7 @@ namespace ILPCuts
 		}
 
 	public:
-		logger &get_logger() { return generator_ptr->get_logger(); }
+		logger &get_logger() { return generator_ptr->log; }
 		logger::stream &out()
 		{
 			get_logger().out() << "ILPCuts-CPlex-Adapter: ";

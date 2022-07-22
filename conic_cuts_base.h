@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base_module.h"
+#include "Hilbert_base_alg.h"
 
 // all optional modules are added at the moment
 // to simplify experiments
@@ -15,47 +16,47 @@ namespace ILPCuts
 {
 	template <typename intT, typename rationalT, typename lintT, typename lrationalT>
 	class ConicCutsGenerator_Base
+		: public base_alg<intT, rationalT, lintT, lrationalT>
 	{
-	public:
-		using rational_type = rationalT;
-		using int_type = intT;
-
-		using lrational_type = lrationalT;
-		using lint_type = lintT;
-
-		using is_mat = SparseMatrix<int_type>;
-		using rs_mat = SparseMatrix<rational_type>;
-
-		using lis_mat = SparseMatrix<lint_type>;
-		using lrs_mat = SparseMatrix<lrational_type>;
-
-		using is_vec = SparseVector<int_type>;
-		using rs_vec = SparseVector<rational_type>;
-
-		using lis_vec = SparseVector<lint_type>;
-		using lrs_vec = SparseVector<lrational_type>;
-
-		using Strategies = CutsGenStrategies<int_type, rational_type>;
-
 	private:
 		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
+		using base = base_alg<intT, rationalT, lintT, lrationalT>;
 
 		friend class CPlexAdapter<my_type>;
 
+	public:
+		using typename base::int_type;
+		using typename base::lint_type;
+		using typename base::lrational_type;
+		using typename base::rational_type;
+
+		using typename base::is_mat;
+		using typename base::lis_mat;
+		using typename base::lrs_mat;
+		using typename base::rs_mat;
+
+		using typename base::is_vec;
+		using typename base::lis_vec;
+		using typename base::lrs_vec;
+		using typename base::rs_vec;
+
+		using base::_lrat_to_lint;
+		using base::_rat_to_int;
+		using base::_to_single_int;
+		using base::_to_single_rat;
+		using base::base;
+		using base::err_tolerance;
+		using base::log;
+		using base::rgen;
+		using base::threads;
+		using base::tolerance;
+
+		using Strategies = CutsGenStrategies<int_type, rational_type>;
+
 	protected:
-		using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
-		using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
 		using transform_base = ILPCuts::transform_base<int_type, rational_type, lint_type, lrational_type>;
 		using sparse_transform = ILPCuts::sparse_transform<int_type, rational_type, lint_type, lrational_type>;
 		using lsparse_transform = ILPCuts::lsparse_transform<int_type, rational_type, lint_type, lrational_type>;
-
-		RatToInt_Unary _rat_to_int;
-		LRatToLInt_Unary _lrat_to_lint;
-
-		static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>;
-		static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>;
-
-		logger &_log;
 		struct dir_coeffs
 		{
 			rs_vec coeffs;
@@ -300,27 +301,22 @@ namespace ILPCuts
 		}
 
 	public:
-		double tolerance = 0.000001;
-		double err_tolerance = 0.01;
 		size_t cone_limit_per_direction = 1;
-		size_t threads = 8;
 		std::vector<std::unique_ptr<typename Strategies::DirectionsStrategyBase>> direction_strategies;
-		std::mt19937 *rgen = nullptr;
 
 		using size_func = std::function<size_t(size_t)>;
 		size_func determinant_cut_limit = [](size_t n) -> size_t
 		{ return n; };
 
 		ConicCutsGenerator_Base(logger &log)
-			: _log(log), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
+			: base(log)
 		{
 		}
 
-		logger &get_logger() { return _log; }
 		logger::stream &out()
 		{
-			get_logger().out() << "ILPCuts-Generator: ";
-			return get_logger().out();
+			log.out() << "ILPCuts-Generator: ";
+			return log.out();
 		}
 
 		is_mat adjust_normal_cone(is_mat A, const rs_vec &c)

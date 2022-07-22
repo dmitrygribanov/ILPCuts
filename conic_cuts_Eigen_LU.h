@@ -48,7 +48,7 @@ namespace ILPCuts
 		using base::threads;
 		using base::tolerance;
 
-		using base::_log;
+		using base::log;
 		using base::out;
 
 		using base::base;

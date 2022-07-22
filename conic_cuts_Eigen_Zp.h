@@ -35,7 +35,7 @@ namespace ILPCuts
         using typename base::sparse_transform;
         using typename base::transform_base;
 
-        using base::_log;
+        using base::log;
         using base::out;
 
         using typename base::base;
