@@ -2,8 +2,6 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-#include <map>
-
 //#define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
@@ -11,6 +9,7 @@ ILOSTLBEGIN
 #include "conic_cuts_Eigen_LU.h"
 #include "conic_cuts_Eigen_Zp.h"
 #include "dependencies/argparse/argparse.hpp"
+#include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
 
 using int_type = int64_t;
@@ -24,27 +23,6 @@ using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
-
-map<string, IloCplex::IntParam> init_cplex_cut_types()
-{
-	map<string, IloCplex::IntParam> res;
-
-	res["clique"] = IloCplex::Param::MIP::Cuts::Cliques;
-	res["cover"] = IloCplex::Param::MIP::Cuts::Covers;
-	res["gomory"] = IloCplex::Param::MIP::Cuts::Gomory;
-	res["disj"] = IloCplex::Param::MIP::Cuts::Disjunctive;
-	res["flowc"] = IloCplex::Param::MIP::Cuts::FlowCovers;
-	res["flowp"] = IloCplex::Param::MIP::Cuts::PathCut;
-	res["gub"] = IloCplex::Param::MIP::Cuts::GUBCovers;
-	res["liftp"] = IloCplex::Param::MIP::Cuts::LiftProj;
-	res["mcf"] = IloCplex::Param::MIP::Cuts::MCFCut;
-	res["mir"] = IloCplex::Param::MIP::Cuts::MIRCut;
-	res["zeroh"] = IloCplex::Param::MIP::Cuts::ZeroHalfCut;
-	res["impliedl"] = IloCplex::Param::MIP::Cuts::LocalImplied;
-	res["impliedg"] = IloCplex::Param::MIP::Cuts::Implied;
-
-	return res;
-}
 
 void run_cplex_experiment(
 	logger &log,
@@ -65,7 +43,7 @@ void run_cplex_experiment(
 	string cplex_cuts_param)
 {
 	// set cplex cuts types
-	auto cplex_cut_types = init_cplex_cut_types();
+	auto cplex_cut_types = init_cplex_cut_type_names_map();
 
 	// create CPLEX envirement
 	IloEnv env;
@@ -314,7 +292,7 @@ int main(int argc, char **argv)
 		.scan<'g', double>();
 
 	program.add_argument("--cprime")
-		.default_value(size_t(101))
+		.default_value(size_t(100000))
 		.help("max conservative prime for ILPCuts with Zp")
 		.scan<'i', size_t>();
 
@@ -383,8 +361,12 @@ int main(int argc, char **argv)
 
 	logger log(program.get<std::string>("--output"));
 
+	log.print_command_line_params(argc, argv);
+
 	try
 	{
+		print_numeric_types_info<int_type, lint_type, rational_type, lrational_type>(log);
+
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");
 		size_t threads_global = program.get<size_t>("--threads");

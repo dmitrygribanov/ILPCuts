@@ -6,6 +6,7 @@ ILOSTLBEGIN
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen_Zp.h"
 #include "dependencies/argparse/argparse.hpp"
+#include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
 
 using int_type = int64_t;
@@ -235,7 +236,6 @@ void run_cplex_experiment(logger &log,
 
     if (!baseline)
     {
-
         cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(log);
 
         auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
@@ -317,7 +317,7 @@ int main(int argc, char **argv)
         .scan<'g', double>();
 
     program.add_argument("--cprime")
-        .default_value(size_t(101))
+        .default_value(size_t(100000))
         .help("max conservative prime for ILPCuts with Zp")
         .scan<'i', size_t>();
 
@@ -386,8 +386,12 @@ int main(int argc, char **argv)
 
     logger log(program.get<std::string>("--output"));
 
+    log.print_command_line_params(argc, argv);
+
     try
     {
+        print_numeric_types_info<int_type, lint_type, rational_type, lrational_type>(log);
+
         size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
         size_t threads_cplex = program.get<size_t>("--threads_cplex");
         size_t threads_global = program.get<size_t>("--threads");

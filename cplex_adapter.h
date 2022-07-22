@@ -3,6 +3,7 @@
 #include "base_module.h"
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/cplexx.h>
+#include <map>
 
 namespace ILPCuts
 {
@@ -22,6 +23,27 @@ namespace ILPCuts
 		res_msg << suff;
 
 		return res_msg.str();
+	}
+
+	map<string, IloCplex::IntParam> init_cplex_cut_type_names_map()
+	{
+		map<string, IloCplex::IntParam> res;
+
+		res["clique"] = IloCplex::Param::MIP::Cuts::Cliques;
+		res["cover"] = IloCplex::Param::MIP::Cuts::Covers;
+		res["gomory"] = IloCplex::Param::MIP::Cuts::Gomory;
+		res["disj"] = IloCplex::Param::MIP::Cuts::Disjunctive;
+		res["flowc"] = IloCplex::Param::MIP::Cuts::FlowCovers;
+		res["flowp"] = IloCplex::Param::MIP::Cuts::PathCut;
+		res["gub"] = IloCplex::Param::MIP::Cuts::GUBCovers;
+		res["liftp"] = IloCplex::Param::MIP::Cuts::LiftProj;
+		res["mcf"] = IloCplex::Param::MIP::Cuts::MCFCut;
+		res["mir"] = IloCplex::Param::MIP::Cuts::MIRCut;
+		res["zeroh"] = IloCplex::Param::MIP::Cuts::ZeroHalfCut;
+		res["impliedl"] = IloCplex::Param::MIP::Cuts::LocalImplied;
+		res["impliedg"] = IloCplex::Param::MIP::Cuts::Implied;
+
+		return res;
 	}
 	class FractionalElementException : public Exception
 	{

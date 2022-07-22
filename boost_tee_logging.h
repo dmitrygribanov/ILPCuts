@@ -34,6 +34,17 @@ namespace ILPCuts
         }
 
         stream &out() { return _stream; }
+
+        void print_command_line_params(int argc, char **argv)
+        {
+            out() << "ILPCuts command line params string:\n";
+            for (int i = 0; i < argc; ++i)
+            {
+                out() << argv[i] << " ";
+            }
+            out() << "\n"
+                  << endl;
+        }
     };
 
 } // namespace ILPCuts
