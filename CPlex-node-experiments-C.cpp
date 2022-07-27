@@ -20,13 +20,19 @@ using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
+// the user-data-structure to put into CPLex C-style callback
 struct MyCallbackData
 {
-    string callback_info_file_name;
     logger *log;
+    // maximal node depth for cutting plane generation
     size_t node_max_depth;
+    // maximal number of times
+    // that the node is used for cutting generation
     size_t max_iters;
     CutsGenAdapter cuts_gen_adapter;
+
+    // this data structure stores the number of times
+    // that node with a given ID is used for cutting generation
     map<CPXINT, size_t> node_counters;
 
     bool is_node_permited_for_cuts(CPXINT nodeID, CPXINT nodeDepth)
@@ -56,6 +62,12 @@ struct MyCallbackData
         log->out() << "CPlex user callback: ";
         return log->out();
     }
+
+    logger::stream &out(CPXINT nodeID, CPXINT nodeDepth)
+    {
+        log->out() << "CPlex user callback nodeID(" << nodeID << "), nodeDepth(" << nodeDepth << "):\n";
+        return log->out();
+    }
 };
 
 int myCutCallback(CPXCENVptr env,
@@ -73,20 +85,23 @@ int myCutCallback(CPXCENVptr env,
     if (wherefrom == CPX_CALLBACK_MIP_CUT_LAST)
     {
 
-        status = CPXgetcallbacknodeinfo(env, cbdata, wherefrom,
-                                        0, CPX_CALLBACK_INFO_NODE_DEPTH, &curr_node_depth);
+        // reading a node depth
+        status = CPXXgetcallbacknodeinfo(env, cbdata, wherefrom,
+                                         0, CPX_CALLBACK_INFO_NODE_DEPTH, &curr_node_depth);
         if (status)
         {
             throw(Exception(create_err_string("CPLex CutCallback: failed to read curr. node depth...\n", env, status)));
         }
 
-        status = CPXgetcallbacknodeinfo(env, cbdata, wherefrom,
-                                        0, CPX_CALLBACK_INFO_NODE_SEQNUM, &curr_node_ID);
+        // reading a node ID
+        status = CPXXgetcallbacknodeinfo(env, cbdata, wherefrom,
+                                         0, CPX_CALLBACK_INFO_NODE_SEQNUM, &curr_node_ID);
         if (status)
         {
             throw(Exception(create_err_string("CPLex CutCallback: failed to read curr. node ID...\n", env, status)));
         }
 
+        // checking is node permited to cutting generation
         if (myData->is_node_permited_for_cuts(curr_node_ID, curr_node_depth))
         {
             *useraction_p = CPX_CALLBACK_SET;
@@ -119,11 +134,18 @@ int myCutCallback(CPXCENVptr env,
             //     myData->out() << create_err_string("failed to change a node-LP problem type...\n", env, status);
             // }
 
+            Timer timer;
+
+            myData->out(curr_node_ID, curr_node_depth) << "solving of the node LP..." << endl;
+            timer.start();
+
             status = CPXXlpopt(env, nodeLP);
             if (status)
             {
                 throw(Exception(create_err_string("CPLex CutCallback: failed to optimize node-LP...\n", env, status)));
             }
+
+            myData->out(curr_node_ID, curr_node_depth) << "solving time: " << timer.finish_str();
             // myData->out() << "callback file name ===== " << myData->callback_info_file_name.c_str() << endl;
             // status = CPXXwriteprob(env, copyLP, myData->callback_info_file_name.c_str(), NULL);
             // if (status)
@@ -131,23 +153,21 @@ int myCutCallback(CPXCENVptr env,
             //     myData->out() << "Failed to write presolve/cut MIP." << endl;
             // }
 
-            Timer timer;
-
-            myData->log->out() << "CPLex CutCallback: starting ILPCuts cutting plane generation..." << endl;
+            myData->out(curr_node_ID, curr_node_depth) << "starting ILPCuts cutting plane generation..." << endl;
 
             timer.start();
 
             myData->cuts_gen_adapter.generate_cuts(env, nodeLP);
 
-            myData->log->out() << "CPLex CutCallback: generation time is " << timer.finish_str();
+            myData->out(curr_node_ID, curr_node_depth) << "generation time is " << timer.finish_str();
 
-            myData->log->out() << "CPLex CutCallback: adding cuts into CPlex..." << endl;
+            myData->out(curr_node_ID, curr_node_depth) << "adding cuts into CPlex..." << endl;
 
             timer.start();
 
             myData->cuts_gen_adapter.add_cuts(env, cbdata, wherefrom);
 
-            myData->log->out() << "CPLex CutCallback: adding time is " << timer.finish_str();
+            myData->out(curr_node_ID, curr_node_depth) << "adding time is " << timer.finish_str();
         }
     }
 
@@ -241,7 +261,7 @@ void run_cplex_experiment(logger &log,
     // //------------------------------------------------------------------------------------------
 
     // creating data for my cut-callback
-    MyCallbackData myData = {"reduced_model.mps", &log, max_node_depth, iters};
+    MyCallbackData myData = {&log, max_node_depth, iters};
 
     if (!baseline)
     {

@@ -119,7 +119,7 @@ namespace ILPCuts
 			else
 			{
 				std::stringstream msg;
-				msg << "rat_to_int tolerance error:\n diff = (" << diff
+				msg << "ILPCuts tolerance error:\n diff = (" << diff
 					<< ")\n value = (" << rat_x
 					<< ")\n rounded value = (" << rounded_x << ")";
 				throw ToleranceErrorException(msg.str());
@@ -427,6 +427,8 @@ namespace ILPCuts
 			return true;
 		}
 
+		// this functions transforms a sparce vector to a dense vector
+		// and then prints it to a string
 		template <typename valT>
 		string vec_to_str_dense(const SparseVector<valT> &v)
 		{
@@ -478,6 +480,10 @@ namespace ILPCuts
 			return res.str();
 		}
 
+		// this function takes a collection of cuts represented as sparce vectors
+		// and prints them to a string
+		// each cut is separtated by \n
+		// the last cut is also finished by \n
 		template <typename valT>
 		string export_cuts(const vector<SparseVector<valT>> &cuts_collection)
 		{
