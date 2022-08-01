@@ -187,7 +187,8 @@ void run_cplex_experiment(logger &log,
                           size_t cprime,
                           size_t max_node_depth,
                           size_t iters,
-                          int node_lim)
+                          int node_lim,
+                          string scaling)
 {
     // define vars
     int status = 0;
@@ -237,8 +238,28 @@ void run_cplex_experiment(logger &log,
         }
     }
 
+    if (scaling != "on" && scaling != "off")
+    {
+        log.out() << "Wrong value of the CLI parameter --scaling: " << scaling << std::endl;
+        exit(0);
+    }
+
+    if (scaling == "off")
+    {
+        status = CPXXsetcntparam(env, CPXPARAM_MIP_SubMIP_Scale, -1);
+        if (status)
+        {
+            throw runtime_error(create_err_string("Failed to set SubMIP Scale param. for CPlex...\n", env, status));
+        }
+
+        status = CPXXsetcntparam(env, CPXPARAM_Read_Scale, -1);
+        if (status)
+        {
+            throw runtime_error(create_err_string("Failed to set problem's matrix Scale param. for CPlex...\n", env, status));
+        }
+    }
+
     status = CPXXsetcntparam(env, CPX_PARAM_REDUCE, CPX_PREREDUCE_NOPRIMALORDUAL);
-    // status = CPXXsetcntparam(env, CPX_PARAM_NODELIM);
     status = CPXXsetcntparam(env, CPX_PARAM_DISJCUTS, -1);
     status = CPXXsetcntparam(env, CPX_PARAM_MCFCUTS, -1);
     status = CPXXsetcntparam(env, CPX_PARAM_CLIQUES, -1);
@@ -417,6 +438,10 @@ int main(int argc, char **argv)
         .help("maximal number of nodes in CPlex B&C-algorithm (-1 = default CPlex behavor)")
         .scan<'i', int>();
 
+    program.add_argument("--scaling")
+        .default_value(std::string("off"))
+        .help("CPlex scaling; can be \"off\" or \"on\"");
+
     // program.add_argument("--cplex_cuts")
     //     .default_value(std::string("all"))
     //     .help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
@@ -461,7 +486,8 @@ int main(int argc, char **argv)
             program.get<size_t>("--cprime"),
             program.get<size_t>("--max_node_depth"),
             program.get<size_t>("--iters"),
-            program.get<int>("--node_lim"));
+            program.get<int>("--node_lim"),
+            program.get<string>("--scaling"));
     }
     catch (const FractionalElementException &err)
     {

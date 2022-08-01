@@ -41,7 +41,8 @@ void run_cplex_experiment(
 	int node_lim,
 	std::string solver_type,
 	size_t cprime,
-	string cplex_cuts_param)
+	string cplex_cuts_param,
+	string scaling)
 {
 	// set cplex cuts types
 	auto cplex_cut_types = init_cplex_cut_type_names_map();
@@ -227,6 +228,18 @@ void run_cplex_experiment(
 	if (node_lim != -1)
 		cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
 
+	if (scaling != "on" && scaling != "off")
+	{
+		log.out() << "Wrong value of the CLI parameter --scaling: " << scaling << std::endl;
+		exit(0);
+	}
+
+	if (scaling == "off")
+	{
+		cplex_main.setParam(IloCplex::Param::Read::Scale, -1);
+		// cplex_main.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
+	}
+
 	if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
 	{
 		env.error() << "Wrong value of the CLI parameter --cplex_cuts_param: " << cplex_cuts_param << std::endl;
@@ -361,6 +374,10 @@ int main(int argc, char **argv)
 		.default_value(std::string("all"))
 		.help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
 
+	program.add_argument("--scaling")
+		.default_value(std::string("off"))
+		.help("CPlex scaling; can be \"off\" or \"on\"");
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -404,7 +421,8 @@ int main(int argc, char **argv)
 			program.get<int>("--node_lim"),
 			program.get<string>("--cgen"),
 			program.get<size_t>("--cprime"),
-			program.get<string>("--cplex_cuts"));
+			program.get<string>("--cplex_cuts"),
+			program.get<string>("--scaling"));
 	}
 	catch (const FractionalElementException &err)
 	{

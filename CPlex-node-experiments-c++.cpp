@@ -163,7 +163,8 @@ void run_cplex_experiment(logger &log,
                           size_t threads_cplex,
                           bool baseline,
                           size_t cprime,
-                          int node_lim)
+                          int node_lim,
+                          string scaling)
 {
     // create CPLEX envirement
     IloEnv env;
@@ -278,6 +279,18 @@ void run_cplex_experiment(logger &log,
     cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
     cplex_main.setParam(IloCplex::Param::Preprocessing::Reduce, 0);
 
+    if (scaling != "on" && scaling != "off")
+    {
+        log.out() << "Wrong value of the CLI parameter --scaling: " << scaling << std::endl;
+        exit(0);
+    }
+
+    if (scaling == "off")
+    {
+        cplex_main.setParam(IloCplex::Param::Read::Scale, -1);
+        // cplex_main.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
+    }
+
     if (node_lim < -1)
     {
         env.error() << "Wrong value of the CLI parameter --node_lim: " << node_lim << std::endl;
@@ -388,6 +401,10 @@ int main(int argc, char **argv)
     //     .default_value(std::string("all"))
     //     .help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
 
+    program.add_argument("--scaling")
+        .default_value(std::string("off"))
+        .help("CPlex scaling; can be \"off\" or \"on\"");
+
     try
     {
         program.parse_args(argc, argv);
@@ -426,7 +443,8 @@ int main(int argc, char **argv)
             threads_cplex,
             program.get<bool>("--baseline"),
             program.get<size_t>("--cprime"),
-            program.get<int>("--node_lim"));
+            program.get<int>("--node_lim"),
+            program.get<string>("--scaling"));
     }
     catch (const FractionalElementException &err)
     {
