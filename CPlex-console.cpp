@@ -38,6 +38,7 @@ void run_cplex_experiment(
 	bool baseline,
 	string is_lazy_param,
 	size_t iterations_number,
+	int node_lim,
 	std::string solver_type,
 	size_t cprime,
 	string cplex_cuts_param)
@@ -218,7 +219,13 @@ void run_cplex_experiment(
 	// setting parameters for solving in integer variables
 	cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
 
-	// cplex_main.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
+	if (node_lim < -1)
+	{
+		env.error() << "Wrong value of the CLI parameter --node_lim: " << node_lim << std::endl;
+		exit(0);
+	}
+	if (node_lim != -1)
+		cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
 
 	if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
 	{
@@ -345,6 +352,11 @@ int main(int argc, char **argv)
 		.help("number of boosting iterations in the root-node")
 		.scan<'i', size_t>();
 
+	program.add_argument("--node_lim")
+		.default_value(int(-1))
+		.help("maximal number of nodes in CPlex B&C-algorithm (-1 = default CPlex behavor)")
+		.scan<'i', int>();
+
 	program.add_argument("--cplex_cuts")
 		.default_value(std::string("all"))
 		.help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
@@ -389,6 +401,7 @@ int main(int argc, char **argv)
 			program.get<bool>("--baseline"),
 			program.get<string>("--lazy"),
 			program.get<size_t>("--iters"),
+			program.get<int>("--node_lim"),
 			program.get<string>("--cgen"),
 			program.get<size_t>("--cprime"),
 			program.get<string>("--cplex_cuts"));

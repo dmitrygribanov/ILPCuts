@@ -162,7 +162,8 @@ void run_cplex_experiment(logger &log,
                           size_t threads_cuts_gen,
                           size_t threads_cplex,
                           bool baseline,
-                          size_t cprime)
+                          size_t cprime,
+                          int node_lim)
 {
     // create CPLEX envirement
     IloEnv env;
@@ -277,6 +278,14 @@ void run_cplex_experiment(logger &log,
     cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
     cplex_main.setParam(IloCplex::Param::Preprocessing::Reduce, 0);
 
+    if (node_lim < -1)
+    {
+        env.error() << "Wrong value of the CLI parameter --node_lim: " << node_lim << std::endl;
+        exit(0);
+    }
+    if (node_lim != -1)
+        cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
+
     //---------------------------------------------------------------------------------------------------
 
     // solve the ILP model
@@ -370,6 +379,11 @@ int main(int argc, char **argv)
     //     .help("number of boosting iterations in the root-node")
     //     .scan<'i', size_t>();
 
+    program.add_argument("--node_lim")
+        .default_value(int(-1))
+        .help("maximal number of nodes in CPlex B&C-algorithm (-1 = default CPlex behavor)")
+        .scan<'i', int>();
+
     // program.add_argument("--cplex_cuts")
     //     .default_value(std::string("all"))
     //     .help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
@@ -411,7 +425,8 @@ int main(int argc, char **argv)
             threads_cuts_gen,
             threads_cplex,
             program.get<bool>("--baseline"),
-            program.get<size_t>("--cprime"));
+            program.get<size_t>("--cprime"),
+            program.get<int>("--node_lim"));
     }
     catch (const FractionalElementException &err)
     {
