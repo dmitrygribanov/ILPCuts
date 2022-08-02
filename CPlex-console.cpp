@@ -42,7 +42,8 @@ void run_cplex_experiment(
 	std::string solver_type,
 	size_t cprime,
 	string cplex_cuts_param,
-	string scaling)
+	string scaling,
+	string model_cuts_switch)
 {
 	// set cplex cuts types
 	auto cplex_cut_types = init_cplex_cut_type_names_map();
@@ -109,9 +110,6 @@ void run_cplex_experiment(
 	double boostedRelaxedObjVal = 0;
 	env.out() << "solution value  is " << originalRelaxedObjVal << endl;
 
-	// put the original model into the solver
-	cplex_main.extract(master_model);
-
 	// createing adapter object
 	CutsGenAdapter cuts_gen_adapter;
 
@@ -163,12 +161,24 @@ void run_cplex_experiment(
 			exit(0);
 		}
 
+		if (model_cuts_switch != "on" && model_cuts_switch != "off")
+		{
+			env.error() << "Wrong value of the CLI parameter --model_cuts: " << model_cuts_switch << std::endl;
+			exit(0);
+		}
+
 		// do some iterations to add cuts as constraints into the relaxed model
 		// simultaniously we add cuts to the main model
 		Timer boosting_timer;
 		boosting_timer.start();
 
 		ofstream cuts_export_file(cuts_output_path);
+
+		if (model_cuts_switch == "off")
+		{
+			// put the original model into the solver
+			cplex_main.extract(master_model);
+		}
 
 		for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx)
 		{
@@ -179,12 +189,21 @@ void run_cplex_experiment(
 			cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
 
 			// adding cuts to the relaxed model as constraints
-			env.out() << "adding constraints to relaxed model ..." << endl;
-			cuts_gen_adapter.add_cuts_as_constraints(env, relaxed_model, rngs, vars);
+			env.out() << "adding constraints to the relaxed model ..." << endl;
+			cuts_gen_adapter.add_cuts_as_constraints(env, vars, relaxed_model, rngs);
 
-			// adding cuts to the original model
-			env.out() << "adding cuts to original model ..." << endl;
-			cuts_gen_adapter.add_cuts(cplex_main, vars);
+			if (model_cuts_switch == "on")
+			{
+				// adding cuts to the original model as constraints
+				env.out() << "adding constraints to the original model ..." << endl;
+				cuts_gen_adapter.add_cuts_as_constraints(env, vars, master_model);
+			}
+			else
+			{
+				// adding cuts to the original model
+				env.out() << "adding cuts to original model ..." << endl;
+				cuts_gen_adapter.add_cuts(cplex_main, vars);
+			}
 
 			// exporting cuts to a file
 			env.out() << "exporting cuts to a file ..." << endl;
@@ -215,6 +234,12 @@ void run_cplex_experiment(
 				  << "Total time (with boosting) is " << boosting_timer.finish_str()
 				  << "original LP optimum: " << originalRelaxedObjVal << "\n"
 				  << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
+	}
+
+	if (model_cuts_switch == "on")
+	{
+		// put the original model into the solver
+		cplex_main.extract(master_model);
 	}
 
 	// setting parameters for solving in integer variables
@@ -378,6 +403,10 @@ int main(int argc, char **argv)
 		.default_value(std::string("off"))
 		.help("CPlex scaling; can be \"off\" or \"on\"");
 
+	program.add_argument("--model_cuts")
+		.default_value(std::string("off"))
+		.help("If \"on\" cuts will be added into the model as constraints; can be \"off\" or \"on\"");
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -422,7 +451,8 @@ int main(int argc, char **argv)
 			program.get<string>("--cgen"),
 			program.get<size_t>("--cprime"),
 			program.get<string>("--cplex_cuts"),
-			program.get<string>("--scaling"));
+			program.get<string>("--scaling"),
+			program.get<string>("--model_cuts"));
 	}
 	catch (const FractionalElementException &err)
 	{
