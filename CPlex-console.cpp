@@ -62,10 +62,10 @@ void run_cplex_experiment(
 	// create relaxed model object
 	IloModel relaxed_model(env);
 
-	// create solver object
+	// create solver object for the main MILP
 	IloCplex cplex_main(env);
 
-	// solver object to solve relaxed model
+	// solver object to solve the relaxed model
 	IloCplex cplex_relaxed(env);
 
 	// create objective function object
@@ -190,13 +190,15 @@ void run_cplex_experiment(
 
 			// adding cuts to the relaxed model as constraints
 			env.out() << "adding constraints to the relaxed model ..." << endl;
-			cuts_gen_adapter.add_cuts_as_constraints(env, vars, relaxed_model, rngs);
+			IloRangeArray cuts_as_constr = cuts_gen_adapter.create_IloConstraints_from_cuts(env, vars);
+			rngs.add(cuts_as_constr);
+			relaxed_model.add(cuts_as_constr);
 
 			if (model_cuts_switch == "on")
 			{
 				// adding cuts to the original model as constraints
 				env.out() << "adding constraints to the original model ..." << endl;
-				cuts_gen_adapter.add_cuts_as_constraints(env, vars, master_model);
+				master_model.add(cuts_as_constr);
 			}
 			else
 			{
@@ -204,6 +206,7 @@ void run_cplex_experiment(
 				env.out() << "adding cuts to original model ..." << endl;
 				cuts_gen_adapter.add_cuts(cplex_main, vars);
 			}
+			cuts_as_constr.end();
 
 			// exporting cuts to a file
 			env.out() << "exporting cuts to a file ..." << endl;

@@ -173,8 +173,14 @@ namespace ILPCuts
 		}
 		void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
 
-		void add_cuts_as_constraints(IloEnv env, IloNumVarArray vars, IloModel model, IloRangeArray constrs);
-		void add_cuts_as_constraints(IloEnv env, IloNumVarArray vars, IloModel model);
+		IloRangeArray create_IloConstraints_from_cuts(IloEnv env, IloNumVarArray vars)
+		{
+			IloRangeArray ilo_constraints(env);
+
+			transform_cuts_to_ilo_constraints(env, vars, ilo_constraints);
+
+			return ilo_constraints;
+		}
 
 		void clear_cuts()
 		{
@@ -632,30 +638,5 @@ namespace ILPCuts
 
 			ilo_constr.add(IloRange(env, lhs, rhs));
 		}
-	}
-
-	template <typename cutsGenT>
-	void CPlexAdapter<cutsGenT>::add_cuts_as_constraints(IloEnv env, IloNumVarArray vars, IloModel model, IloRangeArray constrs)
-	{
-		IloRangeArray ilo_constraints(env);
-
-		transform_cuts_to_ilo_constraints(env, vars, ilo_constraints);
-
-		constrs.add(ilo_constraints);
-		model.add(ilo_constraints);
-
-		ilo_constraints.end();
-	}
-
-	template <typename cutsGenT>
-	void CPlexAdapter<cutsGenT>::add_cuts_as_constraints(IloEnv env, IloNumVarArray vars, IloModel model)
-	{
-		IloRangeArray ilo_constraints(env);
-
-		transform_cuts_to_ilo_constraints(env, vars, ilo_constraints);
-
-		model.add(ilo_constraints);
-
-		ilo_constraints.end();
 	}
 }
