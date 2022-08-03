@@ -447,6 +447,7 @@ namespace ILPCuts
 				res << "0";
 			else
 			{
+				assert(i == it.index());
 				res << it.value();
 				++it;
 			}
@@ -469,7 +470,7 @@ namespace ILPCuts
 				++it;
 			}
 
-			assert(i <= it.index());
+			assert(i <= n);
 
 			while (i < n)
 			{
