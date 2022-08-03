@@ -202,7 +202,7 @@ void run_cplex_experiment(
 	// run solver
 	if (!cplex_relaxed.solve())
 	{
-		env.out() << "Optimization is terminated." << endl;
+		env.out() << "LP optimal solution is not found..." << endl;
 		env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
 		exit(0);
 	}
@@ -359,20 +359,29 @@ void run_cplex_experiment(
 	// cplex_main.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
 	// solve the ILP model
-	if (!cplex_main.solve())
+	if (cplex_main.solve())
 	{
-		env.out() << "Optimization is terminated." << endl;
-		env.out() << "Solution status is " << cplex_main.getStatus() << endl;
-		exit(0);
-	}
-	env.out() << "ILP solution value  is " << cplex_main.getObjValue() << endl;
+		env.out() << "ILP solution value: " << cplex_main.getObjValue() << "\n"
+				  << "ILP cutoff: " << cplex_main.getCutoff() << endl;
 
-	if (baseline == false)
+		env.out()
+			<< "Duality gap decrease (ILP): "
+			<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getObjValue()) << "\n"
+			<< "Duality gap decrease (cutoff): "
+			<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getCutoff()) << "\n"
+			<< endl;
+	}
+	else
 	{
-		env.out() << "Duality gap decrease: "
-				  << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getObjValue())
+		env.out() << "Integer optimal solution is not found...\n"
+				  << "Solution status is " << cplex_main.getStatus() << "\n"
 				  << endl;
 	}
+
+	env.out()
+		<< "LP best solution value: " << cplex_main.getBestObjValue() << "\n"
+		<< "Duality gap decrease (LP): "
+		<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getBestObjValue()) << endl;
 
 	env.end();
 }
