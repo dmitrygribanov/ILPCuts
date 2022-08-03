@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) CPlexDummy",
+            "name": "(gdb) Dummy Console",
             "type": "cppdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
@@ -24,14 +24,16 @@
             ]
         },
         {
-            "name": "(gdb) CPlexConsole",
+            "name": "(gdb; zp) supportcase30",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/pure_int_bench/sorrell3.mps.gz",
+                "../problems/pure_int_bench/supportcase30.mps.gz",
+                "-o",
+                "supportcase30_debug_log.txt",
                 "--wcgn",
                 "1",
                 "--wcpl",
@@ -62,7 +64,7 @@
             ]
         },
         {
-            "name": "(gdb) CPlexNodeExpsCPP",
+            "name": "(gdb; zp) sorrell3",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
@@ -70,10 +72,14 @@
             "args": [
                 "-i",
                 "../problems/pure_int_bench/sorrell3.mps.gz",
+                "-o",
+                "sorrell3_debug_log.txt",
                 "--wcgn",
                 "1",
                 "--wcpl",
                 "15",
+                "--cgen",
+                "zp",
                 "--cprime",
                 "100000"
             ],
@@ -98,7 +104,7 @@
             ]
         },
         {
-            "name": "(gdb) CPlexNodeExpsC",
+            "name": "(gdb; zp) pb-market",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
@@ -106,12 +112,18 @@
             "args": [
                 "-i",
                 "../problems/pure_int_bench/pb-market-split8-70-4.mps.gz",
+                "-o",
+                "pb_market_split8_70_4_debug_log.txt",
                 "--wcgn",
                 "1",
                 "--wcpl",
                 "15",
+                "--cgen",
+                "zp",
                 "--cprime",
-                "100000"
+                "100000",
+                "--iters",
+                "200"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",
