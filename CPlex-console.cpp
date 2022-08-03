@@ -24,6 +24,109 @@ using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, l
 using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
+// set cplex cuts types
+const auto cplex_cut_types = init_cplex_cut_type_names_map();
+
+void check_input_params(
+	logger &log,
+	double tolerance,
+	double err_tolerance,
+	size_t cone_limit_per_direction,
+	size_t threads_global,
+	string is_lazy_param,
+	size_t iterations_number,
+	int node_lim,
+	std::string solver_type,
+	size_t cprime,
+	string cplex_cuts_param,
+	string scaling,
+	string model_cuts_switch)
+{
+	if (tolerance <= 0.0)
+	{
+		log.out() << "Wrong value of the CLI parameter -t(--tolerance): "
+				  << tolerance << std::endl;
+		exit(0);
+	}
+
+	if (err_tolerance <= 0.0)
+	{
+		log.out() << "Wrong value of the CLI parameter -e(--err_tolerance): "
+				  << err_tolerance << std::endl;
+		exit(0);
+	}
+
+	if (cone_limit_per_direction == 0)
+	{
+		log.out() << "Wrong value of the CLI parameter -c(--cone_limit): "
+				  << cone_limit_per_direction << std::endl;
+		exit(0);
+	}
+
+	if (threads_global == 0)
+	{
+		log.out() << "Wrong value of the CLI parameter -w(--workers, --threads): "
+				  << threads_global << std::endl;
+		exit(0);
+	}
+
+	if (cprime < 2)
+	{
+		log.out() << "Wrong value of the CLI parameter --cprime: "
+				  << cprime << std::endl;
+		exit(0);
+	}
+
+	if (solver_type != "adj" && solver_type != "lu" && solver_type != "zp")
+	{
+		log.out() << "Wrong value of the CLI parameter -cg(--cgen): "
+				  << solver_type << std::endl;
+		exit(0);
+	}
+
+	if (is_lazy_param != "on" && is_lazy_param != "off" && is_lazy_param != "hybrid")
+	{
+		log.out() << "Wrong value of the CLI parameter --lazy: "
+				  << is_lazy_param << endl;
+		exit(0);
+	}
+
+	if (iterations_number == 0)
+	{
+		log.out() << "Wrong value of the CLI parameter -it(--iterations): "
+				  << iterations_number << std::endl;
+		exit(0);
+	}
+
+	if (model_cuts_switch != "on" && model_cuts_switch != "off")
+	{
+		log.out() << "Wrong value of the CLI parameter --model_cuts: "
+				  << model_cuts_switch << std::endl;
+		exit(0);
+	}
+
+	if (node_lim < -1)
+	{
+		log.out() << "Wrong value of the CLI parameter --node_lim: "
+				  << node_lim << std::endl;
+		exit(0);
+	}
+
+	if (scaling != "on" && scaling != "off")
+	{
+		log.out() << "Wrong value of the CLI parameter --scaling: "
+				  << scaling << std::endl;
+		exit(0);
+	}
+
+	if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
+	{
+		log.out() << "Wrong value of the CLI parameter --cplex_cuts_param: "
+				  << cplex_cuts_param << std::endl;
+		exit(0);
+	}
+}
+
 void run_cplex_experiment(
 	logger &log,
 	string input_path,
@@ -45,9 +148,6 @@ void run_cplex_experiment(
 	string scaling,
 	string model_cuts_switch)
 {
-	// set cplex cuts types
-	auto cplex_cut_types = init_cplex_cut_type_names_map();
-
 	// create CPLEX envirement
 	IloEnv env;
 	env.setOut(log.out());
@@ -77,7 +177,7 @@ void run_cplex_experiment(
 	// object for inequalities
 	IloRangeArray rngs(env);
 
-	env.out() << "reading " << input_path << endl;
+	env.out() << "reading the problem..." << input_path << endl;
 
 	// import main problem from file
 	cplex_main.importModel(master_model, input_path.c_str(), obj, vars, rngs);
@@ -92,7 +192,7 @@ void run_cplex_experiment(
 	}
 
 	// setting parameters to solve relaxed model
-	cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
+	// cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
 	cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
 	// put the relaxed model into the solver
@@ -120,11 +220,7 @@ void run_cplex_experiment(
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(log);
 	else if (solver_type == "zp")
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(log);
-	else
-	{
-		env.error() << "Wrong value of the CLI parameter -cg(--cgen): " << solver_type << std::endl;
-		exit(0);
-	}
+
 	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
 	// initialization of cuts generator and setting parameters
@@ -133,11 +229,7 @@ void run_cplex_experiment(
 	cuts_gen_ptr->err_tolerance = err_tolerance;
 	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_ptr->threads = threads_cuts_gen;
-	if (!cuts_gen_adapter.set_lazy(is_lazy_param))
-	{
-		env.error() << "Wrong value of the CLI parameter --lazy: " << is_lazy_param << endl;
-		exit(0);
-	}
+	cuts_gen_adapter.set_lazy(is_lazy_param);
 	cuts_gen_ptr->rgen = &engine;
 	if (solver_type == "zp")
 		static_cast<CutsGen_Zp *>(cuts_gen_ptr)->max_conservative_prime = cprime;
@@ -154,18 +246,6 @@ void run_cplex_experiment(
 	if (baseline == false)
 	{
 		env.out() << "cutting generation started..." << endl;
-
-		if (iterations_number < 1)
-		{
-			env.error() << "Wrong value of the CLI parameter -it(--iterations): " << iterations_number << std::endl;
-			exit(0);
-		}
-
-		if (model_cuts_switch != "on" && model_cuts_switch != "off")
-		{
-			env.error() << "Wrong value of the CLI parameter --model_cuts: " << model_cuts_switch << std::endl;
-			exit(0);
-		}
 
 		// do some iterations to add cuts as constraints into the relaxed model
 		// simultaniously we add cuts to the main model
@@ -226,7 +306,7 @@ void run_cplex_experiment(
 			boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 
 			env.out() << "root node boosting iteration (" << iteration_idx << ") is finished\n"
-					  << "elspsed time is " << boosting_timer.finish_str() << "\n"
+					  << "elapsed time is " << boosting_timer.finish_str()
 					  << "current relaxed ILP solution value: " << cplex_relaxed.getObjValue() << "\n"
 					  << "original LP optimum: " << originalRelaxedObjVal << "\n"
 					  << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
@@ -248,19 +328,8 @@ void run_cplex_experiment(
 	// setting parameters for solving in integer variables
 	cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
 
-	if (node_lim < -1)
-	{
-		env.error() << "Wrong value of the CLI parameter --node_lim: " << node_lim << std::endl;
-		exit(0);
-	}
 	if (node_lim != -1)
 		cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
-
-	if (scaling != "on" && scaling != "off")
-	{
-		log.out() << "Wrong value of the CLI parameter --scaling: " << scaling << std::endl;
-		exit(0);
-	}
 
 	if (scaling == "off")
 	{
@@ -268,11 +337,6 @@ void run_cplex_experiment(
 		// cplex_main.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
 	}
 
-	if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
-	{
-		env.error() << "Wrong value of the CLI parameter --cplex_cuts_param: " << cplex_cuts_param << std::endl;
-		exit(0);
-	}
 	// if all-type is used, we run defoul cplex solver
 	if (cplex_cuts_param != "all")
 	{
@@ -318,7 +382,7 @@ int main(int argc, char **argv)
 	argparse::ArgumentParser program("IPLCutsCLI");
 
 	program.add_argument("-i", "--input")
-		.default_value(std::string("-"))
+		.default_value(std::string())
 		.required()
 		.help("specify the input file.");
 
@@ -427,6 +491,21 @@ int main(int argc, char **argv)
 	try
 	{
 		print_numeric_types_info<int_type, lint_type, rational_type, lrational_type>(log);
+
+		check_input_params(
+			log,
+			program.get<double>("--tolerance"),
+			program.get<double>("--err_tolerance"),
+			program.get<size_t>("--cone_limit"),
+			program.get<size_t>("--threads"),
+			program.get<string>("--lazy"),
+			program.get<size_t>("--iters"),
+			program.get<int>("--node_lim"),
+			program.get<string>("--cgen"),
+			program.get<size_t>("--cprime"),
+			program.get<string>("--cplex_cuts"),
+			program.get<string>("--scaling"),
+			program.get<string>("--model_cuts"));
 
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");

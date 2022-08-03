@@ -174,6 +174,107 @@ int myCutCallback(CPXCENVptr env,
     return 0;
 }
 
+void check_input_params(
+    logger &log,
+    double tolerance,
+    double err_tolerance,
+    size_t cone_limit_per_direction,
+    size_t threads_global,
+    // string is_lazy_param,
+    size_t iterations_number,
+    int node_lim,
+    // std::string solver_type,
+    size_t cprime,
+    // string cplex_cuts_param,
+    string scaling
+    // string model_cuts_switch
+)
+{
+    if (tolerance <= 0.0)
+    {
+        log.out() << "Wrong value of the CLI parameter -t(--tolerance): "
+                  << tolerance << std::endl;
+        exit(0);
+    }
+
+    if (err_tolerance <= 0.0)
+    {
+        log.out() << "Wrong value of the CLI parameter -e(--err_tolerance): "
+                  << err_tolerance << std::endl;
+        exit(0);
+    }
+
+    if (cone_limit_per_direction == 0)
+    {
+        log.out() << "Wrong value of the CLI parameter -c(--cone_limit): "
+                  << cone_limit_per_direction << std::endl;
+        exit(0);
+    }
+
+    if (threads_global == 0)
+    {
+        log.out() << "Wrong value of the CLI parameter -w(--workers, --threads): "
+                  << threads_global << std::endl;
+        exit(0);
+    }
+
+    if (cprime < 2)
+    {
+        log.out() << "Wrong value of the CLI parameter --cprime: "
+                  << cprime << std::endl;
+        exit(0);
+    }
+
+    // if (solver_type != "adj" && solver_type != "lu" && solver_type != "zp")
+    // {
+    //     log.out() << "Wrong value of the CLI parameter -cg(--cgen): "
+    //               << solver_type << std::endl;
+    //     exit(0);
+    // }
+
+    // if (is_lazy_param != "on" && is_lazy_param != "off" && is_lazy_param != "hybrid")
+    // {
+    //     log.out() << "Wrong value of the CLI parameter --lazy: "
+    //               << is_lazy_param << endl;
+    //     exit(0);
+    // }
+
+    if (iterations_number == 0)
+    {
+        log.out() << "Wrong value of the CLI parameter -it(--iterations): "
+                  << iterations_number << std::endl;
+        exit(0);
+    }
+
+    // if (model_cuts_switch != "on" && model_cuts_switch != "off")
+    // {
+    //     log.out() << "Wrong value of the CLI parameter --model_cuts: "
+    //               << model_cuts_switch << std::endl;
+    //     exit(0);
+    // }
+
+    if (node_lim < -1)
+    {
+        log.out() << "Wrong value of the CLI parameter --node_lim: "
+                  << node_lim << std::endl;
+        exit(0);
+    }
+
+    if (scaling != "on" && scaling != "off")
+    {
+        log.out() << "Wrong value of the CLI parameter --scaling: "
+                  << scaling << std::endl;
+        exit(0);
+    }
+
+    // if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
+    // {
+    //     log.out() << "Wrong value of the CLI parameter --cplex_cuts_param: "
+    //               << cplex_cuts_param << std::endl;
+    //     exit(0);
+    // }
+}
+
 void run_cplex_experiment(logger &log,
                           string input_path,
                           double tolerance,
@@ -463,6 +564,17 @@ int main(int argc, char **argv)
     try
     {
         print_numeric_types_info<int_type, lint_type, rational_type, lrational_type>(log);
+
+        check_input_params(
+            log,
+            program.get<double>("--tolerance"),
+            program.get<double>("--err_tolerance"),
+            program.get<size_t>("--cone_limit"),
+            program.get<size_t>("--threads"),
+            program.get<size_t>("--iters"),
+            program.get<int>("--node_lim"),
+            program.get<size_t>("--cprime"),
+            program.get<string>("--scaling"));
 
         size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
         size_t threads_cplex = program.get<size_t>("--threads_cplex");
