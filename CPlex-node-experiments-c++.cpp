@@ -324,8 +324,9 @@ void run_cplex_experiment(logger &log,
     // run solver
     if (!cplex_relaxed.solve())
     {
-        env.out() << "Optimization is terminated." << endl;
-        env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
+        env.out() << "Optimization of the relaxed problem is terminated...\n"
+                  << "Solution status is " << cplex_relaxed.getStatus()
+                  << endl;
         exit(0);
     }
     double originalRelaxedObjVal = cplex_relaxed.getObjValue();
@@ -394,12 +395,15 @@ void run_cplex_experiment(logger &log,
     // solve the ILP model
     if (!cplex_main.solve())
     {
-        env.out() << "Optimization is terminated." << endl;
-        env.out() << "Solution status is " << cplex_main.getStatus() << endl;
-        exit(0);
+        env.out() << "Could not find an ILP solution...\n"
+                  << "Solution status is " << cplex_main.getStatus()
+                  << endl;
     }
-
-    env.out() << "ILP solution value  is " << cplex_main.getObjValue() << endl;
+    else
+    {
+        env.out() << "ILP solution value  is " << cplex_main.getObjValue()
+                  << endl;
+    }
 }
 
 int main(int argc, char **argv)
