@@ -380,23 +380,12 @@ void run_cplex_experiment(logger &log,
     cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
     cplex_main.setParam(IloCplex::Param::Preprocessing::Reduce, 0);
 
-    if (scaling != "on" && scaling != "off")
-    {
-        log.out() << "Wrong value of the CLI parameter --scaling: " << scaling << std::endl;
-        exit(0);
-    }
-
     if (scaling == "off")
     {
         cplex_main.setParam(IloCplex::Param::Read::Scale, -1);
         // cplex_main.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
     }
 
-    if (node_lim < -1)
-    {
-        env.error() << "Wrong value of the CLI parameter --node_lim: " << node_lim << std::endl;
-        exit(0);
-    }
     if (node_lim != -1)
         cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
 

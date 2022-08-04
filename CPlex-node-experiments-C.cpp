@@ -301,48 +301,42 @@ void run_cplex_experiment(logger &log,
     env = CPXXopenCPLEX(&status);
     if (env == nullptr)
     {
-        throw runtime_error(create_err_string("Could not open CPLEX environment...\n", env, status));
+        log.out() << create_err_string("Could not open CPLEX environment...\n", env, status);
+        exit(0);
     }
 
     // setting log-file into CPlex solver
     status = CPXXsetlogfilename(env, log.get_log_file_name().c_str(), "a");
     if (status)
     {
-        throw runtime_error(create_err_string("Failure to set log file name into CPlex...\n", env, status));
+        log.out() << create_err_string("Failure to set log file name into CPlex...\n", env, status);
+        exit(0);
     }
 
     // turn-on the CPlex console output
     status = CPXXsetintparam(env, CPXPARAM_ScreenOutput, CPX_ON);
     if (status)
     {
-        throw runtime_error(create_err_string("Failure to turn on screen indicator...\n", env, status));
+        log.out() << create_err_string("Failure to turn on screen indicator...\n", env, status);
+        exit(0);
     }
 
     // setting the CPlex-env threads parameter
     status = CPXXsetcntparam(env, CPX_PARAM_THREADS, static_cast<int>(threads_cplex));
     if (status)
     {
-        throw runtime_error(create_err_string("Failed to set threads parameter for CPlex...\n", env, status));
-    }
-
-    if (node_lim < -1)
-    {
-        log.out() << "Wrong value of the CLI parameter --node_lim: " << node_lim << std::endl;
+        log.out() << create_err_string("Failed to set threads parameter for CPlex...\n", env, status);
         exit(0);
     }
+
     if (node_lim != -1)
     {
         status = CPXXsetcntparam(env, CPXPARAM_MIP_Limits_Nodes, node_lim);
         if (status)
         {
-            throw runtime_error(create_err_string("Failed to set node limit param. for CPlex...\n", env, status));
+            log.out() << create_err_string("Failed to set node limit param. for CPlex...\n", env, status);
+            exit(0);
         }
-    }
-
-    if (scaling != "on" && scaling != "off")
-    {
-        log.out() << "Wrong value of the CLI parameter --scaling: " << scaling << std::endl;
-        exit(0);
     }
 
     if (scaling == "off")
@@ -350,13 +344,15 @@ void run_cplex_experiment(logger &log,
         status = CPXXsetcntparam(env, CPXPARAM_MIP_SubMIP_Scale, -1);
         if (status)
         {
-            throw runtime_error(create_err_string("Failed to set SubMIP Scale param. for CPlex...\n", env, status));
+            log.out() << create_err_string("Failed to set SubMIP Scale param. for CPlex...\n", env, status);
+            exit(0);
         }
 
         status = CPXXsetcntparam(env, CPXPARAM_Read_Scale, -1);
         if (status)
         {
-            throw runtime_error(create_err_string("Failed to set problem's matrix Scale param. for CPlex...\n", env, status));
+            log.out() << create_err_string("Failed to set problem's matrix Scale param. for CPlex...\n", env, status);
+            exit(0);
         }
     }
 
@@ -382,7 +378,8 @@ void run_cplex_experiment(logger &log,
     mip = CPXXcreateprob(env, &status, "MainILP");
     if (mip == nullptr)
     {
-        throw runtime_error(create_err_string("Could not create CPlex problem...\n", env, status));
+        log.out() << create_err_string("Could not create CPlex problem...\n", env, status);
+        exit(0);
     }
 
     // reading the problem's data from file
@@ -390,7 +387,8 @@ void run_cplex_experiment(logger &log,
     status = CPXXreadcopyprob(env, mip, input_path.c_str(), nullptr);
     if (status)
     {
-        throw runtime_error(create_err_string("Could not read the ILP problem...\n", env, status));
+        log.out() << create_err_string("Could not read the ILP problem...\n", env, status);
+        exit(0);
     }
 
     log.out() << "Number of columns in the original moddel = " << CPXXgetnumcols(env, mip) << "\n"
@@ -406,7 +404,8 @@ void run_cplex_experiment(logger &log,
         status = CPXXsetusercutcallbackfunc(env, myCutCallback, &myData);
         if (status)
         {
-            throw runtime_error(create_err_string("Could not set callback into the CPlex solver...\n", env, status));
+            log.out() << create_err_string("Could not set callback into the CPlex solver...\n", env, status);
+            exit(0);
         }
 
         auto &cuts_gen_adapter = myData.cuts_gen_adapter;
@@ -441,12 +440,26 @@ void run_cplex_experiment(logger &log,
     status = CPXXmipopt(env, mip);
     if (status)
     {
-        throw runtime_error(create_err_string("Could not optimize the ILP problem...\n", env, status));
+        log.out() << create_err_string("Could not optimize the ILP problem...\n", env, status)
+                  << endl;
     }
+    else
+    {
+        int solstat = CPXXgetstat(env, mip);
+        log.out() << "Optimization is finished!\n"
+                  << "Solution status is " << solstat << endl;
 
-    int solstat = CPXXgetstat(env, mip);
-    log.out() << "Optimization is finished!\n"
-              << "Solution status is " << solstat << endl;
+        double MIP_opt_val = 0.0;
+        status = CPXXgetobjval(env, mip, &MIP_opt_val);
+        if (status)
+        {
+            log.out() << create_err_string("Could not extract the optimal value of the ILP objective...\n", env, status)
+                      << endl;
+        }
+
+        log.out() << "Optimal value of the objective: " << MIP_opt_val
+                  << endl;
+    }
 }
 
 int main(int argc, char **argv)
