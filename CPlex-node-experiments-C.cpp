@@ -289,7 +289,9 @@ void run_cplex_experiment(logger &log,
                           size_t max_node_depth,
                           size_t iters,
                           int node_lim,
-                          string scaling)
+                          string scaling,
+                          size_t min_dim,
+                          size_t max_dim)
 {
     // define vars
     int status = 0;
@@ -391,8 +393,28 @@ void run_cplex_experiment(logger &log,
         exit(0);
     }
 
-    log.out() << "Number of columns in the original moddel = " << CPXXgetnumcols(env, mip) << "\n"
-              << "Number of rows in the original model = " << CPXXgetnumrows(env, mip) << endl;
+    CPXDIM nrows = 0, ncols = 0;
+    ncols = CPXXgetnumcols(env, mip);
+    nrows = CPXXgetnumrows(env, mip);
+
+    log.out() << "Number of columns in the original moddel = " << ncols << "\n"
+              << "Number of rows in the original model = " << nrows << endl;
+
+    // checking dimensional requrements for the problem
+    if (ncols < min_dim)
+    {
+        log.out() << "Dimension of the problem (" << ncols
+                  << ") is less than min_dim (" << min_dim << ") parameter,\n"
+                  << "terminate..." << endl;
+        exit(0);
+    }
+    if (max_dim > 0 && ncols > max_dim)
+    {
+        log.out() << "Dimension of the problem (" << ncols
+                  << ") is greater than max_dim (" << max_dim << ") parameter,\n"
+                  << "terminate..." << endl;
+        exit(0);
+    }
     // //------------------------------------------------------------------------------------------
 
     // creating data for my cut-callback
@@ -560,6 +582,16 @@ int main(int argc, char **argv)
     //     .default_value(std::string("all"))
     //     .help("cuts-type that is used in cplex; can be \"all\", \"none\", \"disj\", \"flowc\", \"flowp\", \"gomory\", \"gub\", \"liftp\", \"mcf\", \"mir\", \"zeroh\", \"clique\", \"cover\", \"impliedl\", \"impliedg\"");
 
+    program.add_argument("--min_dim")
+        .default_value(size_t(0))
+        .help("minimal dimension for a problem to proceed")
+        .scan<'i', size_t>();
+
+    program.add_argument("--max_dim")
+        .default_value(size_t(0))
+        .help("maximal dimension for a problem to proceed; (max_dim == 0) equivalent to max_dim = +infty.")
+        .scan<'i', size_t>();
+
     try
     {
         program.parse_args(argc, argv);
@@ -612,7 +644,9 @@ int main(int argc, char **argv)
             program.get<size_t>("--max_node_depth"),
             program.get<size_t>("--iters"),
             program.get<int>("--node_lim"),
-            program.get<string>("--scaling"));
+            program.get<string>("--scaling"),
+            program.get<size_t>("--min_dim"),
+            program.get<size_t>("--max_dim"));
     }
     catch (const FractionalElementException &err)
     {

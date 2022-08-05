@@ -265,7 +265,9 @@ void run_cplex_experiment(logger &log,
                           bool baseline,
                           size_t cprime,
                           int node_lim,
-                          string scaling)
+                          string scaling,
+                          size_t min_dim,
+                          size_t max_dim)
 {
     // create CPLEX envirement
     IloEnv env;
@@ -300,6 +302,22 @@ void run_cplex_experiment(logger &log,
 
     // put the original model into the solver
     cplex_main.extract(master_model);
+
+    // checking dimensional requrements for the problem
+    if (vars.getSize() < min_dim)
+    {
+        log.out() << "Dimension of the problem (" << vars.getSize()
+                  << ") is less than min_dim (" << min_dim << ") parameter,\n"
+                  << "terminate..." << endl;
+        exit(0);
+    }
+    if (max_dim > 0 && vars.getSize() > max_dim)
+    {
+        log.out() << "Dimension of the problem (" << vars.getSize()
+                  << ") is greater than max_dim (" << max_dim << ") parameter,\n"
+                  << "terminate..." << endl;
+        exit(0);
+    }
 
     // create relaxed model object
     IloModel relaxed_model(env);
@@ -499,6 +517,16 @@ int main(int argc, char **argv)
         .default_value(std::string("off"))
         .help("CPlex scaling; can be \"off\" or \"on\"");
 
+    program.add_argument("--min_dim")
+        .default_value(size_t(0))
+        .help("minimal dimension for a problem to proceed")
+        .scan<'i', size_t>();
+
+    program.add_argument("--max_dim")
+        .default_value(size_t(0))
+        .help("maximal dimension for a problem to proceed; (max_dim == 0) equivalent to max_dim = +infty.")
+        .scan<'i', size_t>();
+
     try
     {
         program.parse_args(argc, argv);
@@ -547,7 +575,9 @@ int main(int argc, char **argv)
             program.get<bool>("--baseline"),
             program.get<size_t>("--cprime"),
             program.get<int>("--node_lim"),
-            program.get<string>("--scaling"));
+            program.get<string>("--scaling"),
+            program.get<size_t>("--min_dim"),
+            program.get<size_t>("--max_dim"));
     }
     catch (const FractionalElementException &err)
     {
