@@ -142,13 +142,14 @@ void run_cplex_experiment(
 	string is_lazy_param,
 	size_t iterations_number,
 	int node_lim,
-	std::string solver_type,
+	string solver_type,
 	size_t cprime,
 	string cplex_cuts_param,
 	string scaling,
 	string model_cuts_switch,
 	size_t min_dim,
-	size_t max_dim)
+	size_t max_dim,
+	double cplex_tl)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -346,6 +347,12 @@ void run_cplex_experiment(
 	// setting parameters for solving in integer variables
 	cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
 
+	if (cplex_tl > 0.0)
+	{
+		cplex_main.setParam(IloCplex::Param::TimeLimit, cplex_tl);
+		// cplex_main.setParam(IloCplex::Param::DetTimeLimit, 0);
+	}
+
 	if (node_lim != -1)
 		cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
 
@@ -511,6 +518,11 @@ int main(int argc, char **argv)
 		.help("maximal dimension for a problem to proceed; (max_dim == 0) equivalent to max_dim = +infty.")
 		.scan<'i', size_t>();
 
+	program.add_argument("--cplex_tl")
+		.default_value(0.0)
+		.help("time limit for cplex MIP solving procedures")
+		.scan<'g', double>();
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -573,7 +585,8 @@ int main(int argc, char **argv)
 			program.get<string>("--scaling"),
 			program.get<string>("--model_cuts"),
 			program.get<size_t>("--min_dim"),
-			program.get<size_t>("--max_dim"));
+			program.get<size_t>("--max_dim"),
+			program.get<double>("--cplex_tl"));
 	}
 	catch (const FractionalElementException &err)
 	{

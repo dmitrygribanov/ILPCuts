@@ -291,7 +291,8 @@ void run_cplex_experiment(logger &log,
                           int node_lim,
                           string scaling,
                           size_t min_dim,
-                          size_t max_dim)
+                          size_t max_dim,
+                          double cplex_tl)
 {
     // define vars
     int status = 0;
@@ -339,6 +340,17 @@ void run_cplex_experiment(logger &log,
             log.out() << create_err_string("Failed to set node limit param. for CPlex...\n", env, status);
             exit(0);
         }
+    }
+
+    if (cplex_tl > 0.0)
+    {
+        status = CPXXsetcntparam(env, CPXPARAM_TimeLimit, cplex_tl);
+        if (status)
+        {
+            log.out() << create_err_string("Failed to set time limit param. for CPlex...\n", env, status);
+            exit(0);
+        }
+        // cplex_main.setParam(IloCplex::Param::DetTimeLimit, 0);
     }
 
     if (scaling == "off")
@@ -592,6 +604,11 @@ int main(int argc, char **argv)
         .help("maximal dimension for a problem to proceed; (max_dim == 0) equivalent to max_dim = +infty.")
         .scan<'i', size_t>();
 
+    program.add_argument("--cplex_tl")
+        .default_value(0.0)
+        .help("time limit for cplex MIP solving procedures")
+        .scan<'g', double>();
+
     try
     {
         program.parse_args(argc, argv);
@@ -646,7 +663,8 @@ int main(int argc, char **argv)
             program.get<int>("--node_lim"),
             program.get<string>("--scaling"),
             program.get<size_t>("--min_dim"),
-            program.get<size_t>("--max_dim"));
+            program.get<size_t>("--max_dim"),
+            program.get<double>("--cplex_tl"));
     }
     catch (const FractionalElementException &err)
     {
