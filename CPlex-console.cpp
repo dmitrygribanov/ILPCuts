@@ -19,10 +19,30 @@ using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
+using CutsGenAdapter = class CPlexAdapter<CutsGen_Base>;
 using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
+
+bool generate_cuts_with_time_limit(CutsGenAdapter &cuts_gen_adapter, double time_limit, IloCplex solver, IloModel model, IloObjective obj, IloRangeArray rngs, IloNumVarArray vars)
+{
+	if (time_limit > 0.0)
+	{
+		// chose correct overloaded member "generate_cuts" from "CutsGenAdapter"
+		auto ptr_generate_cuts = static_cast<void (CutsGenAdapter::*)(IloCplex, IloModel, IloObjective, IloRangeArray, IloNumVarArray)>(&CutsGenAdapter::generate_cuts);
+
+		// bind it to a compact function of the type "void()""
+		auto bind_generate_cuts = bind(ptr_generate_cuts, &cuts_gen_adapter, solver, model, obj, rngs, vars);
+
+		return run_function_with_time_limit(time_limit, bind_generate_cuts);
+	}
+	else
+	{
+		cuts_gen_adapter.generate_cuts(solver, model, obj, rngs, vars);
+
+		return true;
+	}
+}
 
 // set cplex cuts types
 const auto cplex_cut_types = init_cplex_cut_type_names_map();
@@ -149,7 +169,8 @@ void run_cplex_experiment(
 	string model_cuts_switch,
 	size_t min_dim,
 	size_t max_dim,
-	double cplex_tl)
+	double cplex_tl,
+	double cuts_tl)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -188,14 +209,14 @@ void run_cplex_experiment(
 	// checking dimensional requrements for the problem
 	if (vars.getSize() < min_dim)
 	{
-		log.out() << "Dimension of the problem (" << vars.getSize()
+		log.out() << "\nDimension of the problem (" << vars.getSize()
 				  << ") is less than min_dim (" << min_dim << ") parameter,\n"
 				  << "terminate..." << endl;
 		exit(0);
 	}
 	if (max_dim > 0 && vars.getSize() > max_dim)
 	{
-		log.out() << "Dimension of the problem (" << vars.getSize()
+		log.out() << "\nDimension of the problem (" << vars.getSize()
 				  << ") is greater than max_dim (" << max_dim << ") parameter,\n"
 				  << "terminate..." << endl;
 		exit(0);
@@ -285,7 +306,13 @@ void run_cplex_experiment(
 
 			// generate cuts from the relaxed model
 			env.out() << "constraints generation ..." << endl;
-			cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
+
+			if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, relaxed_model, obj, rngs, vars))
+			{
+				env.out() << "\ncutting plane generation has been stopped due to the time limit (" << cuts_tl << "s),\n"
+						  << "terminate..." << endl;
+				exit(0);
+			}
 
 			// adding cuts to the relaxed model as constraints
 			env.out() << "adding constraints to the relaxed model ..." << endl;
@@ -520,7 +547,12 @@ int main(int argc, char **argv)
 
 	program.add_argument("--cplex_tl")
 		.default_value(0.0)
-		.help("time limit for cplex MIP solving procedures")
+		.help("time limit (sec.) for cplex MIP solving procedures")
+		.scan<'g', double>();
+
+	program.add_argument("--cuts_tl")
+		.default_value(0.0)
+		.help("time limit (sec.) for ILPCuts cuts generation")
 		.scan<'g', double>();
 
 	try
@@ -586,7 +618,8 @@ int main(int argc, char **argv)
 			program.get<string>("--model_cuts"),
 			program.get<size_t>("--min_dim"),
 			program.get<size_t>("--max_dim"),
-			program.get<double>("--cplex_tl"));
+			program.get<double>("--cplex_tl"),
+			program.get<double>("--cuts_tl"));
 	}
 	catch (const FractionalElementException &err)
 	{

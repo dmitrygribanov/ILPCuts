@@ -307,14 +307,14 @@ void run_cplex_experiment(logger &log,
     // checking dimensional requrements for the problem
     if (vars.getSize() < min_dim)
     {
-        log.out() << "Dimension of the problem (" << vars.getSize()
+        log.out() << "\nDimension of the problem (" << vars.getSize()
                   << ") is less than min_dim (" << min_dim << ") parameter,\n"
                   << "terminate..." << endl;
         exit(0);
     }
     if (max_dim > 0 && vars.getSize() > max_dim)
     {
-        log.out() << "Dimension of the problem (" << vars.getSize()
+        log.out() << "\nDimension of the problem (" << vars.getSize()
                   << ") is greater than max_dim (" << max_dim << ") parameter,\n"
                   << "terminate..." << endl;
         exit(0);

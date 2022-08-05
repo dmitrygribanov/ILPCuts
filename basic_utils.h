@@ -7,6 +7,9 @@
 #include <random>
 #include <atomic>
 #include <sstream>
+#include <future>
+#include <thread>
+#include <functional>
 
 namespace ILPCuts
 {
@@ -80,6 +83,42 @@ namespace ILPCuts
 			return _a <= a;
 		}
 	};
+
+	template <typename callableT>
+	bool run_function_with_time_limit(double time_limit, callableT fun)
+	{
+		// create wrapper for a function to create a tread
+		packaged_task<void()> task(fun);
+
+		// taking shared information for the task called "future"
+		auto task_future = task.get_future();
+
+		// creating a tread
+		thread task_thread(std::move(task));
+
+		// waiting for the timeout
+		auto wait_res = task_future.wait_for(chrono::duration<double>(time_limit));
+
+		// if the work is not done, terminate using "exit(0)"
+		// "exit(0)" will run all destructors
+		// including task_thread.~thread(),
+		// which will "savely" terminate the related thread
+		if (wait_res == future_status::timeout)
+		{
+			task_thread.detach();
+
+			return false;
+		}
+
+		// if the work is done, call "future::get()" to rethrow exceptions
+		// stored in shared state
+		task_future.get();
+
+		// waiting for a correct termination of the thread
+		task_thread.join();
+
+		return true;
+	}
 
 	class Exception : public std::runtime_error
 	{
