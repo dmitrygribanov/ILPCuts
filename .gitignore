@@ -342,3 +342,4 @@ healthchecksdb
 
 # Игнорировать все файлы в каталоге build/
 build/
+scripts/CPlexConsole_run.sh

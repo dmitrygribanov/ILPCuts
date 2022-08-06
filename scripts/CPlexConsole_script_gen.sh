@@ -15,13 +15,17 @@ echo "cd ../build" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
 for PROB_PATH in $PROBLEMS_DIR/*.gz
-do
+do 
     FNAME=`basename $PROB_PATH`
-    CUTS_TL=${1:-0.0} #cuts gen time limit
-    CPLEX_TL=${2:-0.0} #cplex time limit
-    MIN_DIM=${3:-0} #minimal problem dim
-    MAX_DIM=${4:-0} #maximal problem dim
-    CPLEX_WS=${5:-8} #workers for CPlex
+    echo "Processing: $FNAME ..."
+
+    CPLEX_WS=${1:-8} #workers for CPlex
+    MIN_DIM=${2:-0} #minimal problem dim
+    MAX_DIM=${3:-0} #maximal problem dim
+    CUTS_TL=${4:-0.0} #cuts gen time limit in minutes
+    CPLEX_TL=${5:-0.0} #cplex time limit in minutes
+    CUTS_TL=`echo "$CUTS_TL * 60" | bc` #transforming into TL in seconds
+    CPLEX_TL=`echo "$CPLEX_TL * 60" | bc` #transforming into TL in seconds
     LOGF=${FNAME}_log.txt #out log file name
     LOGBF=${FNAME}_b_log.txt #out log file name for baseline
     CUTSF=${FNAME}_cuts.txt #out cuts file name
@@ -30,6 +34,9 @@ do
     echo "#-------------------------------------------------------" >> $OUTPUT_SCRIPT
     echo ./CPlexConsole -i $PROB_PATH -o $LOGF --cuts_output $CUTSF --wcgn 1 --wcpl $CPLEX_WS \
     --cplex_tl $CPLEX_TL --cuts_tl $CUTS_TL --min_dim $MIN_DIM --max_dim $MAX_DIM >> $OUTPUT_SCRIPT
-    echo ./CPlexConsole -i $PROB_PATH -o $LOGBF -b --wcpl $CPLEX_WS >> $OUTPUT_SCRIPT
+    echo ./CPlexConsole -i $PROB_PATH -o $LOGBF -b --wcpl $CPLEX_WS \
+    --cplex_tl $CPLEX_TL --min_dim $MIN_DIM --max_dim $MAX_DIM >> $OUTPUT_SCRIPT
     #echo >> $OUTPUT_SCRIPT
 done
+
+chmod 755 $OUTPUT_SCRIPT

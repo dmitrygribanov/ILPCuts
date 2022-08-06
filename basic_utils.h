@@ -85,7 +85,7 @@ namespace ILPCuts
 	};
 
 	template <typename callableT>
-	bool run_function_with_time_limit(double time_limit, callableT fun)
+	bool run_async_function_with_time_limit(double time_limit, callableT fun)
 	{
 		// create wrapper for a function to create a tread
 		packaged_task<void()> task(fun);
@@ -99,10 +99,8 @@ namespace ILPCuts
 		// waiting for the timeout
 		auto wait_res = task_future.wait_for(chrono::duration<double>(time_limit));
 
-		// if the work is not done, terminate using "exit(0)"
-		// "exit(0)" will run all destructors
-		// including task_thread.~thread(),
-		// which will "savely" terminate the related thread
+		// if the work is not done, detach the thread
+		// and return failure
 		if (wait_res == future_status::timeout)
 		{
 			task_thread.detach();

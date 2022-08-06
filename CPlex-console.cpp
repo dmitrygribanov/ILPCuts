@@ -31,10 +31,10 @@ bool generate_cuts_with_time_limit(CutsGenAdapter &cuts_gen_adapter, double time
 		// chose correct overloaded member "generate_cuts" from "CutsGenAdapter"
 		auto ptr_generate_cuts = static_cast<void (CutsGenAdapter::*)(IloCplex, IloModel, IloObjective, IloRangeArray, IloNumVarArray)>(&CutsGenAdapter::generate_cuts);
 
-		// bind it to a compact function of the type "void()""
+		// bind it to a compact function of the type "void()"
 		auto bind_generate_cuts = bind(ptr_generate_cuts, &cuts_gen_adapter, solver, model, obj, rngs, vars);
 
-		return run_function_with_time_limit(time_limit, bind_generate_cuts);
+		return run_async_function_with_time_limit(time_limit, bind_generate_cuts);
 	}
 	else
 	{
