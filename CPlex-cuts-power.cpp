@@ -118,10 +118,10 @@ void check_input_params(
 
 struct SolutionInfo
 {
-    double bestLPObgVal = 0.0;
+    double bestLPObjVal = 0.0;
     double bestMILPObjVal = 0.0;
     double cutoff = 0.0;
-    bool is_feasible = false;
+    bool is_incumbent_found = false;
 };
 
 map<string, SolutionInfo> init_solutions_map()
@@ -133,6 +133,8 @@ map<string, SolutionInfo> init_solutions_map()
     {
         res[item.first];
     }
+    res["none"];
+    res["all"];
     return res;
 }
 
@@ -279,7 +281,13 @@ void run_cplex_experiment(
         // cplex_master.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
     }
 
+    // initialize the map, where we will store all solutions
+    // corresponding to all cuts configurations
+    // + "all" and "none" configurations (corresp. to all cuts and no cuts)
     auto solutions_map = init_solutions_map();
+
+    // run cplex solver for all standard cplex cut types
+    // + "all" and "none" configurations (corresp. to all cuts and no cuts)
     for (auto &solutions_iter : solutions_map)
     {
         auto &solution_info = solutions_iter.second;
@@ -292,39 +300,52 @@ void run_cplex_experiment(
 
         if (cplex_master.solve())
         {
-            solution_info.is_feasible = true;
-            solution_info.bestLPObgVal = cplex_master.getBestObjValue();
+            solution_info.is_incumbent_found = true;
             solution_info.bestMILPObjVal = cplex_master.getObjValue();
             solution_info.cutoff = cplex_master.getCutoff();
         }
         else
         {
-            solution_info.is_feasible = false;
+            solution_info.is_incumbent_found = false;
         }
+        solution_info.bestLPObjVal = cplex_master.getBestObjValue();
     }
 
-    cplex_master.clearModel();
-
-    root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-                                          master_model, relaxed_model,
-                                          obj, rngs, vars,
-                                          cuts_gen_adapter,
-                                          cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
-
-    solutions_map["my_cuts"];
-
-    if (cplex_master.solve())
+    // construct lyambda function to add hybrid solutions to the "solutions_map"
+    // cplex_param -- stores cplex cut type (+ "all" or "none")
+    // solution_name -- stores hybrid configuration name
+    auto add_hybrid_solution = [&](string solution_name, string cplex_param)
     {
-        solutions_map["my_cuts"].is_feasible = true;
-        solutions_map["my_cuts"].bestLPObgVal = cplex_master.getBestObjValue();
-        solutions_map["my_cuts"].bestMILPObjVal = cplex_master.getObjValue();
-        solutions_map["my_cuts"].cutoff = cplex_master.getCutoff();
-    }
-    else
-    {
-        solutions_map["my_cuts"].is_feasible = false;
-    }
+        cplex_master.clearModel();
+        cplex_cut_types.set_param(cplex_master, cplex_param);
 
+        // solving the problem in the root node with ILPCuts cutting planes
+        root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
+                                              master_model, relaxed_model,
+                                              obj, rngs, vars,
+                                              cuts_gen_adapter,
+                                              cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
+
+        solutions_map[solution_name];
+
+        if (cplex_master.solve())
+        {
+            solutions_map[solution_name].is_incumbent_found = true;
+            solutions_map[solution_name].bestMILPObjVal = cplex_master.getObjValue();
+            solutions_map[solution_name].cutoff = cplex_master.getCutoff();
+        }
+        else
+        {
+            solutions_map[solution_name].is_incumbent_found = false;
+        }
+        solutions_map[solution_name].bestLPObjVal = cplex_master.getBestObjValue();
+    };
+
+    // adding some hybrid solutions-configurations
+    add_hybrid_solution("my", "none");
+    add_hybrid_solution("my+all", "all");
+
+    // printing the result into comparison_results
     env.out() << "\n";
 
     stringstream comparison_results;
@@ -334,22 +355,24 @@ void run_cplex_experiment(
         auto &solution_info = solutions_iter.second;
         auto cut_name = solutions_iter.first;
 
-        if (solution_info.is_feasible)
+        if (solution_info.is_incumbent_found)
         {
 
-            comparison_results << "Cut-type = \"" << cut_name << "\":"
-                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObgVal << "; "
+            comparison_results << "Cut-type = \"" << cut_name << "\": "
+                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObjVal << "; "
                                << "MILP Diff. = " << originalRelaxedObjVal - solution_info.bestMILPObjVal << "; "
                                << "Cutoff Diff. = " << originalRelaxedObjVal - solution_info.cutoff << "\n"
                                << endl;
         }
         else
         {
-            comparison_results << "Cut-type = \"" << cut_name << "\": Infeasible!\n"
+            comparison_results << "Cut-type = \"" << cut_name << "\": No incumbent; "
+                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObjVal << "; "
                                << endl;
         }
     }
 
+    // outputing the results to all output sourses
     env.out() << comparison_results.str();
 
     ofstream comp_results_file(comparison_result_output_path);
@@ -441,7 +464,7 @@ int main(int argc, char **argv)
         .scan<'i', size_t>();
 
     program.add_argument("--node_lim")
-        .default_value(int(0))
+        .default_value(int(1))
         .help("maximal number of nodes in CPlex B&C-algorithm (-1 = default CPlex behavor)")
         .scan<'i', int>();
 
