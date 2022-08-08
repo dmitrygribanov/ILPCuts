@@ -1,9 +1,13 @@
 #!/bin/sh
 
-rm -r -f ../build/CPlexCutsPower_08.08.2022_Mon_16-10
-mkdir ../build/CPlexCutsPower_08.08.2022_Mon_16-10
+cp -r -f ../primes_table ../build/primes_table
 
-cd ../build/CPlexCutsPower_08.08.2022_Mon_16-10
+rm -r -f ../build/CPlexCutsPower_08.08.2022_Mon_18-25
+mkdir ../build/CPlexCutsPower_08.08.2022_Mon_18-25
+
+cd ../build/CPlexCutsPower_08.08.2022_Mon_18-25
+
+cp -r -f ../../primes_table primes_table
 
 #-------------------------------------------------------
 #air05.mps.gz

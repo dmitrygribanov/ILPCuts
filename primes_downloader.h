@@ -9,6 +9,16 @@ namespace ILPCuts
     {
         namespace primes
         {
+            class DownloadException : public Exception
+            {
+            public:
+                DownloadException()
+                    : Exception("ILPCuts error: could not download primes table...") {}
+
+                DownloadException(string path)
+                    : Exception("ILPCuts error: could not download primes table; path = \"" + path + "\"") {}
+            };
+
             const std::string default_path = "../primes_table/primes_mill.txt";
             const size_t max_download = 1000000;
 
@@ -16,6 +26,10 @@ namespace ILPCuts
             std::vector<ptype> download(size_t max_num, std::string path = default_path)
             {
                 std::ifstream file(path);
+
+                if (!file)
+                    throw DownloadException(path);
+
                 std::vector<ptype> res;
 
                 size_t i = 0;

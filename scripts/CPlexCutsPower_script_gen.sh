@@ -14,11 +14,17 @@ rm -f $OUTPUT_SCRIPT
 echo "#!/bin/sh" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
+echo "cp -r -f ../primes_table ../build/primes_table" >> $OUTPUT_SCRIPT
+echo >> $OUTPUT_SCRIPT
+
 echo "rm -r -f ../build/$SCRIPT_OUT_DIR" >> $OUTPUT_SCRIPT
 echo "mkdir ../build/$SCRIPT_OUT_DIR" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
 echo "cd ../build/$SCRIPT_OUT_DIR" >> $OUTPUT_SCRIPT
+echo >> $OUTPUT_SCRIPT
+
+echo "cp -r -f ../../primes_table primes_table" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
 for PROB_PATH in $PROBLEMS_DIR/*.gz
