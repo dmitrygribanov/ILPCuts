@@ -87,8 +87,11 @@ namespace ILPCuts
                 cuts_as_constr.end();
 
                 // exporting cuts to a file
-                env.out() << "exporting cuts to a file ..." << endl;
-                cuts_gen_adapter.export_cuts(cuts_export_file);
+                if (cuts_output_path != "")
+                {
+                    env.out() << "exporting cuts to a file ..." << endl;
+                    cuts_gen_adapter.export_cuts(cuts_export_file);
+                }
 
                 // put relaxed model to the solver
                 cplex_relaxed.extract(relaxed_model);
