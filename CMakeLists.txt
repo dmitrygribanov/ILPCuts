@@ -15,20 +15,24 @@ add_executable(CPlexConsole CPlex-console.cpp)
 add_executable(CPlexDummy dummy_main.cpp)
 add_executable(CPlexNodeExpsCPP CPlex-node-experiments-c++.cpp)
 add_executable(CPlexNodeExpsC CPlex-node-experiments-C.cpp)
+add_executable(CPlexCutsPower CPlex-cuts-power.cpp)
 
 target_include_directories(CPlexConsole PUBLIC "${ILOCPLEX_INCLUDE_PATH}")
 target_include_directories(CPlexNodeExpsCPP PUBLIC "${ILOCPLEX_INCLUDE_PATH}")
 target_include_directories(CPlexNodeExpsC PUBLIC "${ILOCPLEX_INCLUDE_PATH}")
+target_include_directories(CPlexCutsPower PUBLIC "${ILOCPLEX_INCLUDE_PATH}")
 
 target_link_directories(CPlexConsole PUBLIC "${ILOCPLEX_INCLUDE_LIB_PATH}")
 target_link_directories(CPlexNodeExpsCPP PUBLIC "${ILOCPLEX_INCLUDE_LIB_PATH}")
 target_link_directories(CPlexNodeExpsC PUBLIC "${ILOCPLEX_INCLUDE_LIB_PATH}")
+target_link_directories(CPlexCutsPower PUBLIC "${ILOCPLEX_INCLUDE_LIB_PATH}")
 
 #removed deps.: -lgivaro -lblas -llinbox
 target_link_libraries(CPlexConsole PUBLIC -lflint -lgmp -lgmpxx -lm -lpthread -lntl -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
 target_link_libraries(CPlexDummy PUBLIC -lflint -lmpfr -lgmp -lgmpxx -lpthread -lntl ${CMAKE_DL_LIBS})
 target_link_libraries(CPlexNodeExpsCPP PUBLIC -lflint -lgmp -lgmpxx -lm -lpthread -lntl -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
 target_link_libraries(CPlexNodeExpsC PUBLIC -lflint -lgmp -lgmpxx -lm -lpthread -lntl -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
+target_link_libraries(CPlexCutsPower PUBLIC -lflint -lgmp -lgmpxx -lm -lpthread -lntl -lilocplex -lconcert -lcplex ${CMAKE_DL_LIBS})
 
 find_package(OpenMP)
 
@@ -37,4 +41,5 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(CPlexDummy PUBLIC OpenMP::OpenMP_CXX)
     target_link_libraries(CPlexNodeExpsCPP PUBLIC OpenMP::OpenMP_CXX)
     target_link_libraries(CPlexNodeExpsC PUBLIC OpenMP::OpenMP_CXX)
+    target_link_libraries(CPlexCutsPower PUBLIC OpenMP::OpenMP_CXX)
 endif()
