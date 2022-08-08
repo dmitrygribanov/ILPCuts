@@ -589,4 +589,27 @@ namespace ILPCuts
 			ilo_constr.add(IloRange(env, lhs, rhs));
 		}
 	}
+
+	template <typename cutsGenT>
+	bool generate_cuts_with_time_limit(CPlexAdapter<cutsGenT> &cuts_gen_adapter, double time_limit, IloCplex solver, IloModel model, IloObjective obj, IloRangeArray rngs, IloNumVarArray vars)
+	{
+		using CPlexAdapter = CPlexAdapter<cutsGenT>;
+
+		if (time_limit > 0.0)
+		{
+			// chose correct overloaded member "generate_cuts" from "CutsGenAdapter"
+			auto ptr_generate_cuts = static_cast<void (CPlexAdapter::*)(IloCplex, IloModel, IloObjective, IloRangeArray, IloNumVarArray)>(&CPlexAdapter::generate_cuts);
+
+			// bind it to a compact function of the type "void()"
+			auto bind_generate_cuts = bind(ptr_generate_cuts, &cuts_gen_adapter, solver, model, obj, rngs, vars);
+
+			return run_async_function_with_time_limit(time_limit, bind_generate_cuts);
+		}
+		else
+		{
+			cuts_gen_adapter.generate_cuts(solver, model, obj, rngs, vars);
+
+			return true;
+		}
+	}
 }
