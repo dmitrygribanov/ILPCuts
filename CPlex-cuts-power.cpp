@@ -265,6 +265,7 @@ void run_cplex_experiment(
 
     // setting parameters for solving in integer variables
     cplex_master.setParam(IloCplex::Param::Threads, threads_cplex);
+    cplex_master.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
 
     if (cplex_tl > 0.0)
     {
@@ -319,10 +320,27 @@ void run_cplex_experiment(
         cplex_master.clearModel();
         cplex_cut_types.set_param(cplex_master, cplex_param);
 
+        // creating copies of the relaxed model and constraints
+        // we need this, because root_node_boosting_console_subprogram
+        // write to them
+        IloModel relaxed_model_copy(env);
+        IloRangeArray rngs_copy(env);
+
+        // import data to the copy of the relaxed model
+        // and copy of constraints
+        rngs_copy.add(rngs);
+        relaxed_model_copy.add(master_model);
+
+        // make all variables of the copy to be rational
+        for (size_t i = 0; i < vars.getSize(); ++i)
+        {
+            relaxed_model_copy.add(IloConversion(env, vars[i], ILOFLOAT));
+        }
+
         // solving the problem in the root node with ILPCuts cutting planes
         root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-                                              master_model, relaxed_model,
-                                              obj, rngs, vars,
+                                              master_model, relaxed_model_copy,
+                                              obj, rngs_copy, vars,
                                               cuts_gen_adapter,
                                               cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
@@ -343,7 +361,7 @@ void run_cplex_experiment(
 
     // adding some hybrid solutions-configurations
     add_hybrid_solution("my", "none");
-    add_hybrid_solution("my+all", "all");
+    // add_hybrid_solution("my+all", "all");
 
     // printing the result into comparison_results
     env.out() << "\n";

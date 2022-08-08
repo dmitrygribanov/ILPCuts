@@ -209,19 +209,6 @@ void run_cplex_experiment(
 	// cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
 	cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	// put the relaxed model into the solver
-	cplex_relaxed.extract(relaxed_model);
-	env.out() << "solving relaxed model ...\n";
-
-	// run solver
-	if (!cplex_relaxed.solve())
-	{
-		env.out() << "LP optimal solution is not found..." << endl;
-		env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
-		exit(0);
-	}
-	double originalRelaxedObjVal = cplex_relaxed.getObjValue();
-
 	// createing adapter object
 	CutsGenAdapter cuts_gen_adapter;
 
@@ -279,11 +266,11 @@ void run_cplex_experiment(
 	// cplex_master.setParam(IloCplex::Param::MIP::Interval, 1000);
 	// cplex_master.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-										  master_model, relaxed_model,
-										  obj, rngs, vars,
-										  cuts_gen_adapter,
-										  cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
+	double originalRelaxedObjVal = root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
+																		 master_model, relaxed_model,
+																		 obj, rngs, vars,
+																		 cuts_gen_adapter,
+																		 cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
 	double boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 

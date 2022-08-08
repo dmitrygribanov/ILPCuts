@@ -23,13 +23,25 @@ namespace ILPCuts
     }
 
     template <typename cutsGenT>
-    void root_node_boosting_console_subprogram(IloEnv env,
-                                               IloCplex cplex_master, IloCplex cplex_relaxed,
-                                               IloModel master_model, IloModel relaxed_model,
-                                               IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
-                                               CPlexAdapter<cutsGenT> &cuts_gen_adapter,
-                                               double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
+    double root_node_boosting_console_subprogram(IloEnv env,
+                                                 IloCplex cplex_master, IloCplex cplex_relaxed,
+                                                 IloModel master_model, IloModel relaxed_model,
+                                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
+                                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+                                                 double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
+        // put the relaxed model into the solver
+        cplex_relaxed.extract(relaxed_model);
+        env.out() << "solving relaxed model ...\n";
+
+        // run solver
+        if (!cplex_relaxed.solve())
+        {
+            env.out() << "LP optimal solution is not found..." << endl;
+            env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
+            exit(0);
+        }
+
         double originalRelaxedObjVal = cplex_relaxed.getObjValue();
         double boostedRelaxedObjVal = 0;
         env.out() << "solution value  is " << originalRelaxedObjVal << endl;
@@ -125,6 +137,8 @@ namespace ILPCuts
             // put the original model into the solver
             cplex_master.extract(master_model);
         }
+
+        return originalRelaxedObjVal;
     }
 
 }
