@@ -25,26 +25,63 @@ namespace ILPCuts
         return res_msg.str();
     }
 
-    map<string, IloCplex::IntParam> init_cplex_cut_type_names_map()
+    class CPlexCutTypes
     {
-        map<string, IloCplex::IntParam> res;
+    private:
+        map<string, IloCplex::IntParam> _names_map;
 
-        res["clique"] = IloCplex::Param::MIP::Cuts::Cliques;
-        res["cover"] = IloCplex::Param::MIP::Cuts::Covers;
-        res["gomory"] = IloCplex::Param::MIP::Cuts::Gomory;
-        res["disj"] = IloCplex::Param::MIP::Cuts::Disjunctive;
-        res["flowc"] = IloCplex::Param::MIP::Cuts::FlowCovers;
-        res["flowp"] = IloCplex::Param::MIP::Cuts::PathCut;
-        res["gub"] = IloCplex::Param::MIP::Cuts::GUBCovers;
-        res["liftp"] = IloCplex::Param::MIP::Cuts::LiftProj;
-        res["mcf"] = IloCplex::Param::MIP::Cuts::MCFCut;
-        res["mir"] = IloCplex::Param::MIP::Cuts::MIRCut;
-        res["zeroh"] = IloCplex::Param::MIP::Cuts::ZeroHalfCut;
-        res["impliedl"] = IloCplex::Param::MIP::Cuts::LocalImplied;
-        res["impliedg"] = IloCplex::Param::MIP::Cuts::Implied;
+    public:
+        CPlexCutTypes()
+        {
+            _names_map["clique"] = IloCplex::Param::MIP::Cuts::Cliques;
+            _names_map["cover"] = IloCplex::Param::MIP::Cuts::Covers;
+            _names_map["gomory"] = IloCplex::Param::MIP::Cuts::Gomory;
+            _names_map["disj"] = IloCplex::Param::MIP::Cuts::Disjunctive;
+            _names_map["flowc"] = IloCplex::Param::MIP::Cuts::FlowCovers;
+            _names_map["flowp"] = IloCplex::Param::MIP::Cuts::PathCut;
+            _names_map["gub"] = IloCplex::Param::MIP::Cuts::GUBCovers;
+            _names_map["liftp"] = IloCplex::Param::MIP::Cuts::LiftProj;
+            _names_map["mcf"] = IloCplex::Param::MIP::Cuts::MCFCut;
+            _names_map["mir"] = IloCplex::Param::MIP::Cuts::MIRCut;
+            _names_map["zeroh"] = IloCplex::Param::MIP::Cuts::ZeroHalfCut;
+            _names_map["impliedl"] = IloCplex::Param::MIP::Cuts::LocalImplied;
+            _names_map["impliedg"] = IloCplex::Param::MIP::Cuts::Implied;
+        }
 
-        return res;
-    }
+        const map<string, IloCplex::IntParam> &get_names_map() const
+        {
+            return _names_map;
+        }
+
+        bool check_name(string name) const
+        {
+            return name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
+        }
+
+        void set_param(IloCplex cplex, string name) const
+        {
+            // if all-type is used, we run defoult cplex solver
+            if (name != "all")
+            {
+                // in the opposite case, if type == none, we turn off all cplex cuts
+                if (name == "none")
+                {
+                    for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
+                        cplex.setParam(types_iter->second, -1);
+                }
+                // if type != none, we turn off all cuts except (cplex_cuts_param)-variable
+                else
+                {
+                    for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
+                        if (types_iter->first != name)
+                            cplex.setParam(types_iter->second, -1);
+                }
+            }
+        }
+    };
+
+    const CPlexCutTypes cplex_cut_types;
+
     class FractionalElementException : public Exception
     {
     public:

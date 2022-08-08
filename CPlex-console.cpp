@@ -23,9 +23,6 @@ using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, l
 using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
-// set cplex cuts types
-const auto cplex_cut_types = init_cplex_cut_type_names_map();
-
 void check_input_params(
 	logger &log,
 	double tolerance,
@@ -117,7 +114,7 @@ void check_input_params(
 		exit(0);
 	}
 
-	if (cplex_cuts_param != "all" && cplex_cuts_param != "none" && cplex_cut_types.find(cplex_cuts_param) == cplex_cut_types.end())
+	if (cplex_cut_types.check_name(cplex_cuts_param))
 	{
 		log.out() << "Wrong value of the CLI parameter --cplex_cuts_param: "
 				  << cplex_cuts_param << std::endl;
@@ -164,7 +161,7 @@ void run_cplex_experiment(
 	IloModel relaxed_model(env);
 
 	// create solver object for the main MILP
-	IloCplex cplex_main(env);
+	IloCplex cplex_master(env);
 
 	// solver object to solve the relaxed model
 	IloCplex cplex_relaxed(env);
@@ -181,7 +178,7 @@ void run_cplex_experiment(
 	env.out() << "reading the problem..." << input_path << endl;
 
 	// import main problem from file
-	cplex_main.importModel(master_model, input_path.c_str(), obj, vars, rngs);
+	cplex_master.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
 	// checking dimensional requrements for the problem
 	if (vars.getSize() < min_dim)
@@ -211,6 +208,19 @@ void run_cplex_experiment(
 	// setting parameters to solve relaxed model
 	// cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
 	cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+
+	// put the relaxed model into the solver
+	cplex_relaxed.extract(relaxed_model);
+	env.out() << "solving relaxed model ...\n";
+
+	// run solver
+	if (!cplex_relaxed.solve())
+	{
+		env.out() << "LP optimal solution is not found..." << endl;
+		env.out() << "Solution status is " << cplex_relaxed.getStatus() << endl;
+		exit(0);
+	}
+	double originalRelaxedObjVal = cplex_relaxed.getObjValue();
 
 	// createing adapter object
 	CutsGenAdapter cuts_gen_adapter;
@@ -246,82 +256,67 @@ void run_cplex_experiment(
 		cuts_gen_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
 
 	// setting parameters for solving in integer variables
-	cplex_main.setParam(IloCplex::Param::Threads, threads_cplex);
+	cplex_master.setParam(IloCplex::Param::Threads, threads_cplex);
 
 	if (cplex_tl > 0.0)
 	{
-		cplex_main.setParam(IloCplex::Param::TimeLimit, cplex_tl);
-		// cplex_main.setParam(IloCplex::Param::DetTimeLimit, 0);
+		cplex_master.setParam(IloCplex::Param::TimeLimit, cplex_tl);
+		// cplex_master.setParam(IloCplex::Param::DetTimeLimit, 0);
 	}
 
 	if (node_lim != -1)
-		cplex_main.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
+		cplex_master.setParam(IloCplex::Param::MIP::Limits::Nodes, node_lim);
 
 	if (scaling == "off")
 	{
-		cplex_main.setParam(IloCplex::Param::Read::Scale, -1);
-		// cplex_main.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
+		cplex_master.setParam(IloCplex::Param::Read::Scale, -1);
+		// cplex_master.setParam(IloCplex::Param::MIP::SubMIP::Scale, -1);
 	}
 
-	// if all-type is used, we run defoul cplex solver
-	if (cplex_cuts_param != "all")
-	{
-		// in the opposite case, if type == none, we turn off all cplex cuts
-		if (cplex_cuts_param == "none")
-		{
-			for (auto types_iter = cplex_cut_types.begin(); types_iter != cplex_cut_types.end(); ++types_iter)
-				cplex_main.setParam(types_iter->second, -1);
-		}
-		// if type != none, we turn off all cuts except (cplex_cuts_param)-variable
-		else
-		{
-			for (auto types_iter = cplex_cut_types.begin(); types_iter != cplex_cut_types.end(); ++types_iter)
-				if (types_iter->first != cplex_cuts_param)
-					cplex_main.setParam(types_iter->second, -1);
-		}
-	}
+	// setting cuts type for cplex_master
+	cplex_cut_types.set_param(cplex_master, cplex_cuts_param);
 
-	// cplex_main.setParam(IloCplex::Param::MIP::Interval, 1000);
-	// cplex_main.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
+	// cplex_master.setParam(IloCplex::Param::MIP::Interval, 1000);
+	// cplex_master.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	double originalRelaxedObjVal = root_node_boosting_console_subprogram(env, cplex_main, cplex_relaxed,
-																		 master_model, relaxed_model,
-																		 obj, rngs, vars,
-																		 cuts_gen_adapter,
-																		 cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
+	root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
+										  master_model, relaxed_model,
+										  obj, rngs, vars,
+										  cuts_gen_adapter,
+										  cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
 	double boostedRelaxedObjVal = cplex_relaxed.getObjValue();
 
 	// solve the ILP model
-	if (cplex_main.solve())
+	if (cplex_master.solve())
 	{
-		env.out() << "ILP solution value: " << cplex_main.getObjValue() << "\n"
-				  << "ILP cutoff: " << cplex_main.getCutoff() << endl;
+		env.out() << "ILP solution value: " << cplex_master.getObjValue() << "\n"
+				  << "ILP cutoff: " << cplex_master.getCutoff() << endl;
 
 		if (iterations_number != 0)
 		{
 			env.out()
 				<< "Duality gap decrease (ILP): "
-				<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getObjValue()) << "\n"
+				<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_master.getObjValue()) << "\n"
 				<< "Duality gap decrease (cutoff): "
-				<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getCutoff()) << "\n"
+				<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_master.getCutoff()) << "\n"
 				<< endl;
 		}
 	}
 	else
 	{
 		env.out() << "Integer optimal solution is not found...\n"
-				  << "Solution status is " << cplex_main.getStatus() << "\n"
+				  << "Solution status is " << cplex_master.getStatus() << "\n"
 				  << endl;
 	}
 
 	env.out()
-		<< "LP best solution value: " << cplex_main.getBestObjValue() << endl;
+		<< "LP best solution value: " << cplex_master.getBestObjValue() << endl;
 
 	if (iterations_number != 0)
 	{
 		env.out() << "Duality gap decrease (LP): "
-				  << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_main.getBestObjValue()) << endl;
+				  << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_master.getBestObjValue()) << endl;
 	}
 
 	env.end();
