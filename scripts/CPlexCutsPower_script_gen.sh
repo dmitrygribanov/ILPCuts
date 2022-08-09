@@ -34,10 +34,10 @@ do
 
     MIN_DIM=${1:-0} #minimal problem dim
     MAX_DIM=${2:-0} #maximal problem dim
-    NODE_LIM=${3:-1} #node limit for CPlex
-    MODEL_CUTS_SWITCH=${4:-on} #switch for model cuts option
-    CPLEX_WS=${5:-8} #workers for CPlex
-    CUTS_TL=${6:-0.0} #cuts gen time limit in minutes
+    CUTS_TL=${3:-0.0} #cuts gen time limit in minutes
+    NODE_LIM=${4:-1} #node limit for CPlex
+    MODEL_CUTS_SWITCH=${5:-on} #switch for model cuts option
+    CPLEX_WS=${6:-8} #workers for CPlex
     CPLEX_TL=${7:-0.0} #cplex time limit in minutes
     CUTS_TL=`echo "$CUTS_TL * 60" | bc` #transforming into TL in seconds
     CPLEX_TL=`echo "$CPLEX_TL * 60" | bc` #transforming into TL in seconds
