@@ -361,7 +361,7 @@ void run_cplex_experiment(
 
     // adding some hybrid solutions-configurations
     add_hybrid_solution("my", "none");
-    // add_hybrid_solution("my+all", "all");
+    add_hybrid_solution("my+all", "all");
 
     // printing the result into comparison_results
     env.out() << "\n";
