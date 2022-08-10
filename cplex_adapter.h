@@ -17,6 +17,7 @@ namespace ILPCuts
 		using is_vec = typename generator_base::is_vec;
 		using rs_vec = typename generator_base::rs_vec;
 		using Strategies = typename generator_base::Strategies;
+		using cut_info = typename generator_base::cut_info;
 
 		enum class IsLazy
 		{
@@ -30,18 +31,10 @@ namespace ILPCuts
 		std::unique_ptr<generator_base> generator_ptr;
 
 	private:
-		std::vector<is_vec> cuts_Eigen;
-
 		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>;
 		static constexpr auto from_IloNum_to_int = Utility::conv<IloNum, int_type>;
 		static constexpr auto from_IloNum_to_rat = Utility::conv<IloNum, rational_type>;
 		// static constexpr auto from_CPXINT_to_int = Utility::conv<CPXINT, rational_type>;
-
-		std::tuple<is_mat, rs_vec, rs_vec>
-		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
-
-		std::tuple<is_mat, rs_vec, rs_vec>
-		transform_to_corner_polyhedron(CPXCENVptr env, CPXCLPptr lp);
 
 		using Trilpl = Triplet<int_type>;
 		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
@@ -89,6 +82,13 @@ namespace ILPCuts
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
 		void add_cuts(CPXCENVptr env, void *cbdata, int wherefrom);
 		void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
+
+		std::tuple<is_mat, rs_vec, rs_vec>
+		extract_problem_info(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+
+		std::tuple<is_mat, rs_vec, rs_vec>
+		extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
+
 		void generate_cuts(CPXCENVptr env, CPXCLPptr lp)
 		{
 			is_mat A;
@@ -99,7 +99,7 @@ namespace ILPCuts
 			Timer timer;
 			timer.start();
 
-			tie(A, c, optLP) = transform_to_corner_polyhedron(env, lp);
+			tie(A, c, optLP) = extract_problem_info(env, lp);
 
 			out() << "transformation time: " << timer.finish_str();
 
@@ -115,7 +115,7 @@ namespace ILPCuts
 			Timer timer;
 			timer.start();
 
-			tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+			tie(A, c, optLP) = extract_problem_info(cplex, model, obj, constrs, vars);
 
 			out() << "transformation time: " << timer.finish_str();
 
@@ -134,13 +134,19 @@ namespace ILPCuts
 
 		void clear_cuts()
 		{
-			cuts_Eigen.clear();
+			generator_ptr->clear_cuts();
 		}
 
-		std::vector<is_vec> get_cuts() const { return cuts_Eigen; }
+		const std::vector<cut_info> &get_cuts() const { return generator_ptr->get_cuts(); }
+
 		void export_cuts(ofstream &out_file)
 		{
-			out_file << Utility::export_cuts(cuts_Eigen);
+			generator_ptr->export_cuts(out_file);
+		}
+
+		void check_cuts_validity()
+		{
+			generator_ptr->check_cuts_validity();
 		}
 
 		bool set_lazy(string str_par)
@@ -160,7 +166,7 @@ namespace ILPCuts
 
 	template <typename cutsGenT>
 	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-	CPlexAdapter<cutsGenT>::transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+	CPlexAdapter<cutsGenT>::extract_problem_info(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 	{
 		size_t n = vars.getSize();
 
@@ -280,7 +286,7 @@ namespace ILPCuts
 
 	template <typename cutsGenT>
 	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-	CPlexAdapter<cutsGenT>::transform_to_corner_polyhedron(CPXCENVptr env, CPXCLPptr lp)
+	CPlexAdapter<cutsGenT>::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
 	{
 		int status = 0;
 
@@ -480,28 +486,22 @@ namespace ILPCuts
 	{
 		int status = 0;
 
+		const auto &cuts_Eigen = get_cuts();
+
 		for (size_t i = 0; i < cuts_Eigen.size(); ++i)
 		{
 			const auto &cut = cuts_Eigen[i];
 			CPXNNZ nonzeros_C = 0;
-			int_type rhs_C = 0;
 
-			nonzeros_C = cut.nonZeros();
-			rhs_C = cut.coeff(cut.size() - 1);
-			if (rhs_C != 0)
-				--nonzeros_C;
+			nonzeros_C = cut.ray.nonZeros();
 
 			vector<CPXDIM> nonzero_idxs_C;
 			vector<double> nonzero_vals_C;
-			for (typename SparseVector<int_type>::InnerIterator it(cut); it; ++it)
+			for (typename SparseVector<int_type>::InnerIterator it(cut.ray); it; ++it)
 			{
-				if (it.index() != cut.size() - 1)
-				{
-					IloInt int_val = to_IloInt(it.value());
-					nonzero_idxs_C.push_back(it.index());
-					nonzero_vals_C.push_back(int_val);
-					// myData->log->out() << "VALLL = " << it.value() << endl;
-				}
+				IloInt int_val = to_IloInt(it.value());
+				nonzero_idxs_C.push_back(it.index());
+				nonzero_vals_C.push_back(int_val);
 			}
 
 			// for (size_t i = 0; i < nonzeros_C; i++)
@@ -510,7 +510,7 @@ namespace ILPCuts
 			// }
 			// cout << endl;
 
-			status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, rhs_C, 'L',
+			status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, cut.rhs, 'L',
 											 nonzero_idxs_C.data(), nonzero_vals_C.data());
 			// FOR GLOBAL CUTS: could be CPX_USECUT_FORCE, CPX_USECUT_PURGE or CPX_USECUT_FILTER
 			if (status)
@@ -558,11 +558,11 @@ namespace ILPCuts
 		timer.start();
 		out() << "cutting plane generation is started..." << endl;
 
-		cuts_Eigen = generator_ptr->generate_cuts(A, optLP);
+		generator_ptr->generate_cuts(A, optLP);
 
 		out() << "cutting plane generation is finished,\n"
 			  << "total time: " << timer.finish_str() << "\n"
-			  << "number of added cuts: " << cuts_Eigen.size() << "\n"
+			  << "number of added cuts: " << get_cuts().size() << "\n"
 			  << endl;
 
 		generator_ptr->direction_strategies.pop_back();
@@ -573,20 +573,19 @@ namespace ILPCuts
 	{
 		size_t n = vars.getSize();
 
+		const auto &cuts_Eigen = get_cuts();
+
 		for (size_t i = 0; i < cuts_Eigen.size(); ++i)
 		{
 			IloExpr lhs = IloExpr(env);
 			IloNum rhs = 0;
 
-			for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it)
+			for (typename is_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
 			{
-				if (it.index() < n)
-					lhs += vars[it.index()] * to_IloInt(it.value());
-				else
-					rhs = to_IloInt(it.value());
+				lhs += vars[it.index()] * to_IloInt(it.value());
 			}
 
-			ilo_constr.add(IloRange(env, lhs, rhs));
+			ilo_constr.add(IloRange(env, lhs, cuts_Eigen[i].rhs));
 		}
 	}
 

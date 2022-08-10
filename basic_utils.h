@@ -232,26 +232,27 @@ namespace ILPCuts
 			const double &get_err_tolerance() const { return _err_tolerance; }
 		};
 
-		template <typename vecT>
-		class SparseVecComp
+		template <typename T>
+		class SparseVecLess
 		{
 		public:
-			bool operator()(const vecT &v1, const vecT &v2)
+			bool operator()(const SparseVector<T> &v1, const SparseVector<T> &v2) const
 			{
-				typename vecT::InnerIterator it1(v1);
-				typename vecT::InnerIterator it2(v2);
+				typename SparseVector<T>::InnerIterator it1(v1);
+				typename SparseVector<T>::InnerIterator it2(v2);
+
 				while (it1 && it2)
 				{
 					if (it1.index() > it2.index())
 					{
-						if (it1.value() < 0)
+						if (it2.value() > 0)
 							return true;
 						else
 							return false;
 					}
 					else if (it1.index() < it2.index())
 					{
-						if (it2.value() > 0)
+						if (it1.value() < 0)
 							return true;
 						else
 							return false;
@@ -260,6 +261,7 @@ namespace ILPCuts
 					{
 						if (it1.value() < it2.value())
 							return true;
+
 						else if (it1.value() > it2.value())
 							return false;
 					}
@@ -288,14 +290,14 @@ namespace ILPCuts
 			}
 		};
 
-		template <typename vecT>
+		template <typename T>
 		class SparseVecEquiv
 		{
 		public:
-			bool operator()(const vecT &v1, const vecT &v2)
+			bool operator()(const SparseVector<T> &v1, const SparseVector<T> &v2) const
 			{
-				typename vecT::InnerIterator it1(v1);
-				typename vecT::InnerIterator it2(v2);
+				typename SparseVector<T>::InnerIterator it1(v1);
+				typename SparseVector<T>::InnerIterator it2(v2);
 
 				while (it1 && it2)
 				{
@@ -513,23 +515,6 @@ namespace ILPCuts
 			{
 				res << " 0";
 				++i;
-			}
-
-			return res.str();
-		}
-
-		// this function takes a collection of cuts represented as sparce vectors
-		// and prints them to a string
-		// each cut is separtated by \n
-		// the last cut is also finished by \n
-		template <typename valT>
-		string export_cuts(const vector<SparseVector<valT>> &cuts_collection)
-		{
-			stringstream res;
-
-			for (size_t i = 0; i < cuts_collection.size(); ++i)
-			{
-				res << vec_to_str_dense(cuts_collection[i]) << "\n";
 			}
 
 			return res.str();

@@ -53,6 +53,33 @@ namespace ILPCuts
 
 		using Strategies = CutsGenStrategies<int_type, rational_type>;
 
+		struct cut_info
+		{
+			is_vec ray;
+			int_type rhs;
+			rational_type frac_rhs;
+
+			bool operator<(const cut_info &arg)
+			{
+				bool is_rays_less = Utility::SparseVecLess<int_type>()(ray, arg.ray);
+				if (is_rays_less)
+					return true;
+
+				bool is_rays_equal = Utility::SparseVecEquiv<int_type>()(ray, arg.ray);
+				if (is_rays_equal)
+				{
+					return rhs < arg.rhs;
+				}
+
+				return false;
+			}
+
+			bool operator==(const cut_info &arg)
+			{
+				return Utility::SparseVecEquiv<int_type>()(ray, arg.ray) && rhs == arg.rhs;
+			}
+		};
+
 	private:
 		Hilbert_base_alg<intT, rationalT, lintT, lrationalT> _Hilbert_base_alg;
 
@@ -62,6 +89,17 @@ namespace ILPCuts
 			_Hilbert_base_alg.err_tolerance = err_tolerance;
 			_Hilbert_base_alg.rgen = rgen;
 			_Hilbert_base_alg.threads = threads;
+		}
+
+		is_mat _AT_copy;
+		rs_vec _optLP_copy;
+
+		std::vector<cut_info> _resulting_cuts;
+
+		void copy_original_problem_info(const is_mat &A, const rs_vec &optLP)
+		{
+			_AT_copy = A;
+			_optLP_copy = optLP;
 		}
 
 	protected:
@@ -166,7 +204,7 @@ namespace ILPCuts
 
 		virtual void process_node(const cone_traits &C, process_func pf) = 0;
 
-		std::vector<is_vec> generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP);
+		void generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP);
 
 		std::vector<rs_vec> generate_directions_pool(const is_mat &A)
 		{
@@ -183,9 +221,9 @@ namespace ILPCuts
 			return std::move(directions_pool);
 		}
 
-		std::vector<is_vec> generate_cuts_from_row_matrix(const is_mat &cuts_mat, const rs_vec &optLP)
+		vector<cut_info> generate_cuts_from_row_matrix(const is_mat &cuts_mat, const rs_vec &optLP)
 		{
-			std::vector<is_vec> res_cuts;
+			vector<cut_info> res;
 
 			rs_vec rat_b = cuts_mat.template cast<rational_type>() * optLP;
 			is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(_rat_to_int);
@@ -198,18 +236,16 @@ namespace ILPCuts
 			{
 				if (diff_it.value() > rational_type(tolerance))
 				{
-					is_vec cut = cuts_mat.row(diff_it.index());
+					is_vec ray = cuts_mat.row(diff_it.index());
+					int_type rhs = floor_b.coeff(diff_it.index());
+					rational_type frac_rhs = rat_b.coeff(diff_it.index());
 
-					size_t n = cut.size();
-					cut.conservativeResize(n + 1);
-					cut.insert(n) = floor_b.coeff(diff_it.index());
-
-					res_cuts.push_back(std::move(cut));
+					res.emplace_back(cut_info{ray, rhs, frac_rhs});
 				}
 				++diff_it;
 			}
 
-			return res_cuts;
+			return res;
 		}
 
 	public:
@@ -247,7 +283,66 @@ namespace ILPCuts
 			return std::move(A);
 		}
 
-		virtual std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) = 0;
+		virtual void generate_cuts(const is_mat &A, const rs_vec &optLP) = 0;
+
+		const std::vector<cut_info> &get_cuts() const { return _resulting_cuts; }
+
+		// this function takes a collection of resulting cuts
+		// and prints them to a string
+		// each cut is separtated by \n
+		// the last cut is also finished by \n
+		void export_cuts(ofstream &out_file)
+		{
+			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
+			{
+				out_file << Utility::vec_to_str_dense(_resulting_cuts[i].ray) << " "
+						 << _resulting_cuts[i].rhs << "\n";
+			}
+		}
+
+		void clear_cuts()
+		{
+			_resulting_cuts.clear();
+			_AT_copy.resize(0, 0);
+			_optLP_copy.resize(0);
+		}
+
+		void check_cuts_validity() const
+		{
+			size_t n = _AT_copy.cols();
+			assert(n > 0);
+
+			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
+			{
+				const auto &cut = _resulting_cuts[i];
+
+				rs_vec t = Utility::system_solve(_AT_copy.template cast<rational_type>().eval(), cut.ray.template cast<rational_type>().eval());
+
+				for (typename rs_vec::InnerIterator it(t); it; ++it)
+				{
+					if (it.value() < 0 && abs(it.value()) > tolerance)
+					{
+						stringstream msg;
+						msg << "ILPCuts error: cut(" << i << ") is invalid: negative solution(" << it.value() << ")...\n";
+						throw Exception(msg.str());
+					}
+				}
+
+				if (abs(cut.ray.template cast<rational_type>().dot(_optLP_copy) - cut.frac_rhs) > err_tolerance)
+				{
+					stringstream msg;
+					msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";
+					throw Exception(msg.str());
+				}
+
+				if (floor(cut.frac_rhs) != cut.rhs)
+				{
+					stringstream msg;
+					msg << "ILPCuts error: cut(" << i << ") is invalid: invalid floor rounding...\n";
+					throw Exception(msg.str());
+				}
+			}
+		}
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
@@ -355,16 +450,17 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::is_vec>
-	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
+	void ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
 	{
 
 		init_Hilbert_alg_params();
 
+		clear_cuts();
+
+		copy_original_problem_info(C->A, optLP);
+
 		Timer timer;
 		timer.start();
-
-		std::vector<is_vec> res_cuts;
 
 		out() << "Cone decomposition procedure is started ..." << endl;
 
@@ -384,17 +480,16 @@ namespace ILPCuts
 		for (const is_mat &uni_mat : uni_mat_pool)
 		{
 			auto new_cuts = generate_cuts_from_row_matrix(uni_mat, optLP);
-			res_cuts.insert(res_cuts.end(), std::make_move_iterator(new_cuts.begin()),
-							std::make_move_iterator(new_cuts.end()));
+
+			_resulting_cuts.insert(_resulting_cuts.end(), make_move_iterator(new_cuts.begin()),
+								   make_move_iterator(new_cuts.end()));
 		}
 
 		out() << "Transforming is finished, time = " << timer.finish_str()
 			  << "Filtering duplicate cuts..." << endl;
 
-		std::sort(res_cuts.begin(), res_cuts.end(), Utility::SparseVecComp<rs_vec>());
-		auto last = std::unique(res_cuts.begin(), res_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
-		res_cuts.erase(last, res_cuts.end());
-
-		return std::move(res_cuts);
+		std::sort(_resulting_cuts.begin(), _resulting_cuts.end());
+		auto last = std::unique(_resulting_cuts.begin(), _resulting_cuts.end());
+		_resulting_cuts.erase(last, _resulting_cuts.end());
 	}
 }
