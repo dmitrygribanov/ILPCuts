@@ -240,18 +240,19 @@ namespace ILPCuts
 			{
 				typename SparseVector<T>::InnerIterator it1(v1);
 				typename SparseVector<T>::InnerIterator it2(v2);
+
 				while (it1 && it2)
 				{
 					if (it1.index() > it2.index())
 					{
-						if (it1.value() < 0)
+						if (it2.value() > 0)
 							return true;
 						else
 							return false;
 					}
 					else if (it1.index() < it2.index())
 					{
-						if (it2.value() > 0)
+						if (it1.value() < 0)
 							return true;
 						else
 							return false;
@@ -260,6 +261,7 @@ namespace ILPCuts
 					{
 						if (it1.value() < it2.value())
 							return true;
+
 						else if (it1.value() > it2.value())
 							return false;
 					}

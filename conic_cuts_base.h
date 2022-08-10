@@ -237,17 +237,10 @@ namespace ILPCuts
 				if (diff_it.value() > rational_type(tolerance))
 				{
 					is_vec ray = cuts_mat.row(diff_it.index());
-
-					// size_t n = cut.size();
-					// cut.conservativeResize(n + 1);
-					// cut.insert(n) = floor_b.coeff(diff_it.index());
-
 					int_type rhs = floor_b.coeff(diff_it.index());
 					rational_type frac_rhs = rat_b.coeff(diff_it.index());
 
 					res.emplace_back(cut_info{ray, rhs, frac_rhs});
-					// res_rhses.push_back(std::move(
-					// 	rat_b.coeff(diff_it.index())));
 				}
 				++diff_it;
 			}
@@ -322,16 +315,15 @@ namespace ILPCuts
 			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
 			{
 				const auto &cut = _resulting_cuts[i];
-				;
 
-				rs_vec t = Utility::system_solve(_AT_copy, cut.ray);
+				rs_vec t = Utility::system_solve(_AT_copy.template cast<rational_type>().eval(), cut.ray.template cast<rational_type>().eval());
 
 				for (typename rs_vec::InnerIterator it(t); it; ++it)
 				{
 					if (it.value() < 0 && abs(it.value()) > tolerance)
 					{
 						stringstream msg;
-						msg << "ILPCuts error: cut(" << i << ") is invalid: negative solution...\n";
+						msg << "ILPCuts error: cut(" << i << ") is invalid: negative solution(" << it.value() << ")...\n";
 						throw Exception(msg.str());
 					}
 				}
@@ -491,9 +483,6 @@ namespace ILPCuts
 
 			_resulting_cuts.insert(_resulting_cuts.end(), make_move_iterator(new_cuts.begin()),
 								   make_move_iterator(new_cuts.end()));
-
-			// _cuts_rational_rhses.insert(_cuts_rational_rhses.end(), make_move_iterator(new_rational_rhses.begin()),
-			// 							make_move_iterator(new_rational_rhses.end()));
 		}
 
 		out() << "Transforming is finished, time = " << timer.finish_str()

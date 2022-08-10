@@ -580,14 +580,6 @@ namespace ILPCuts
 			IloExpr lhs = IloExpr(env);
 			IloNum rhs = 0;
 
-			// for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it)
-			// {
-			// 	if (it.index() < n)
-			// 		lhs += vars[it.index()] * to_IloInt(it.value());
-			// 	else
-			// 		rhs = to_IloInt(it.value());
-			// }
-
 			for (typename is_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
 			{
 				lhs += vars[it.index()] * to_IloInt(it.value());
