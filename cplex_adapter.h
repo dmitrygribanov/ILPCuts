@@ -30,18 +30,10 @@ namespace ILPCuts
 		std::unique_ptr<generator_base> generator_ptr;
 
 	private:
-		std::vector<is_vec> cuts_Eigen;
-
 		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>;
 		static constexpr auto from_IloNum_to_int = Utility::conv<IloNum, int_type>;
 		static constexpr auto from_IloNum_to_rat = Utility::conv<IloNum, rational_type>;
 		// static constexpr auto from_CPXINT_to_int = Utility::conv<CPXINT, rational_type>;
-
-		std::tuple<is_mat, rs_vec, rs_vec>
-		transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
-
-		std::tuple<is_mat, rs_vec, rs_vec>
-		transform_to_corner_polyhedron(CPXCENVptr env, CPXCLPptr lp);
 
 		using Trilpl = Triplet<int_type>;
 		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
@@ -89,6 +81,13 @@ namespace ILPCuts
 		void add_cuts(IloCplex cplex, IloNumVarArray vars);
 		void add_cuts(CPXCENVptr env, void *cbdata, int wherefrom);
 		void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
+
+		std::tuple<is_mat, rs_vec, rs_vec>
+		extract_problem_info(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+
+		std::tuple<is_mat, rs_vec, rs_vec>
+		extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
+
 		void generate_cuts(CPXCENVptr env, CPXCLPptr lp)
 		{
 			is_mat A;
@@ -99,7 +98,7 @@ namespace ILPCuts
 			Timer timer;
 			timer.start();
 
-			tie(A, c, optLP) = transform_to_corner_polyhedron(env, lp);
+			tie(A, c, optLP) = extract_problem_info(env, lp);
 
 			out() << "transformation time: " << timer.finish_str();
 
@@ -115,7 +114,7 @@ namespace ILPCuts
 			Timer timer;
 			timer.start();
 
-			tie(A, c, optLP) = transform_to_corner_polyhedron(cplex, model, obj, constrs, vars);
+			tie(A, c, optLP) = extract_problem_info(cplex, model, obj, constrs, vars);
 
 			out() << "transformation time: " << timer.finish_str();
 
@@ -134,13 +133,13 @@ namespace ILPCuts
 
 		void clear_cuts()
 		{
-			cuts_Eigen.clear();
+			generator_ptr->clear_cuts();
 		}
 
-		std::vector<is_vec> get_cuts() const { return cuts_Eigen; }
+		std::vector<is_vec> get_cuts() const { return generator_ptr->get_cuts(); }
 		void export_cuts(ofstream &out_file)
 		{
-			out_file << Utility::export_cuts(cuts_Eigen);
+			generator_ptr->export_cuts(out_file);
 		}
 
 		bool set_lazy(string str_par)
@@ -160,7 +159,7 @@ namespace ILPCuts
 
 	template <typename cutsGenT>
 	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-	CPlexAdapter<cutsGenT>::transform_to_corner_polyhedron(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+	CPlexAdapter<cutsGenT>::extract_problem_info(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 	{
 		size_t n = vars.getSize();
 
@@ -280,7 +279,7 @@ namespace ILPCuts
 
 	template <typename cutsGenT>
 	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-	CPlexAdapter<cutsGenT>::transform_to_corner_polyhedron(CPXCENVptr env, CPXCLPptr lp)
+	CPlexAdapter<cutsGenT>::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
 	{
 		int status = 0;
 
@@ -480,6 +479,8 @@ namespace ILPCuts
 	{
 		int status = 0;
 
+		const auto &cuts_Eigen = get_cuts();
+
 		for (size_t i = 0; i < cuts_Eigen.size(); ++i)
 		{
 			const auto &cut = cuts_Eigen[i];
@@ -558,11 +559,11 @@ namespace ILPCuts
 		timer.start();
 		out() << "cutting plane generation is started..." << endl;
 
-		cuts_Eigen = generator_ptr->generate_cuts(A, optLP);
+		generator_ptr->generate_cuts(A, optLP);
 
 		out() << "cutting plane generation is finished,\n"
 			  << "total time: " << timer.finish_str() << "\n"
-			  << "number of added cuts: " << cuts_Eigen.size() << "\n"
+			  << "number of added cuts: " << get_cuts().size() << "\n"
 			  << endl;
 
 		generator_ptr->direction_strategies.pop_back();
@@ -572,6 +573,8 @@ namespace ILPCuts
 	void CPlexAdapter<cutsGenT>::transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr)
 	{
 		size_t n = vars.getSize();
+
+		const auto &cuts_Eigen = get_cuts();
 
 		for (size_t i = 0; i < cuts_Eigen.size(); ++i)
 		{

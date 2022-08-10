@@ -183,28 +183,26 @@ namespace ILPCuts
 		/*ConicCutsGenerator_adj(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:base(outs, errs) {}*/
 
-		std::vector<is_vec> generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det);
+		void generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det);
 
-		std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) override;
+		void generate_cuts(const is_mat &A, const rs_vec &optLP) override;
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::is_vec>
-	ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
+	void ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
 	{
 
 		out() << "Generating directions pool ..." << endl;
 
 		auto directions_pool = std::move(base::generate_directions_pool(A));
 
-		return std::move(base::generate_cuts(
+		base::generate_cuts(
 			create_cone_traits(A, adjA, det, directions_pool),
-			optLP));
+			optLP);
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::is_vec>
-	ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
+	void ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
 	{
 		try
 		{
@@ -219,13 +217,11 @@ namespace ILPCuts
 			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
 			out() << "matrix inversion time: " << timer.finish_str();
 
-			return std::move(generate_cuts(A, adjA, optLP, abs(det)));
+			generate_cuts(A, adjA, optLP, abs(det));
 		}
 		catch (ToleranceErrorException exc)
 		{
 			out() << "determinant computing tolerance error: " << exc.what() << endl;
-
-			return std::vector<is_vec>();
 		}
 	}
 }

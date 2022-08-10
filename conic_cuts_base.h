@@ -64,6 +64,10 @@ namespace ILPCuts
 			_Hilbert_base_alg.threads = threads;
 		}
 
+		is_mat _AT_copy;
+		rs_vec _optLP_copy;
+		std::vector<is_vec> _resulting_cuts;
+
 	protected:
 		using transform_base = ILPCuts::transform_base<int_type, rational_type, lint_type, lrational_type>;
 		using sparse_transform = ILPCuts::sparse_transform<int_type, rational_type, lint_type, lrational_type>;
@@ -166,7 +170,7 @@ namespace ILPCuts
 
 		virtual void process_node(const cone_traits &C, process_func pf) = 0;
 
-		std::vector<is_vec> generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP);
+		void generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP);
 
 		std::vector<rs_vec> generate_directions_pool(const is_mat &A)
 		{
@@ -247,7 +251,18 @@ namespace ILPCuts
 			return std::move(A);
 		}
 
-		virtual std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) = 0;
+		virtual void generate_cuts(const is_mat &A, const rs_vec &optLP) = 0;
+
+		std::vector<is_vec> get_cuts() const { return _resulting_cuts; }
+		void export_cuts(ofstream &out_file)
+		{
+			out_file << Utility::export_cuts(_resulting_cuts);
+		}
+
+		void clear_cuts()
+		{
+			_resulting_cuts.clear();
+		}
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
@@ -355,16 +370,15 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::is_vec>
-	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
+	void ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
 	{
 
 		init_Hilbert_alg_params();
 
+		clear_cuts();
+
 		Timer timer;
 		timer.start();
-
-		std::vector<is_vec> res_cuts;
 
 		out() << "Cone decomposition procedure is started ..." << endl;
 
@@ -384,17 +398,15 @@ namespace ILPCuts
 		for (const is_mat &uni_mat : uni_mat_pool)
 		{
 			auto new_cuts = generate_cuts_from_row_matrix(uni_mat, optLP);
-			res_cuts.insert(res_cuts.end(), std::make_move_iterator(new_cuts.begin()),
-							std::make_move_iterator(new_cuts.end()));
+			_resulting_cuts.insert(_resulting_cuts.end(), std::make_move_iterator(new_cuts.begin()),
+								   std::make_move_iterator(new_cuts.end()));
 		}
 
 		out() << "Transforming is finished, time = " << timer.finish_str()
 			  << "Filtering duplicate cuts..." << endl;
 
-		std::sort(res_cuts.begin(), res_cuts.end(), Utility::SparseVecComp<rs_vec>());
-		auto last = std::unique(res_cuts.begin(), res_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
-		res_cuts.erase(last, res_cuts.end());
-
-		return std::move(res_cuts);
+		std::sort(_resulting_cuts.begin(), _resulting_cuts.end(), Utility::SparseVecComp<rs_vec>());
+		auto last = std::unique(_resulting_cuts.begin(), _resulting_cuts.end(), Utility::SparseVecEquiv<rs_vec>());
+		_resulting_cuts.erase(last, _resulting_cuts.end());
 	}
 }

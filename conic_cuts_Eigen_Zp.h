@@ -182,7 +182,7 @@ namespace ILPCuts
         }
 
     public:
-        std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP, const lint_type &det)
+        void generate_cuts(const is_mat &A, const rs_vec &optLP, const lint_type &det)
         {
             out() << "Generating directions pool ..." << endl;
 
@@ -206,10 +206,10 @@ namespace ILPCuts
 
             out() << "Initial cone construction is finished, time = " << timer.finish_str();
 
-            return std::move(base::generate_cuts(std::move(initial_cone), optLP));
+            base::generate_cuts(std::move(initial_cone), optLP);
         }
 
-        std::vector<is_vec> generate_cuts(const is_mat &A, const rs_vec &optLP) override
+        void generate_cuts(const is_mat &A, const rs_vec &optLP) override
         {
             try
             {
@@ -225,13 +225,11 @@ namespace ILPCuts
                 out() << "determinant computation time: " << timer.finish_str()
                       << "determinant is: " << det << endl;
 
-                return generate_cuts(A, optLP, abs(det));
+                generate_cuts(A, optLP, abs(det));
             }
             catch (ToleranceErrorException exc)
             {
                 out() << "determinant computing tolerance error: " << exc.what() << endl;
-
-                return std::vector<is_vec>();
             }
         }
     };
