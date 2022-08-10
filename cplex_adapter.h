@@ -17,6 +17,7 @@ namespace ILPCuts
 		using is_vec = typename generator_base::is_vec;
 		using rs_vec = typename generator_base::rs_vec;
 		using Strategies = typename generator_base::Strategies;
+		using cut_info = typename generator_base::cut_info;
 
 		enum class IsLazy
 		{
@@ -136,10 +137,16 @@ namespace ILPCuts
 			generator_ptr->clear_cuts();
 		}
 
-		std::vector<is_vec> get_cuts() const { return generator_ptr->get_cuts(); }
+		const std::vector<cut_info> &get_cuts() const { return generator_ptr->get_cuts(); }
+
 		void export_cuts(ofstream &out_file)
 		{
 			generator_ptr->export_cuts(out_file);
+		}
+
+		void check_cuts_validity()
+		{
+			generator_ptr->check_cuts_validity();
 		}
 
 		bool set_lazy(string str_par)
@@ -485,24 +492,16 @@ namespace ILPCuts
 		{
 			const auto &cut = cuts_Eigen[i];
 			CPXNNZ nonzeros_C = 0;
-			int_type rhs_C = 0;
 
-			nonzeros_C = cut.nonZeros();
-			rhs_C = cut.coeff(cut.size() - 1);
-			if (rhs_C != 0)
-				--nonzeros_C;
+			nonzeros_C = cut.ray.nonZeros();
 
 			vector<CPXDIM> nonzero_idxs_C;
 			vector<double> nonzero_vals_C;
-			for (typename SparseVector<int_type>::InnerIterator it(cut); it; ++it)
+			for (typename SparseVector<int_type>::InnerIterator it(cut.ray); it; ++it)
 			{
-				if (it.index() != cut.size() - 1)
-				{
-					IloInt int_val = to_IloInt(it.value());
-					nonzero_idxs_C.push_back(it.index());
-					nonzero_vals_C.push_back(int_val);
-					// myData->log->out() << "VALLL = " << it.value() << endl;
-				}
+				IloInt int_val = to_IloInt(it.value());
+				nonzero_idxs_C.push_back(it.index());
+				nonzero_vals_C.push_back(int_val);
 			}
 
 			// for (size_t i = 0; i < nonzeros_C; i++)
@@ -511,7 +510,7 @@ namespace ILPCuts
 			// }
 			// cout << endl;
 
-			status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, rhs_C, 'L',
+			status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, cut.rhs, 'L',
 											 nonzero_idxs_C.data(), nonzero_vals_C.data());
 			// FOR GLOBAL CUTS: could be CPX_USECUT_FORCE, CPX_USECUT_PURGE or CPX_USECUT_FILTER
 			if (status)
@@ -581,15 +580,20 @@ namespace ILPCuts
 			IloExpr lhs = IloExpr(env);
 			IloNum rhs = 0;
 
-			for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it)
+			// for (typename is_vec::InnerIterator it(cuts_Eigen[i]); it; ++it)
+			// {
+			// 	if (it.index() < n)
+			// 		lhs += vars[it.index()] * to_IloInt(it.value());
+			// 	else
+			// 		rhs = to_IloInt(it.value());
+			// }
+
+			for (typename is_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
 			{
-				if (it.index() < n)
-					lhs += vars[it.index()] * to_IloInt(it.value());
-				else
-					rhs = to_IloInt(it.value());
+				lhs += vars[it.index()] * to_IloInt(it.value());
 			}
 
-			ilo_constr.add(IloRange(env, lhs, rhs));
+			ilo_constr.add(IloRange(env, lhs, cuts_Eigen[i].rhs));
 		}
 	}
 
