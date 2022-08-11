@@ -30,6 +30,8 @@ namespace ILPCuts
                                                  CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                                  double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
+        cplex_relaxed.clearModel();
+        cplex_master.clearModel();
         // put the relaxed model into the solver
         cplex_relaxed.extract(relaxed_model);
         env.out() << "solving relaxed model ...\n";

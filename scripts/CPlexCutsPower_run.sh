@@ -2,10 +2,10 @@
 
 cp -r -f ../primes_table ../build/primes_table
 
-rm -r -f ../build/CPlexCutsPower_10.08.2022_Wed_15-47
-mkdir ../build/CPlexCutsPower_10.08.2022_Wed_15-47
+rm -r -f ../build/CPlexCutsPower_11.08.2022_Thu_16-31
+mkdir ../build/CPlexCutsPower_11.08.2022_Thu_16-31
 
-cd ../build/CPlexCutsPower_10.08.2022_Wed_15-47
+cd ../build/CPlexCutsPower_11.08.2022_Thu_16-31
 
 #-------------------------------------------------------
 #air05.mps.gz

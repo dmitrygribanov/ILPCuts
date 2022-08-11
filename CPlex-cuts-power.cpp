@@ -135,6 +135,7 @@ map<string, SolutionInfo> init_solutions_map()
     }
     res["none"];
     res["all"];
+
     return res;
 }
 
@@ -317,19 +318,22 @@ void run_cplex_experiment(
     // solution_name -- stores hybrid configuration name
     auto add_hybrid_solution = [&](string solution_name, string cplex_param)
     {
-        cplex_master.clearModel();
         cplex_cut_types.set_param(cplex_master, cplex_param);
 
-        // creating copies of the relaxed model and constraints
+        cuts_gen_adapter.clear_cuts();
+
+        // creating copies of the models and constraints
         // we need this, because root_node_boosting_console_subprogram
-        // write to them
+        // can write to them
+        IloModel master_model_copy(env);
         IloModel relaxed_model_copy(env);
         IloRangeArray rngs_copy(env);
 
         // import data to the copy of the relaxed model
         // and copy of constraints
         rngs_copy.add(rngs);
-        relaxed_model_copy.add(master_model);
+        master_model_copy.add(master_model);
+        relaxed_model_copy.add(master_model_copy);
 
         // make all variables of the copy to be rational
         for (size_t i = 0; i < vars.getSize(); ++i)
@@ -339,7 +343,7 @@ void run_cplex_experiment(
 
         // solving the problem in the root node with ILPCuts cutting planes
         root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-                                              master_model, relaxed_model_copy,
+                                              master_model_copy, relaxed_model_copy,
                                               obj, rngs_copy, vars,
                                               cuts_gen_adapter,
                                               cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
@@ -357,6 +361,12 @@ void run_cplex_experiment(
             solutions_map[solution_name].is_incumbent_found = false;
         }
         solutions_map[solution_name].bestLPObjVal = cplex_master.getBestObjValue();
+
+        cplex_master.clearModel();
+        cplex_relaxed.clearModel();
+        rngs_copy.end();
+        relaxed_model_copy.end();
+        master_model_copy.end();
     };
 
     // adding some hybrid solutions-configurations
