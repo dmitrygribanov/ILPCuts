@@ -71,7 +71,7 @@ namespace ILPCuts
                 env.out() << "root node boosting iteration " << iteration_idx << " is started..." << endl;
 
                 // generate cuts from the relaxed model
-                env.out() << "constraints generation ..." << endl;
+                env.out() << "cuts generation ..." << endl;
                 if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, relaxed_model, obj, rngs, vars))
                 {
                     env.out() << "\ncutting plane generation has been stopped due to the time limit (" << cuts_tl << "s),\n"
@@ -80,6 +80,7 @@ namespace ILPCuts
                 }
 
                 // checking cuts validity
+                env.out() << "validity checking of the generated cuts ..." << endl;
                 cuts_gen_adapter.check_cuts_validity();
 
                 // adding cuts to the relaxed model as constraints

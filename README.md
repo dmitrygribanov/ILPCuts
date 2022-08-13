@@ -1,3 +1,9 @@
+# TODO #
+* Wideman's algorithm implementation
+* correct parallel version
+* correct time limit for ILPCuts generators
+* fast systems solving in ZZ
+
 # README #
 
 This README would normally document whatever steps are necessary to get your application up and running.
