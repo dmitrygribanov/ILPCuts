@@ -378,6 +378,27 @@ namespace ILPCuts
 		}
 
 		template <typename intT, typename randGenT>
+		SparseVector<intT> uniform_vec_generate(size_t n, randGenT &rgen, const intT &a, const intT &b)
+		{
+			using int_type = intT;
+			using is_vec = SparseVector<int_type>;
+
+			std::uniform_int_distribution<int_type> ud(a, b - 1);
+
+			// generation of a random rhs
+			is_vec res(n);
+			res.reserve(size_t(0.7 * n));
+			for (size_t i = 0; i < n; ++i)
+			{
+				int_type val = ud(rgen);
+				if (val != 0)
+					res.insert(i) = val;
+			}
+
+			return res;
+		}
+
+		template <typename intT, typename randGenT>
 		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT &rgen)
 		{
 			using int_type = intT;
@@ -395,7 +416,7 @@ namespace ILPCuts
 					res.insert(i) = 1;
 			}
 
-			return std::move(res);
+			return res;
 		}
 
 		template <typename intT>
@@ -407,7 +428,7 @@ namespace ILPCuts
 		public:
 			KeepIntFunc() : zero(0) {}
 
-			bool operator()(const intT &x) const { return x != zero; }
+			bool operator()(size_t i, size_t j, const intT &x) const { return x != zero; }
 		};
 
 		template <typename intT>

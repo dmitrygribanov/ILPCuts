@@ -6,6 +6,7 @@
 
 #include "basic_utils.h"
 #include "gmp_eigen_supp.h"
+#include "ntl_eigen_supp.h"
 #include "timer.h"
 #include "cuts_strategies.h"
 #include "sparse_transform.h"
