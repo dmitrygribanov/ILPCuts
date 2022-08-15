@@ -73,11 +73,11 @@ namespace ILPCuts
     private:
         using is_vec = SparseVector<int_type>;
 
-        const is_mat &_A;
+        const is_mat _A;
 
     public:
-        Oracle_zzp(const is_mat &A)
-            : _A(A) { assert(_A.cols() == _A.rows()); }
+        Oracle_zzp(is_mat A)
+            : _A(move(A)) { assert(_A.cols() == _A.rows()); }
 
         size_t dim() const
         {
@@ -102,8 +102,6 @@ namespace ILPCuts
     class wiedemanns_alg
     {
     private:
-        std::mt19937 &_rgen;
-
         vector<zz_p> generate_nonzero_vec(size_t n)
         {
             size_t ntries = 0;
@@ -117,7 +115,7 @@ namespace ILPCuts
 
                 for (size_t i = 0; i < n; ++i)
                 {
-                    res[i] = ud(_rgen);
+                    res[i] = ud(*rgen);
                 }
 
                 if (!is_zero_vec(res))
@@ -141,7 +139,7 @@ namespace ILPCuts
             size_t n = b.size();
 
             vector<zz_p> u = generate_nonzero_vec(n);
-            cout << "u = " << Utility::dense_vec_to_str(u) << endl;
+            // cout << "u = " << Utility::dense_vec_to_str(u) << endl;
 
             zz_pX res;
             res.SetLength(len);
@@ -167,6 +165,7 @@ namespace ILPCuts
 
     public:
         logger &log;
+        std::mt19937 *rgen;
         size_t nonzero_lim = 3;
         size_t kernel_lim = 30;
         size_t vec_min_poly_lim = 30;
@@ -183,8 +182,8 @@ namespace ILPCuts
             return log.empty();
         }
 
-        wiedemanns_alg(std::mt19937 &rgen, logger &alog)
-            : _rgen(rgen), log(alog) {}
+        wiedemanns_alg(logger &alog)
+            : log(alog) {}
 
         template <typename oracleT>
         vector<zz_p> apply_poly(const oracleT &O, const zz_pX &fX, vector<zz_p> b)

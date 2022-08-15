@@ -24,7 +24,7 @@
             ]
         },
         {
-            "name": "(gdb; zp) supportcase30",
+            "name": "(gdb) supportcase30",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
@@ -60,7 +60,7 @@
             ]
         },
         {
-            "name": "(gdb; zp) sorrell3",
+            "name": "(gdb) sorrell3",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
@@ -96,7 +96,7 @@
             ]
         },
         {
-            "name": "(gdb; zp; --model_cuts on) sorrell3",
+            "name": "(gdb; --model_cuts on) sorrell3",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
@@ -134,7 +134,7 @@
             ]
         },
         {
-            "name": "(gdb; zp) pb-market",
+            "name": "(gdb) pb-market",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:

@@ -100,7 +100,8 @@ namespace ILPCuts
         Oracle_zzp<int64_t> O(A_sparse);
 
         mt19937 rgen;
-        wiedemanns_alg wd_alg(rgen, log);
+        wiedemanns_alg wd_alg(log);
+        wd_alg.rgen = &rgen;
 
         vector<zz_p> b = {zz_p(3), zz_p(1), zz_p(2)};
 
@@ -142,7 +143,8 @@ namespace ILPCuts
         Oracle_zzp<int64_t> O(A_sparse);
 
         mt19937 rgen;
-        wiedemanns_alg wd_alg(rgen, log);
+        wiedemanns_alg wd_alg(log);
+        wd_alg.rgen = &rgen;
 
         vector<zz_p> dense_x = wd_alg.solve_kernel_v1(O);
         log.out() << "solution \"x\" is: " << Utility::dense_vec_to_str(dense_x) << endl;
