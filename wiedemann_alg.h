@@ -8,10 +8,8 @@ namespace ILPCuts
 {
     using namespace NTL;
 
-    tuple<zz_pX, zz_pX> pade_approx(zz_pX bX, size_t k)
+    tuple<zz_pX, zz_pX> pade_approx(zz_pX bX, size_t n, size_t k)
     {
-
-        size_t n = deg(bX) + 1;
         zz_pX aX(INIT_MONO, n);
 
         zz_pX saX(INIT_MONO, 0, 1);
@@ -19,7 +17,7 @@ namespace ILPCuts
         zz_pX taX;
         zz_pX tbX(INIT_MONO, 0, 1);
 
-        while (deg(bX) >= k)
+        while (deg(bX) != -1 && deg(bX) >= k)
         {
             zz_pX qX, rX;
             DivRem(qX, rX, aX, bX);
@@ -35,17 +33,21 @@ namespace ILPCuts
 
             aX = bX;
             bX = rX;
+
+            bX.normalize();
         }
+
+        tbX.normalize();
 
         return make_tuple(bX, tbX);
     }
 
-    zz_pX seq_min_poly(const zz_pX &aX)
+    zz_pX seq_min_poly(const zz_pX &aX, size_t len)
     {
-        size_t n = (deg(aX) + 1) / 2;
+        size_t n = len / 2;
 
         zz_pX sX, tX;
-        tie(sX, tX) = pade_approx(aX, n);
+        tie(sX, tX) = pade_approx(aX, 2 * n, n);
 
         size_t res_deg = max(1 + deg(sX), deg(tX));
 
@@ -54,6 +56,11 @@ namespace ILPCuts
         tX = LeftShift(tX, res_deg - deg(tX));
 
         return tX;
+    }
+
+    zz_pX seq_min_poly(const zz_pX &aX)
+    {
+        return seq_min_poly(aX, deg(aX) + 1);
     }
 
     template <typename intT>
@@ -82,19 +89,11 @@ namespace ILPCuts
             size_t n = b.size();
             assert(n == _A.cols());
 
-            is_vec sp_b(n);
-            for (size_t i = 0; i < n; ++i)
-            {
-                if (b[i] != 0)
-                    sp_b.insertBack(i) = rep(b[i]);
-            }
+            is_vec sp_b = Utility::vec_conv<zz_p, int_type>(b);
+
             sp_b = _A * sp_b;
 
-            vector<zz_p> res(n, zz_p(0));
-            for (typename is_vec::InnerIterator it(sp_b); it; ++it)
-            {
-                res[it.index()] = it.value();
-            }
+            vector<zz_p> res = Utility::vec_conv<int_type, zz_p>(sp_b);
 
             return res;
         }
@@ -142,16 +141,21 @@ namespace ILPCuts
             size_t n = b.size();
 
             vector<zz_p> u = generate_nonzero_vec(n);
+            cout << "u = " << Utility::dense_vec_to_str(u) << endl;
 
             zz_pX res;
             res.SetLength(len);
             for (size_t i = 0; i < len; ++i)
             {
+
+                // cout << "i = " << i << "; b = " << Utility::dense_vec_to_str(b) << endl;
                 res[i] = inner_product(u.cbegin(), u.cend(), b.cbegin(), zz_p(0));
+                // cout << "res[i] = " << res[i] << endl;
 
                 b = O(b);
             }
 
+            res.normalize();
             return res;
         }
 
@@ -164,8 +168,20 @@ namespace ILPCuts
     public:
         logger &log;
         size_t nonzero_lim = 3;
-        size_t kernel_lim = 10;
-        size_t vec_min_poly_lim = 10;
+        size_t kernel_lim = 30;
+        size_t vec_min_poly_lim = 30;
+        bool silent = false;
+
+        logger::stream &out()
+        {
+            if (!silent)
+            {
+                log.out() << "ILPCuts Wiedemann's alg.: ";
+                return log.out();
+            }
+
+            return log.empty();
+        }
 
         wiedemanns_alg(std::mt19937 &rgen, logger &alog)
             : _rgen(rgen), log(alog) {}
@@ -199,9 +215,15 @@ namespace ILPCuts
             size_t ntries = 0;
             while (!is_zero_vec(b) && ntries < vec_min_poly_lim)
             {
-                zz_pX seqX = generate_seq(2 * (n - deg(mX)), O, b);
+                // out() << "b = " << Utility::dense_vec_to_str(b) << endl;
+                // out() << "mX = " << mX << "; deg = " << deg(mX) << endl;
+                size_t len = 2 * (n - deg(mX));
+                zz_pX seqX = generate_seq(len, O, b);
 
-                zz_pX seq_mX = seq_min_poly(seqX);
+                // out() << "seqX = " << seqX << endl;
+                zz_pX seq_mX = seq_min_poly(seqX, len);
+
+                // out() << "seq_mX = " << seq_mX << endl;
 
                 b = apply_poly(O, seq_mX, b);
 
@@ -236,7 +258,7 @@ namespace ILPCuts
             size_t ntries = 0;
             while (!zero_root_poly_generated && ntries < kernel_lim)
             {
-                vector<zz_p> b = generate_nonzero_vec(n);
+                b = generate_nonzero_vec(n);
 
                 mX = vec_min_poly(O, b);
 
@@ -258,6 +280,7 @@ namespace ILPCuts
             }
 
             mX = RightShift(mX, 1);
+            mX.normalize();
 
             return apply_poly(O, mX, b);
         }

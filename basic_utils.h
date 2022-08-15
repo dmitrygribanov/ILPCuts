@@ -144,6 +144,36 @@ namespace ILPCuts
 		template <typename inT, typename outT>
 		outT conv(const inT &a) { return outT(a); }
 
+		template <typename inT, typename outT>
+		vector<outT> vec_conv(const SparseVector<inT> &a)
+		{
+			size_t n = a.size();
+
+			vector<outT> res(n, outT(0));
+
+			for (typename SparseVector<inT>::InnerIterator it(a); it; ++it)
+			{
+				res[it.index()] = conv<inT, outT>(it.value());
+			}
+
+			return res;
+		}
+
+		template <typename inT, typename outT>
+		SparseVector<outT> vec_conv(const vector<inT> &a)
+		{
+			size_t n = a.size();
+
+			SparseVector<outT> res(n);
+			for (size_t i = 0; i < n; ++i)
+			{
+				if (a[i] != 0)
+					res.insertBack(i) = conv<inT, outT>(a[i]);
+			}
+
+			return res;
+		}
+
 		template <typename intT, typename ratT>
 		intT rat_to_int(const ratT &rat_x, double err_tolerance)
 		{
@@ -487,58 +517,30 @@ namespace ILPCuts
 			return true;
 		}
 
-		// this functions transforms a sparce vector to a dense vector
-		// and then prints it to a string
-		template <typename valT>
-		string vec_to_str_dense(const SparseVector<valT> &v)
+		template <typename vecT>
+		string dense_vec_to_str(const vecT &v)
 		{
 			stringstream res;
 
-			typename SparseVector<valT>::InnerIterator it(v);
-
-			assert(v.size() != 0);
-
-			size_t i = 0;
-			size_t n = v.size();
-
-			// invariant: i <= it.index()
-
-			if (i < it.index())
-				res << "0";
-			else
+			if (!v.empty())
 			{
-				assert(i == it.index());
-				res << it.value();
-				++it;
-			}
-
-			++i;
-
-			while (it)
-			{
-				assert(i <= it.index());
-
-				while (i < it.index())
+				res << v[0];
+				for (size_t i = 1; i < v.size(); ++i)
 				{
-					res << " 0";
-					++i;
+					res << " " << v[i];
 				}
-
-				res << " " << it.value();
-
-				++i;
-				++it;
-			}
-
-			assert(i <= n);
-
-			while (i < n)
-			{
-				res << " 0";
-				++i;
 			}
 
 			return res.str();
 		}
+
+		// this functions transforms a sparce vector to a dense vector
+		// and then prints it to a string
+		template <typename valT>
+		string sparse_vec_to_str(const SparseVector<valT> &v)
+		{
+			return dense_vec_to_str(vec_conv<valT, valT>(v));
+		}
+
 	};
 }

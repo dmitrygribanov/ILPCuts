@@ -295,7 +295,7 @@ namespace ILPCuts
 		{
 			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
 			{
-				out_file << Utility::vec_to_str_dense(_resulting_cuts[i].ray) << " "
+				out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
 						 << _resulting_cuts[i].rhs << "\n";
 			}
 		}

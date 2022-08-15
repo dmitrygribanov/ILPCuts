@@ -18,6 +18,7 @@ namespace ILPCuts
         ofstream _file;
         tee_device _tee_dev;
         stream _stream;
+        stream _empty_stream;
 
     public:
         logger(string log_file_name = "log.txt", ostream &a_ostr = cout)
@@ -34,6 +35,8 @@ namespace ILPCuts
         }
 
         stream &out() { return _stream; }
+
+        stream &empty() { return _empty_stream; }
 
         void print_command_line_params(int argc, char **argv)
         {

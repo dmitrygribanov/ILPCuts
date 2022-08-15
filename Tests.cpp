@@ -1,10 +1,14 @@
 ﻿#include "wiedemann_alg.h"
 
+#include <eigen3/Eigen/LU>
+
 using namespace ILPCuts;
 using namespace std;
 
 namespace ILPCuts
 {
+    using namespace NTL;
+
     logger log("tests_log.txt");
 
     void seq_min_poly_unit_test()
@@ -12,6 +16,7 @@ namespace ILPCuts
         log.out() << "Sequence minimal polynomial test..." << endl;
 
         zz_p::init(5);
+        log.out() << "modulus: " << zz_p::modulus() << endl;
 
         stringstream str;
         zz_pX fX;
@@ -41,6 +46,7 @@ namespace ILPCuts
         log.out() << "Pade's approximation test..." << endl;
 
         zz_p::init(5);
+        log.out() << "modulus: " << zz_p::modulus() << endl;
 
         stringstream str;
         zz_pX fX;
@@ -51,7 +57,7 @@ namespace ILPCuts
                   << "(k, n-k) = (2,2)" << endl;
 
         zz_pX sX, tX;
-        tie(sX, tX) = pade_approx(fX, 2);
+        tie(sX, tX) = pade_approx(fX, 4, 2);
 
         log.out() << "result is (s/t):\n"
                   << "s(x) = " << sX << "\n"
@@ -73,6 +79,87 @@ namespace ILPCuts
         else
             log.out() << "---FAILED---\n"
                       << endl;
+    }
+
+    void vector_min_poly_unit_test()
+    {
+        log.out() << "Vector minimal polynomial test..." << endl;
+
+        zz_p::init(5);
+        log.out() << "modulus: " << zz_p::modulus() << endl;
+
+        MatrixXi A_dense(3, 3);
+        A_dense << 1, 4, 4,
+            4, 0, 3,
+            1, 2, 4;
+
+        log.out() << "matrix A:\n"
+                  << A_dense << endl;
+
+        SparseMatrix<int64_t> A_sparse(A_dense.cast<int64_t>().sparseView());
+        Oracle_zzp<int64_t> O(A_sparse);
+
+        mt19937 rgen;
+        wiedemanns_alg wd_alg(rgen, log);
+
+        vector<zz_p> b = {zz_p(3), zz_p(1), zz_p(2)};
+
+        // std::copy(b.begin(), b.end(), std::ostream_iterator<char>(log.out(), " "));
+        log.out() << "vector b: "
+                  << Utility::dense_vec_to_str(b) << endl;
+
+        zz_pX mX = wd_alg.vec_min_poly(O, b);
+        log.out() << "minimal polynomial: " << mX << endl;
+
+        stringstream str;
+        str << "[1 3 0 1]";
+        zz_pX ans_mX;
+        str >> ans_mX;
+
+        if (mX == ans_mX)
+            log.out() << "---DONE---\n"
+                      << endl;
+        else
+            log.out() << "---FAILED---\n"
+                      << endl;
+    }
+
+    void Zp_kernel_unit_test(const MatrixXi &A_dense, int modulus)
+    {
+        log.out() << "Zp kernel test..." << endl;
+
+        log.out() << "matrix A:\n"
+                  << A_dense << endl;
+
+        FullPivLU<MatrixXd> LU(A_dense.cast<double>());
+        int det = abs(round(LU.determinant()));
+
+        zz_p::init(modulus);
+        log.out() << "det(A) = " << det << endl;
+        log.out() << "modulus = " << modulus << endl;
+
+        SparseMatrix<int64_t> A_sparse(A_dense.cast<int64_t>().sparseView());
+        Oracle_zzp<int64_t> O(A_sparse);
+
+        mt19937 rgen;
+        wiedemanns_alg wd_alg(rgen, log);
+
+        vector<zz_p> dense_x = wd_alg.solve_kernel_v1(O);
+        log.out() << "solution \"x\" is: " << Utility::dense_vec_to_str(dense_x) << endl;
+
+        SparseVector<int64_t> sparse_x = Utility::vec_conv<zz_p, int64_t>(dense_x);
+        if (Utility::is_zero((A_sparse * sparse_x).unaryExpr(Utility::mod_unaryop(det)).eval()))
+        {
+            log.out() << "A x == 0\n"
+                      << "---DONE---\n"
+                      << endl;
+        }
+        else
+        {
+            log.out() << "A x != 0\n"
+                      << "---FAILED---\n"
+                      << endl;
+        }
     }
 
 } // namespace ILPCuts
@@ -217,6 +304,18 @@ int main()
     {
         seq_min_poly_unit_test();
         pade_approx_unit_test();
+        vector_min_poly_unit_test();
+
+        MatrixXi A(3, 3);
+        A << 1, 1, 0,
+            1, 0, 1,
+            0, 1, 1;
+        Zp_kernel_unit_test(A, 2);
+
+        A << 2, -1, 3,
+            4, 5, 1,
+            2, -2, 3;
+        Zp_kernel_unit_test(A, 5);
     }
     catch (const std::exception &err)
     {

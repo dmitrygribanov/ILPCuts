@@ -44,6 +44,9 @@ namespace ILPCuts
             A.prune(KeepIntFunc<zz_p>());
         }
 
+        template <>
+        int64_t conv<zz_p, int64_t>(const zz_p &a) { return rep(a); }
+
         // template <>
         // void prune_zeroes_int<zz_p>(SparseVector<zz_p> &A)
         // {
