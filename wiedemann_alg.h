@@ -24,11 +24,11 @@ namespace ILPCuts
             zz_pX qX, rX;
             DivRem(qX, rX, aX, bX);
 
-            zz_pX nsaX = saX - sbX * qX;
+            zz_pX nsbX = saX - sbX * qX;
             zz_pX ntbX = taX - tbX * qX;
 
             saX = sbX;
-            sbX = nsaX;
+            sbX = nsbX;
 
             taX = tbX;
             tbX = ntbX;
@@ -105,19 +105,49 @@ namespace ILPCuts
     private:
         std::mt19937 &_rgen;
 
+        vector<zz_p> generate_nonzero_vec(size_t n)
+        {
+            size_t ntries = 0;
+            int64_t p = zz_p::modulus();
+
+            std::uniform_int_distribution<int64_t> ud(0, p - 1);
+
+            while (ntries < nonzero_lim)
+            {
+                vector<zz_p> res(n, zz_p(0));
+
+                for (size_t i = 0; i < n; ++i)
+                {
+                    res[i] = ud(_rgen);
+                }
+
+                if (!is_zero_vec(res))
+                    return res;
+
+                ++ntries;
+            }
+
+            stringstream msg;
+            msg << "ILPCuts error: failed to generate nonzero vector in Wiedemann's algorithm:\n"
+                << "limit: " << nonzero_lim << "\n"
+                << "tries: " << ntries << "\n"
+                << "modulus: " << p << "\n";
+
+            throw Exception(msg.str());
+        }
+
         template <typename oracleT>
         zz_pX generate_seq(size_t len, const oracleT &O, vector<zz_p> b)
         {
             size_t n = b.size();
 
-            vector<zz_p> u;
-            generate_n(back_inserter(u), n, random_zz_p);
+            vector<zz_p> u = generate_nonzero_vec(n);
 
             zz_pX res;
             res.SetLength(len);
             for (size_t i = 0; i < len; ++i)
             {
-                res[i] = inner_product(u.begin(), u.end(), b.begin(), zz_p(0));
+                res[i] = inner_product(u.cbegin(), u.cend(), b.cbegin(), zz_p(0));
 
                 b = O(b);
             }
@@ -133,6 +163,9 @@ namespace ILPCuts
 
     public:
         logger &log;
+        size_t nonzero_lim = 3;
+        size_t kernel_lim = 10;
+        size_t vec_min_poly_lim = 10;
 
         wiedemanns_alg(std::mt19937 &rgen, logger &alog)
             : _rgen(rgen), log(alog) {}
@@ -158,13 +191,13 @@ namespace ILPCuts
         zz_pX vec_min_poly(const oracleT &O, vector<zz_p> b)
         {
             size_t n = O.dim();
-            assert(n == b.size());
-
             long p = zz_p::modulus();
+            assert(n == b.size());
 
             zz_pX mX(INIT_MONO, 0, 1);
 
-            while (is_zero_vec(b))
+            size_t ntries = 0;
+            while (!is_zero_vec(b) && ntries < vec_min_poly_lim)
             {
                 zz_pX seqX = generate_seq(2 * (n - deg(mX)), O, b);
 
@@ -173,33 +206,60 @@ namespace ILPCuts
                 b = apply_poly(O, seq_mX, b);
 
                 mX *= seq_mX;
+
+                ++ntries;
+            }
+
+            if (!is_zero_vec(b))
+            {
+                stringstream msg;
+                msg << "ILPCuts error: failed to compute minimal polynomial in Wiedemann's algorithm:\n"
+                    << "limit: " << vec_min_poly_lim << "\n"
+                    << "tries: " << ntries << "\n"
+                    << "modulus: " << p << "\n";
+
+                throw Exception(msg.str());
             }
 
             return mX;
         }
 
         template <typename oracleT>
-        vector<zz_p> solve_kernel(const oracleT &O)
+        vector<zz_p> solve_kernel_v1(const oracleT &O)
         {
             size_t n = O.dim();
+            int64_t p = zz_p::modulus();
 
             bool zero_root_poly_generated = false;
-            zz_pX mX(INIT_MONO, 0, 1);
+            zz_pX mX;
             vector<zz_p> b;
-            while (!zero_root_poly_generated)
+            size_t ntries = 0;
+            while (!zero_root_poly_generated && ntries < kernel_lim)
             {
-                vector<zz_p> x;
-                generate_n(back_inserter(x), n, random_zz_p);
-
-                if (is_zero_vec(x))
-                    continue;
-
-                b = O(x);
-                if (is_zero_vec(b))
-                    return x;
+                vector<zz_p> b = generate_nonzero_vec(n);
 
                 mX = vec_min_poly(O, b);
+
+                if (mX[0] == 0)
+                    zero_root_poly_generated = true;
+
+                ++ntries;
             }
+
+            if (!zero_root_poly_generated)
+            {
+                stringstream msg;
+                msg << "ILPCuts error: failed to compute kernel vector in Wiedemann's algorithm:\n"
+                    << "limit: " << kernel_lim << "\n"
+                    << "tries: " << ntries << "\n"
+                    << "modulus: " << p << "\n";
+
+                throw Exception(msg.str());
+            }
+
+            mX = RightShift(mX, 1);
+
+            return apply_poly(O, mX, b);
         }
     };
 } // namespace ILPCuts
