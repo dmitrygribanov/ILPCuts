@@ -27,30 +27,6 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-
-    zz_p::init(5);
-
-    zz_pX fX;
-    stringstream str;
-    str << "[1 2 3 4]";
-
-    str >> fX;
-
-    cout << "init poly: " << fX << endl;
-
-    zz_pX sX, tX;
-    tie(sX, tX) = pade_approx(fX, 2);
-
-    cout << "pade approx:\n"
-         << sX << "\n"
-         << tX << endl;
-
-    str << "[3 0 4 2 3 0]";
-    str >> fX;
-    zz_pX mX = seq_min_poly(fX);
-
-    cout << "min poly: " << mX << endl;
-
     SparseMatrix<int64_t> A(2, 2);
     SparseVector<int64_t> b(2);
     mt19937 engine;
