@@ -83,6 +83,7 @@ namespace ILPCuts
 
     void vector_min_poly_unit_test()
     {
+        stringstream str;
         log.out() << "Vector minimal polynomial test..." << endl;
 
         zz_p::init(5);
@@ -99,20 +100,19 @@ namespace ILPCuts
         SparseMatrix<int64_t> A_sparse(A_dense.cast<int64_t>().sparseView());
         Oracle_zzp<int64_t> O(A_sparse);
 
-        mt19937 rgen;
         wiedemanns_alg wd_alg(log);
-        wd_alg.rgen = &rgen;
 
-        vector<zz_p> b = {zz_p(3), zz_p(1), zz_p(2)};
+        str << "[3 1 2]";
+        vec_zz_p b;
+        str >> b;
 
         // std::copy(b.begin(), b.end(), std::ostream_iterator<char>(log.out(), " "));
         log.out() << "vector b: "
-                  << Utility::dense_vec_to_str(b) << endl;
+                  << b << endl;
 
         zz_pX mX = wd_alg.vec_min_poly(O, b);
         log.out() << "minimal polynomial: " << mX << endl;
 
-        stringstream str;
         str << "[1 3 0 1]";
         zz_pX ans_mX;
         str >> ans_mX;
@@ -142,14 +142,12 @@ namespace ILPCuts
         SparseMatrix<int64_t> A_sparse(A_dense.cast<int64_t>().sparseView());
         Oracle_zzp<int64_t> O(A_sparse);
 
-        mt19937 rgen;
         wiedemanns_alg wd_alg(log);
-        wd_alg.rgen = &rgen;
 
-        vector<zz_p> dense_x = wd_alg.solve_kernel_v1(O);
-        log.out() << "solution \"x\" is: " << Utility::dense_vec_to_str(dense_x) << endl;
+        vec_zz_p dense_x = wd_alg.solve_kernel_v1(O);
+        log.out() << "solution \"x\" is: " << dense_x << endl;
 
-        SparseVector<int64_t> sparse_x = Utility::vec_conv<zz_p, int64_t>(dense_x);
+        auto sparse_x = Utility::conv<vec_zz_p, SparseVector<int64_t>>::make(dense_x);
         if (Utility::is_zero((A_sparse * sparse_x).unaryExpr(Utility::mod_unaryop(det)).eval()))
         {
             log.out() << "A x == 0\n"

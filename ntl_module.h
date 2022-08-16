@@ -41,19 +41,19 @@ namespace ILPCuts
                 template <>
                 struct Conversion<ZZ, int64_t>
                 {
-                    int64_t operator()(const ZZ &a) const { return conv<int64_t>(a); }
+                    int64_t operator()(const ZZ &a) const { return ::NTL::conv<int64_t>(a); }
                 };
 
                 template <>
                 struct Conversion<mpz_class, ZZ_p>
                 {
-                    ZZ_p operator()(const mpz_class &a) const { return conv<ZZ_p>(mpz_to_ZZ(a)); }
+                    ZZ_p operator()(const mpz_class &a) const { return ::NTL::conv<ZZ_p>(mpz_to_ZZ(a)); }
                 };
 
                 template <>
                 struct Conversion<ZZ_p, mpz_class>
                 {
-                    mpz_class operator()(const ZZ_p &a) const { return ZZ_to_mpz(conv<ZZ>(a)); }
+                    mpz_class operator()(const ZZ_p &a) const { return ZZ_to_mpz(::NTL::conv<ZZ>(a)); }
                 };
 
                 template <>
@@ -65,19 +65,19 @@ namespace ILPCuts
                 template <>
                 struct Conversion<GF2, mpz_class>
                 {
-                    mpz_class operator()(const GF2 &a) const { return mpz_class(conv<int>(a)); }
+                    mpz_class operator()(const GF2 &a) const { return mpz_class(::NTL::conv<int>(a)); }
                 };
 
                 template <>
                 struct Conversion<zz_p, int64_t>
                 {
-                    int64_t operator()(const zz_p &a) const { return conv<int64_t>(a); }
+                    int64_t operator()(const zz_p &a) const { return ::NTL::conv<int64_t>(a); }
                 };
 
                 template <>
                 struct Conversion<GF2, int64_t>
                 {
-                    int64_t operator()(const GF2 &a) const { return conv<int64_t>(a); }
+                    int64_t operator()(const GF2 &a) const { return ::NTL::conv<int64_t>(a); }
                 };
 
                 template <>

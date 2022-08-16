@@ -49,7 +49,7 @@ namespace ILPCuts
             rational_type r_i = 0;
             for (size_t k = i + 1; k < n; ++k)
                 r_i += x[k] * A[i][k];
-            int_type ceil_r_i = Utility::conv<rational_type, int_type>(ceil(r_i));
+            int_type ceil_r_i = Utility::conv<rational_type, int_type>::make(ceil(r_i));
             int_type initial_y = ceil_r_i;
             int_type H_ii = A[i][i];
             for (int_type y_i = initial_y; y_i < initial_y + H_ii; ++y_i)

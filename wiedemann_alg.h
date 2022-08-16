@@ -3,6 +3,7 @@
 #include "base_module.h"
 #include "ntl_module.h"
 #include <NTL/lzz_pX.h>
+#include <NTL/vec_lzz_p.h>
 
 namespace ILPCuts
 {
@@ -84,16 +85,16 @@ namespace ILPCuts
             return _A.cols();
         }
 
-        vector<zz_p> operator()(const vector<zz_p> &b) const
+        vec_zz_p operator()(const vec_zz_p &b) const
         {
-            size_t n = b.size();
+            size_t n = b.length();
             assert(n == _A.cols());
 
-            is_vec sp_b = Utility::vec_conv<zz_p, int_type>(b);
+            is_vec sp_b = Utility::conv<vec_zz_p, is_vec>::make(b);
 
             sp_b = _A * sp_b;
 
-            vector<zz_p> res = Utility::vec_conv<int_type, zz_p>(sp_b);
+            vec_zz_p res = Utility::conv<is_vec, vec_zz_p>::make(sp_b);
 
             return res;
         }
@@ -102,21 +103,15 @@ namespace ILPCuts
     class wiedemanns_alg
     {
     private:
-        vector<zz_p> generate_nonzero_vec(size_t n)
+        vec_zz_p generate_nonzero_vec(size_t n)
         {
             size_t ntries = 0;
             int64_t p = zz_p::modulus();
 
-            std::uniform_int_distribution<int64_t> ud(0, p - 1);
-
             while (ntries < nonzero_lim)
             {
-                vector<zz_p> res(n, zz_p(0));
-
-                for (size_t i = 0; i < n; ++i)
-                {
-                    res[i] = ud(*rgen);
-                }
+                vec_zz_p res;
+                random(res, n);
 
                 if (!is_zero_vec(res))
                     return res;
@@ -134,21 +129,19 @@ namespace ILPCuts
         }
 
         template <typename oracleT>
-        zz_pX generate_seq(size_t len, const oracleT &O, vector<zz_p> b)
+        zz_pX generate_seq(size_t len, const oracleT &O, vec_zz_p b)
         {
-            size_t n = b.size();
+            size_t n = b.length();
 
-            vector<zz_p> u = generate_nonzero_vec(n);
+            vec_zz_p u = generate_nonzero_vec(n);
             // cout << "u = " << Utility::dense_vec_to_str(u) << endl;
 
             zz_pX res;
             res.SetLength(len);
             for (size_t i = 0; i < len; ++i)
             {
-
-                // cout << "i = " << i << "; b = " << Utility::dense_vec_to_str(b) << endl;
-                res[i] = inner_product(u.cbegin(), u.cend(), b.cbegin(), zz_p(0));
-                // cout << "res[i] = " << res[i] << endl;
+                NTL::InnerProduct(res[i], u, b);
+                // res[i] = inner_product(u.cbegin(), u.cend(), b.cbegin(), zz_p(0));
 
                 b = O(b);
             }
@@ -157,7 +150,7 @@ namespace ILPCuts
             return res;
         }
 
-        bool is_zero_vec(const vector<zz_p> &x) const
+        bool is_zero_vec(const vec_zz_p &x) const
         {
             return all_of(x.begin(), x.end(), [](const zz_p &e)
                           { return e == 0; });
@@ -165,7 +158,6 @@ namespace ILPCuts
 
     public:
         logger &log;
-        std::mt19937 *rgen;
         size_t nonzero_lim = 3;
         size_t kernel_lim = 30;
         size_t vec_min_poly_lim = 30;
@@ -186,16 +178,18 @@ namespace ILPCuts
             : log(alog) {}
 
         template <typename oracleT>
-        vector<zz_p> apply_poly(const oracleT &O, const zz_pX &fX, vector<zz_p> b)
+        vec_zz_p apply_poly(const oracleT &O, const zz_pX &fX, vec_zz_p b)
         {
-            size_t n = b.size();
+            size_t n = b.length();
             size_t d = deg(fX);
 
-            vector<zz_p> res(n, zz_p(0));
+            vec_zz_p res;
+            res.SetLength(n, zz_p(0));
             for (size_t i = 0; i <= d; ++i)
             {
-                transform(res.cbegin(), res.cend(), b.cbegin(), res.begin(), [&](const auto &e1, const auto &e2)
-                          { return e1 + fX[i] * e2; });
+                res += b * fX[i];
+                // transform(res.cbegin(), res.cend(), b.cbegin(), res.begin(), [&](const auto &e1, const auto &e2)
+                //           { return e1 + fX[i] * e2; });
                 b = O(b);
             }
 
@@ -203,7 +197,7 @@ namespace ILPCuts
         }
 
         template <typename oracleT>
-        zz_pX vec_min_poly(const oracleT &O, vector<zz_p> b)
+        zz_pX vec_min_poly(const oracleT &O, vec_zz_p b)
         {
             size_t n = O.dim();
             long p = zz_p::modulus();
@@ -246,14 +240,14 @@ namespace ILPCuts
         }
 
         template <typename oracleT>
-        vector<zz_p> solve_kernel_v1(const oracleT &O)
+        vec_zz_p solve_kernel_v1(const oracleT &O)
         {
             size_t n = O.dim();
             int64_t p = zz_p::modulus();
 
             bool zero_root_poly_generated = false;
             zz_pX mX;
-            vector<zz_p> b;
+            vec_zz_p b;
             size_t ntries = 0;
             while (!zero_root_poly_generated && ntries < kernel_lim)
             {

@@ -127,21 +127,50 @@ namespace ILPCuts
 {
     namespace Utility
     {
+        template <>
+        struct conv<mpz_class, int64_t>
+        {
+            static int64_t make(const mpz_class &a)
+            {
+                return a.get_si();
+            }
+        };
 
         template <>
-        int64_t conv<mpz_class, int64_t>(const mpz_class &a) { return a.get_si(); }
+        struct conv<mpf_class, double>
+        {
+            static double make(const mpf_class &a)
+            {
+                return a.get_si();
+            }
+        };
 
         template <>
-        double conv<mpf_class, double>(const mpf_class &a) { return a.get_si(); }
+        struct conv<mpq_class, double>
+        {
+            static double make(const mpq_class &a)
+            {
+                return a.get_d();
+            }
+        };
 
         template <>
-        double conv<mpq_class, double>(const mpq_class &a) { return a.get_d(); }
+        struct conv<mpf_class, int64_t>
+        {
+            static int64_t make(const mpf_class &a)
+            {
+                return static_cast<int64_t>(a.get_d());
+            }
+        };
 
         template <>
-        int64_t conv<mpf_class, int64_t>(const mpf_class &a) { return static_cast<int64_t>(a.get_d()); }
-
-        template <>
-        int64_t conv<mpq_class, int64_t>(const mpq_class &a) { return mpz_class(a.get_num() / a.get_den()).get_si(); }
+        struct conv<mpq_class, int64_t>
+        {
+            static int64_t make(const mpq_class &a)
+            {
+                return mpz_class(a.get_num() / a.get_den()).get_si();
+            }
+        };
 
         template <>
         mpz_class mod_equation_solve(const mpz_class &a, const mpz_class &b, const mpz_class &mod)

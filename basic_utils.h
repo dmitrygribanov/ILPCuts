@@ -142,37 +142,53 @@ namespace ILPCuts
 	{
 
 		template <typename inT, typename outT>
-		outT conv(const inT &a) { return outT(a); }
-
-		template <typename inT, typename outT>
-		vector<outT> vec_conv(const SparseVector<inT> &a)
+		struct conv
 		{
-			size_t n = a.size();
-
-			vector<outT> res(n, outT(0));
-
-			for (typename SparseVector<inT>::InnerIterator it(a); it; ++it)
+			static outT make(const inT &a)
 			{
-				res[it.index()] = conv<inT, outT>(it.value());
+				return outT(a);
 			}
+		};
 
-			return res;
-		}
-
-		template <typename inT, typename outT>
-		SparseVector<outT> vec_conv(const vector<inT> &a)
+		template <typename inT, typename outVecT>
+		struct conv<SparseVector<inT>, outVecT>
 		{
-			size_t n = a.size();
-
-			SparseVector<outT> res(n);
-			for (size_t i = 0; i < n; ++i)
+			static outVecT make(const SparseVector<inT> &a)
 			{
-				if (a[i] != 0)
-					res.insertBack(i) = conv<inT, outT>(a[i]);
-			}
+				using out_val_type = typename outVecT::value_type;
 
-			return res;
-		}
+				size_t n = a.size();
+
+				vector<out_val_type> res(n, out_val_type(0));
+
+				for (typename SparseVector<inT>::InnerIterator it(a); it; ++it)
+				{
+					res[it.index()] = conv<inT, out_val_type>::make(it.value());
+				}
+
+				return res;
+			}
+		};
+
+		template <typename inVecT, typename outT>
+		struct conv<inVecT, SparseVector<outT>>
+		{
+			static SparseVector<outT> make(const inVecT &a)
+			{
+				using in_val_type = typename inVecT::value_type;
+
+				size_t n = a.size();
+
+				SparseVector<outT> res(n);
+				for (size_t i = 0; i < n; ++i)
+				{
+					if (a[i] != 0)
+						res.insertBack(i) = conv<in_val_type, outT>::make(a[i]);
+				}
+
+				return res;
+			}
+		};
 
 		template <typename intT, typename ratT>
 		intT rat_to_int(const ratT &rat_x, double err_tolerance)
@@ -181,7 +197,7 @@ namespace ILPCuts
 			ratT diff = abs(rat_x - rounded_x);
 			if (diff <= err_tolerance)
 			{
-				return conv<ratT, intT>(rounded_x);
+				return conv<ratT, intT>::make(rounded_x);
 			}
 			else
 			{
@@ -539,7 +555,7 @@ namespace ILPCuts
 		template <typename valT>
 		string sparse_vec_to_str(const SparseVector<valT> &v)
 		{
-			return dense_vec_to_str(vec_conv<valT, valT>(v));
+			return dense_vec_to_str(conv<SparseVector<valT>, vector<valT>>::make(v));
 		}
 
 	};

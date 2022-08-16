@@ -55,7 +55,7 @@ namespace ILPCuts
 
         void init_params_Wiedemanns_alg()
         {
-            _wd_alg.rgen = rgen;
+            //_wd_alg.rgen = rgen;
         }
 
         is_vec find_kernel_vec_Wd(const is_mat &A, int_type p)
@@ -68,9 +68,9 @@ namespace ILPCuts
             is_mat cA = A.unaryExpr(Utility::mod_unaryop<int_type>(p));
             Utility::prune_zeroes_int(cA);
             WdOracle O(std::move(cA));
-            vector<zz_p> wd_solution = _wd_alg.solve_kernel_v1(O);
+            vec_zz_p wd_solution = _wd_alg.solve_kernel_v1(O);
 
-            return Utility::vec_conv<zz_p, int_type>(wd_solution);
+            return Utility::conv<vec_zz_p, is_vec>::make(wd_solution);
         }
 
         std::unique_ptr<cone_traits> create_cone_traits(const is_mat &A, const lint_type &det, const std::vector<rs_vec> &directions_pool)
