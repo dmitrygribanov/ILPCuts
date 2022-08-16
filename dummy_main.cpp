@@ -27,24 +27,6 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-    SparseMatrix<int64_t> A(2, 2);
-    SparseVector<int64_t> b(2);
-    mt19937 engine;
-    A.insert(0, 0) = 1;
-    A.insert(0, 1) = 2;
-    A.insert(1, 0) = 3;
-    A.insert(1, 1) = 4;
-    b.insert(0) = 1;
-    b.insert(1) = 2;
-
-    logger log;
-
-    vector<zz_p> v = {zz_p(1), zz_p(2)};
-
-    Oracle_zzp<int64_t> oracle(A);
-    wiedemanns_alg ws_alg(engine, log);
-    ws_alg.vec_min_poly(oracle, v);
-
     // mX = vec_min_poly(A, b, engine);
 
     // cout << "min poly: " << mX << endl;

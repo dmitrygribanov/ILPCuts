@@ -113,8 +113,8 @@ namespace ILPCuts
 
         void process_even_case(const cone_traits &C, process_func pf)
         {
-            // is_vec x = Utility::NTL::kernel_vec_GF2(C.A);
-            is_vec x = find_kernel_vec_Wd(C.A, 2);
+            is_vec x = Utility::NTL::kernel_vec_GF2(C.A);
+            // is_vec x = find_kernel_vec_Wd(C.A, 2);
 
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {

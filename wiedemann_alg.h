@@ -129,14 +129,14 @@ namespace ILPCuts
         }
 
         template <typename oracleT>
-        zz_pX generate_seq(size_t len, const oracleT &O, vec_zz_p b)
+        vec_zz_p generate_seq(size_t len, const oracleT &O, vec_zz_p b)
         {
             size_t n = b.length();
 
             vec_zz_p u = generate_nonzero_vec(n);
             // cout << "u = " << Utility::dense_vec_to_str(u) << endl;
 
-            zz_pX res;
+            vec_zz_p res;
             res.SetLength(len);
             for (size_t i = 0; i < len; ++i)
             {
@@ -146,7 +146,6 @@ namespace ILPCuts
                 b = O(b);
             }
 
-            res.normalize();
             return res;
         }
 
@@ -211,10 +210,12 @@ namespace ILPCuts
                 // out() << "b = " << Utility::dense_vec_to_str(b) << endl;
                 // out() << "mX = " << mX << "; deg = " << deg(mX) << endl;
                 size_t len = 2 * (n - deg(mX));
-                zz_pX seqX = generate_seq(len, O, b);
+                vec_zz_p seqX = generate_seq(len, O, b);
 
                 // out() << "seqX = " << seqX << endl;
-                zz_pX seq_mX = seq_min_poly(seqX, len);
+                // zz_pX seq_mX = seq_min_poly(seqX, len);
+                zz_pX seq_mX;
+                NTL::MinPolySeq(seq_mX, seqX, len / 2);
 
                 // out() << "seq_mX = " << seq_mX << endl;
 
