@@ -1,6 +1,6 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "conic_cuts_extbase.h"
 #include "Eigen_solving_utilities.h"
 #include "ntl_module.h"
 
@@ -9,10 +9,10 @@ namespace ILPCuts
 
 	template <typename intT, typename ratT, typename lintT, typename lratT>
 	class ConicCutsGenerator_LU
-		: public ConicCutsGenerator_Base<intT, ratT, lintT, lratT>
+		: public cuts_generator_extbase<intT, ratT, lintT, lratT>
 	{
 	private:
-		using base = ConicCutsGenerator_Base<intT, ratT, lintT, lratT>;
+		using base = cuts_generator_extbase<intT, ratT, lintT, lratT>;
 		using my_type = ConicCutsGenerator_LU<intT, ratT, lintT, lratT>;
 
 	public:

@@ -22,12 +22,12 @@ namespace ILPCuts
                   << endl;
     }
 
-    template <typename cutsGenT>
+    template <typename intT, typename ratT>
     double root_node_boosting_console_subprogram(IloEnv env,
                                                  IloCplex cplex_master, IloCplex cplex_relaxed,
                                                  IloModel master_model, IloModel relaxed_model,
                                                  IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
-                                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+                                                 CPlexAdapter<intT, ratT> &cuts_gen_adapter,
                                                  double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
         cplex_relaxed.clearModel();

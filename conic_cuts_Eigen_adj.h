@@ -1,16 +1,16 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "conic_cuts_extbase.h"
 #include "Eigen_solving_utilities.h"
 #include "ntl_module.h"
 namespace ILPCuts
 {
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	class ConicCutsGenerator_adj : public ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>
+	class ConicCutsGenerator_adj : public cuts_generator_extbase<intT, rationalT, lintT, lratT>
 	{
 	private:
-		using base = ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>;
+		using base = cuts_generator_extbase<intT, rationalT, lintT, lratT>;
 
 	public:
 		using typename base::int_type;

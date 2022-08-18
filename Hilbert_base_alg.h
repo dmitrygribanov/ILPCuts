@@ -9,38 +9,37 @@ namespace ILPCuts
 {
     template <typename intT, typename rationalT, typename lintT, typename lrationalT>
     class Hilbert_base_alg
-        : public base_alg<intT, rationalT, lintT, lrationalT>
     {
     private:
         using my_type = Hilbert_base_alg<intT, rationalT, lintT, lrationalT>;
-        using base = base_alg<intT, rationalT, lintT, lrationalT>;
 
     public:
-        using typename base::int_type;
-        using typename base::lint_type;
-        using typename base::lrational_type;
-        using typename base::rational_type;
+        using int_type = intT;
+        using lint_type = lintT;
+        using lrational_type = lrationalT;
+        using rational_type = rationalT;
 
-        using typename base::is_mat;
-        using typename base::lis_mat;
-        using typename base::lrs_mat;
-        using typename base::rs_mat;
+        using is_mat = SparseMatrix<int_type>;
+        using lis_mat = SparseMatrix<lint_type>;
+        using lrs_mat = SparseMatrix<lrational_type>;
+        using rs_mat = SparseMatrix<rational_type>;
 
-        using typename base::is_vec;
-        using typename base::lis_vec;
-        using typename base::lrs_vec;
-        using typename base::rs_vec;
+        using is_vec = SparseVector<int_type>;
+        using lis_vec = SparseVector<lint_type>;
+        using lrs_vec = SparseVector<lrational_type>;
+        using rs_vec = SparseVector<rational_type>;
 
-        using base::_lrat_to_lint;
-        using base::_rat_to_int;
-        using base::_to_single_int;
-        using base::_to_single_rat;
-        using base::base;
-        using base::err_tolerance;
-        using base::log;
-        using base::rgen;
-        using base::threads;
-        using base::tolerance;
+        using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
+        using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
+
+        LRatToLInt_Unary _lrat_to_lint;
+        RatToInt_Unary _rat_to_int;
+        static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>;
+        static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>;
+
+        double err_tolerance;
+        logger &log;
+        // double tolerance;
 
     private:
         void fill_parall_vectors(const std::vector<std::vector<int_type>> &A, size_t i, std::vector<rational_type> &x, std::vector<int_type> &y, std::vector<std::vector<int_type>> &R)
@@ -89,6 +88,11 @@ namespace ILPCuts
         }
 
     public:
+        Hilbert_base_alg(logger &alog)
+            : log(alog), _lrat_to_lint(err_tolerance), _rat_to_int(err_tolerance)
+        {
+        }
+
         logger::stream &out()
         {
             log.out() << "ILPCuts-Hilbert-base-alg: ";
