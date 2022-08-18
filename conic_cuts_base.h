@@ -344,7 +344,7 @@ namespace ILPCuts
 			_optLP_copy.resize(0);
 		}
 
-		void check_cuts_validity() const
+		void check_cuts_validity()
 		{
 			size_t n = _AT_copy.cols();
 			assert(n > 0);
@@ -364,6 +364,9 @@ namespace ILPCuts
 						throw Exception(msg.str());
 					}
 				}
+
+				// rational_type vall = cut.ray.template cast<rational_type>().dot(_optLP_copy);
+				// out() << "vall: " << vall << endl;
 
 				if (abs(cut.ray.template cast<rational_type>().dot(_optLP_copy) - cut.frac_rhs) > err_tolerance)
 				{

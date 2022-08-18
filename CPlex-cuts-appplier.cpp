@@ -93,9 +93,6 @@ void run_cplex_experiment(logger &log,
     // create main model object
     IloModel master_model(env);
 
-    // create relaxed model object
-    IloModel relaxed_model(env);
-
     // create solver object for the main MILP
     IloCplex cplex_master(env);
 
@@ -116,15 +113,6 @@ void run_cplex_experiment(logger &log,
     // import main problem from file
     cplex_master.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
-    // import data to the relaxed model
-    relaxed_model.add(master_model);
-
-    // make all variables of the relaxed model to be rational
-    for (size_t i = 0; i < vars.getSize(); ++i)
-    {
-        relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
-    }
-
     // setting parameters to solve relaxed model
     // cplex_relaxed.setParam(IloCplex::Param::MIP::Interval, 1000);
     cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
@@ -132,13 +120,13 @@ void run_cplex_experiment(logger &log,
     //----------------------------------------------------------
     if (validation)
     {
-        obj = hard_cuts_validation_subprogram(env, cplex_relaxed, relaxed_model,
-                                              obj, rngs, vars,
-                                              cuts_gen_adapter);
+        hard_cuts_validation_subprogram(env, cplex_relaxed,
+                                        rngs, vars,
+                                        cuts_gen_adapter);
     }
 
-    cuts_applier_subprogram(env, cplex_master, master_model,
-                            rngs, vars,
+    cuts_applier_subprogram(env, cplex_master,
+                            obj, rngs, vars,
                             cuts_gen_adapter,
                             model_cuts_switch);
     //----------------------------------------------------------

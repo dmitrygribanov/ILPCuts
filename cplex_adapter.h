@@ -180,18 +180,17 @@ namespace ILPCuts
 			return true;
 		}
 
-		IloObjective apply_objective(const is_vec &new_obj, IloModel model, IloObjective obj, IloNumVarArray vars)
+		IloObjective apply_objective(const is_vec &new_obj, IloModel model, IloNumVarArray vars)
 		{
-			model.remove(obj);
-			obj.end();
+			IloEnv env = model.getEnv();
 
-			IloExpr expr;
+			IloExpr expr(env);
 			for (typename is_vec::InnerIterator it(new_obj); it; ++it)
 			{
 				expr += vars[it.index()] * to_IloInt(it.value());
 			}
 
-			IloObjective res_obj(model.getEnv(), expr, IloObjective::Sense::Maximize);
+			IloObjective res_obj(env, expr, IloObjective::Sense::Maximize);
 
 			model.add(res_obj);
 			return res_obj;
@@ -285,6 +284,13 @@ namespace ILPCuts
 			}
 
 			// cin.ignore();
+			if (basis_i != n)
+			{
+				stringstream msg;
+				msg << "ILPCuts error: failed to read IloCplex problem\n"
+					<< "size of the basis (" << basis_i << "is not equal to n (" << n << ")";
+				throw(Exception(msg.str()));
+			}
 
 			A_basis.setFromTriplets(triplets.begin(), triplets.end());
 

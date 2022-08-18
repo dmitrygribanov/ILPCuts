@@ -148,11 +148,16 @@ namespace ILPCuts
 
     template <typename cutsGenT>
     void cuts_applier_subprogram(IloEnv env,
-                                 IloCplex cplex_master, IloModel master_model,
-                                 IloRangeArray rngs, IloNumVarArray vars,
+                                 IloCplex cplex_master,
+                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
                                  CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                  string model_cuts_switch)
     {
+        IloModel master_model(env);
+        master_model.add(vars);
+        master_model.add(rngs);
+        master_model.add(obj);
+
         if (model_cuts_switch == "off")
         {
             cplex_master.extract(master_model);
@@ -161,19 +166,42 @@ namespace ILPCuts
         else
         {
             IloRangeArray cuts_as_constraints = cuts_gen_adapter.create_IloConstraints_from_cuts(env, vars);
-            rngs.add(cuts_as_constraints);
             master_model.add(cuts_as_constraints);
             cplex_master.extract(master_model);
         }
     }
 
     template <typename cutsGenT>
-    IloObjective hard_cuts_validation_subprogram(IloEnv env,
-                                                 IloCplex cplex_relaxed, IloModel relaxed_model,
-                                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
-                                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter)
+    void hard_cuts_validation_subprogram(IloEnv env,
+                                         IloCplex cplex_relaxed,
+                                         IloRangeArray rngs, IloNumVarArray vars,
+                                         CPlexAdapter<cutsGenT> &cuts_gen_adapter)
     {
         const auto &cuts = cuts_gen_adapter.get_cuts();
+
+        IloModel relaxed_model(env);
+        relaxed_model.add(vars);
+        relaxed_model.add(rngs);
+
+        // make all variables of the relaxed model to be rational
+        for (size_t i = 0; i < vars.getSize(); ++i)
+        {
+            relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
+        }
+        // {
+        //     IloModel::Iterator iter(relaxed_model);
+        //     size_t cc = 0;
+        //     while (iter.ok())
+        //     {
+        //         if ((*iter).isObjective())
+        //         {
+        //             ++cc;
+        //         }
+
+        //         ++iter;
+        //     }
+        //     cout << "1::::" << cc << endl;
+        // }
 
         for (size_t i = 0; i < cuts.size(); ++i)
         {
@@ -182,7 +210,7 @@ namespace ILPCuts
             const auto &ray = cuts[i].ray;
             const auto &rhs = cuts[i].rhs;
 
-            obj = cuts_gen_adapter.apply_objective(ray, relaxed_model, obj, vars);
+            IloObjective obj = cuts_gen_adapter.apply_objective(ray, relaxed_model, vars);
 
             cplex_relaxed.clearModel();
             cplex_relaxed.extract(relaxed_model);
@@ -190,13 +218,16 @@ namespace ILPCuts
             // run solver
             if (!cplex_relaxed.solve())
             {
-                env.out() << "LP optimal solution is not found...\n"
+                env.out() << "LP optimal solution does not found...\n"
                           << "Solution status is " << cplex_relaxed.getStatus() << "\n"
                           << "Validation has failed!" << endl;
                 exit(0);
             }
 
             double obj_val = cplex_relaxed.getObjValue();
+
+            env.out()
+                << "Max objective value is " << obj_val << "; RHS is " << rhs << "\n";
             if (static_cast<int64_t>(floor(obj_val)) != static_cast<int64_t>(rhs))
             {
                 env.out() << "RHS of the cut is not correct...\n"
@@ -204,10 +235,11 @@ namespace ILPCuts
                           << "Validation has failed!" << endl;
                 exit(0);
             }
+
+            relaxed_model.remove(obj);
+            obj.end();
         }
 
         env.out() << "Validation was successful!" << endl;
-
-        return obj;
     }
 }

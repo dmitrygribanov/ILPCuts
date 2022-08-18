@@ -31,11 +31,12 @@
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/pure_int_bench/supportcase30.mps.gz",
+                "../problems/pure_int_bench/sorrell3.mps.gz",
                 "--cuts_input",
-                "supp30_cuts.txt",
+                "sorr3_cuts.txt",
                 "-w",
-                "15"
+                "15",
+                "-v"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",
