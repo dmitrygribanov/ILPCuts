@@ -300,6 +300,43 @@ namespace ILPCuts
 			}
 		}
 
+		void export_cuts_full(ofstream &out_file)
+		{
+			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
+			{
+				out_file << Utility::vec_to_str_dense(_resulting_cuts[i].ray) << " "
+						 << _resulting_cuts[i].rhs << " "
+						 << _resulting_cuts[i].frac_rhs << "\n";
+			}
+		}
+
+		void import_cuts(istream &in_file)
+		{
+			clear_cuts();
+
+			string line;
+
+			while (std::getline(in_file, line))
+			{
+				istringstream iss_line(line);
+				vector<int_type> elems;
+				while (!iss_line.eof())
+				{
+					elems.emplace_back(int_type(0));
+					iss_line >> elems.back();
+				}
+
+				size_t dim = elems.size() - 1;
+				is_vec new_ray(dim);
+				for (size_t i = 0; i < dim; ++i)
+				{
+					if (elems[i] != 0)
+						new_ray.insertBack(i) = elems[i];
+				}
+				_resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0});
+			}
+		}
+
 		void clear_cuts()
 		{
 			_resulting_cuts.clear();

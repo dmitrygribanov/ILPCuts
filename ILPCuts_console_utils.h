@@ -146,4 +146,68 @@ namespace ILPCuts
         return originalRelaxedObjVal;
     }
 
+    template <typename cutsGenT>
+    void cuts_applier_subprogram(IloEnv env,
+                                 IloCplex cplex_master, IloModel master_model,
+                                 IloRangeArray rngs, IloNumVarArray vars,
+                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+                                 string model_cuts_switch)
+    {
+        if (model_cuts_switch == "off")
+        {
+            cplex_master.extract(master_model);
+            cuts_gen_adapter.add_cuts(cplex_master, vars);
+        }
+        else
+        {
+            IloRangeArray cuts_as_constraints = cuts_gen_adapter.create_IloConstraints_from_cuts(env, vars);
+            rngs.add(cuts_as_constraints);
+            master_model.add(cuts_as_constraints);
+            cplex_master.extract(master_model);
+        }
+    }
+
+    template <typename cutsGenT>
+    IloObjective hard_cuts_validation_subprogram(IloEnv env,
+                                                 IloCplex cplex_relaxed, IloModel relaxed_model,
+                                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
+                                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter)
+    {
+        const auto &cuts = cuts_gen_adapter.get_cuts();
+
+        for (size_t i = 0; i < cuts.size(); ++i)
+        {
+            env.out() << "Validating the cut with index (" << i << ")...\n";
+
+            const auto &ray = cuts[i].ray;
+            const auto &rhs = cuts[i].rhs;
+
+            obj = cuts_gen_adapter.apply_objective(ray, relaxed_model, obj, vars);
+
+            cplex_relaxed.clearModel();
+            cplex_relaxed.extract(relaxed_model);
+
+            // run solver
+            if (!cplex_relaxed.solve())
+            {
+                env.out() << "LP optimal solution is not found...\n"
+                          << "Solution status is " << cplex_relaxed.getStatus() << "\n"
+                          << "Validation has failed!" << endl;
+                exit(0);
+            }
+
+            double obj_val = cplex_relaxed.getObjValue();
+            if (static_cast<int64_t>(floor(obj_val)) != static_cast<int64_t>(rhs))
+            {
+                env.out() << "RHS of the cut is not correct...\n"
+                          << "Abs. diff is " << abs(static_cast<double>(rhs) - obj_val) << "\n"
+                          << "Validation has failed!" << endl;
+                exit(0);
+            }
+        }
+
+        env.out() << "Validation was successful!" << endl;
+
+        return obj;
+    }
 }

@@ -36,6 +36,18 @@ namespace ILPCuts
 		static constexpr auto from_IloNum_to_rat = Utility::conv<IloNum, rational_type>;
 		// static constexpr auto from_CPXINT_to_int = Utility::conv<CPXINT, rational_type>;
 
+		map<IloInt, size_t> init_var_index_map(IloNumVarArray vars) const
+		{
+			size_t n = vars.getSize();
+
+			map<IloInt, size_t> res;
+			for (size_t i = 0; i < n; ++i)
+			{
+				res[vars[i].getId()] = i;
+			}
+			return res;
+		}
+
 		using Trilpl = Triplet<int_type>;
 		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
 		{
@@ -144,6 +156,11 @@ namespace ILPCuts
 			generator_ptr->export_cuts(out_file);
 		}
 
+		void import_cuts(ifstream &in_file)
+		{
+			generator_ptr->import_cuts(in_file);
+		}
+
 		void check_cuts_validity()
 		{
 			generator_ptr->check_cuts_validity();
@@ -162,6 +179,23 @@ namespace ILPCuts
 
 			return true;
 		}
+
+		IloObjective apply_objective(const is_vec &new_obj, IloModel model, IloObjective obj, IloNumVarArray vars)
+		{
+			model.remove(obj);
+			obj.end();
+
+			IloExpr expr;
+			for (typename is_vec::InnerIterator it(new_obj); it; ++it)
+			{
+				expr += vars[it.index()] * to_IloInt(it.value());
+			}
+
+			IloObjective res_obj(model.getEnv(), expr, IloObjective::Sense::Maximize);
+
+			model.add(res_obj);
+			return res_obj;
+		}
 	};
 
 	template <typename cutsGenT>
@@ -174,11 +208,7 @@ namespace ILPCuts
 		rs_vec optLP(n);
 		rs_vec c(n);
 
-		std::map<IloInt, size_t> var_index_map;
-		for (size_t i = 0; i < n; ++i)
-		{
-			var_index_map[vars[i].getId()] = i;
-		}
+		auto var_index_map = init_var_index_map(vars);
 
 		out() << "reading objective..." << endl;
 

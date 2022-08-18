@@ -6,6 +6,7 @@
 #include <vector>
 #include <random>
 #include <atomic>
+#include <string>
 #include <sstream>
 #include <future>
 #include <thread>
