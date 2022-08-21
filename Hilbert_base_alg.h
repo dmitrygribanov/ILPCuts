@@ -105,9 +105,9 @@ namespace ILPCuts
 
             out() << "computation of the HNF is started...\n";
             timer.start();
-            // Utility::flint::compute_HNF(C.A, C.A);
-            // H = Utility::NTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
-            Utility::flint::compute_HNF(A, _to_single_int(det), H);
+            // ModuleFlint::compute_HNF(C.A, C.A);
+            // H = ModuleNTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
+            ModuleFlint::compute_HNF(A, _to_single_int(det), H);
 
             // cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
 
@@ -116,7 +116,7 @@ namespace ILPCuts
             out() << "computation of the H^-1 is started...\n";
             timer.start();
             Hi = Utility::compute_inverse(H.template cast<rational_type>().eval());
-            //  Utility::flint::compute_inverse<int64_t>(H, denum, Hi);
+            //  ModuleFlint::compute_inverse<int64_t>(H, denum, Hi);
             out() << "HNF^-1 computation time: " << timer.finish_str();
 
             out() << "computation of the P^-1 is started...\n";
