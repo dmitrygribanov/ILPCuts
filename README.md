@@ -1,5 +1,4 @@
 # TODO #
-* Wideman's algorithm implementation
 * correct parallel version
 * correct time limit for ILPCuts generators
 * fast systems solving in ZZ

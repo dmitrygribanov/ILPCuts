@@ -212,7 +212,7 @@ namespace ILPCuts
 
 			out() << "matrix inversion is started..." << endl;
 			timer.start();
-			std::tie(adjA, det) = Utility::NTL::compute_inverse(A.template cast<lint_type>().eval());
+			std::tie(adjA, det) = ModuleNTL::compute_inverse(A.template cast<lint_type>().eval());
 			// std::tie(adjA, det) = std::move(
 			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
 			out() << "matrix inversion time: " << timer.finish_str();
@@ -224,4 +224,4 @@ namespace ILPCuts
 			out() << "determinant computing tolerance error: " << exc.what() << endl;
 		}
 	}
-}
+} // namespace ILPCuts

@@ -139,11 +139,56 @@ namespace ILPCuts
 			: Exception(msg) {}
 	};
 
+	template <typename inT, typename outT>
+	struct conv
+	{
+		static outT make(const inT &a)
+		{
+			return outT(a);
+		}
+	};
+
+	template <typename inT, typename outVecT>
+	struct conv<SparseVector<inT>, outVecT>
+	{
+		static outVecT make(const SparseVector<inT> &a)
+		{
+			using out_val_type = typename outVecT::value_type;
+
+			size_t n = a.size();
+
+			vector<out_val_type> res(n, out_val_type(0));
+
+			for (typename SparseVector<inT>::InnerIterator it(a); it; ++it)
+			{
+				res[it.index()] = conv<inT, out_val_type>::make(it.value());
+			}
+
+			return res;
+		}
+	};
+
+	template <typename inVecT, typename outT>
+	struct conv<inVecT, SparseVector<outT>>
+	{
+		static SparseVector<outT> make(const inVecT &a)
+		{
+			using in_val_type = typename inVecT::value_type;
+
+			size_t n = a.size();
+
+			SparseVector<outT> res(n);
+			for (size_t i = 0; i < n; ++i)
+			{
+				if (a[i] != 0)
+					res.insertBack(i) = conv<in_val_type, outT>::make(a[i]);
+			}
+
+			return res;
+		}
+	};
 	namespace Utility
 	{
-
-		template <typename inT, typename outT>
-		outT conv(const inT &a) { return outT(a); }
 
 		template <typename intT, typename ratT>
 		intT rat_to_int(const ratT &rat_x, double err_tolerance)
@@ -152,7 +197,7 @@ namespace ILPCuts
 			ratT diff = abs(rat_x - rounded_x);
 			if (diff <= err_tolerance)
 			{
-				return conv<ratT, intT>(rounded_x);
+				return conv<ratT, intT>::make(rounded_x);
 			}
 			else
 			{
@@ -379,6 +424,27 @@ namespace ILPCuts
 		}
 
 		template <typename intT, typename randGenT>
+		SparseVector<intT> uniform_vec_generate(size_t n, randGenT &rgen, const intT &a, const intT &b)
+		{
+			using int_type = intT;
+			using is_vec = SparseVector<int_type>;
+
+			std::uniform_int_distribution<int_type> ud(a, b - 1);
+
+			// generation of a random rhs
+			is_vec res(n);
+			res.reserve(size_t(0.7 * n));
+			for (size_t i = 0; i < n; ++i)
+			{
+				int_type val = ud(rgen);
+				if (val != 0)
+					res.insert(i) = val;
+			}
+
+			return res;
+		}
+
+		template <typename intT, typename randGenT>
 		SparseVector<intT> bernouly_vec_generate(size_t n, randGenT &rgen)
 		{
 			using int_type = intT;
@@ -396,7 +462,7 @@ namespace ILPCuts
 					res.insert(i) = 1;
 			}
 
-			return std::move(res);
+			return res;
 		}
 
 		template <typename intT>
@@ -408,7 +474,7 @@ namespace ILPCuts
 		public:
 			KeepIntFunc() : zero(0) {}
 
-			bool operator()(const intT &x) const { return x != zero; }
+			bool operator()(size_t i, size_t j, const intT &x) const { return x != zero; }
 		};
 
 		template <typename intT>
@@ -467,58 +533,29 @@ namespace ILPCuts
 			return true;
 		}
 
-		// this functions transforms a sparce vector to a dense vector
-		// and then prints it to a string
-		template <typename valT>
-		string vec_to_str_dense(const SparseVector<valT> &v)
+		template <typename vecT>
+		string dense_vec_to_str(const vecT &v)
 		{
 			stringstream res;
 
-			typename SparseVector<valT>::InnerIterator it(v);
-
-			assert(v.size() != 0);
-
-			size_t i = 0;
-			size_t n = v.size();
-
-			// invariant: i <= it.index()
-
-			if (i < it.index())
-				res << "0";
-			else
+			if (!v.empty())
 			{
-				assert(i == it.index());
-				res << it.value();
-				++it;
-			}
-
-			++i;
-
-			while (it)
-			{
-				assert(i <= it.index());
-
-				while (i < it.index())
+				res << v[0];
+				for (size_t i = 1; i < v.size(); ++i)
 				{
-					res << " 0";
-					++i;
+					res << " " << v[i];
 				}
-
-				res << " " << it.value();
-
-				++i;
-				++it;
-			}
-
-			assert(i <= n);
-
-			while (i < n)
-			{
-				res << " 0";
-				++i;
 			}
 
 			return res.str();
 		}
-	};
-}
+
+		// this functions transforms a sparce vector to a dense vector
+		// and then prints it to a string
+		template <typename valT>
+		string sparse_vec_to_str(const SparseVector<valT> &v)
+		{
+			return dense_vec_to_str(conv<SparseVector<valT>, vector<valT>>::make(v));
+		}
+	} // namespace Utility
+} // namespace ILPCuts

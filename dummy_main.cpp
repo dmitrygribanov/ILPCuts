@@ -6,10 +6,13 @@
 #include <NTL/lzz_p.h>
 #include <NTL/ZZ.h>
 
+#include <valarray>
+
 #include "base_module.h"
 #include "ntl_module.h"
 #include "flint_module.h"
 #include "primes_downloader.h"
+#include "wiedemann_alg.h"
 
 using namespace ILPCuts;
 using namespace std;
@@ -24,24 +27,9 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-    // Eigen::SparseMatrix<NTL::zz_p> m(2, 2);
-    // using Tripl = Eigen::Triplet<NTL::zz_p>;
-    // Tripl item(0, 0, NTL::zz_p(5l));
-    // std::vector<Tripl> triplets;
-    // triplets.emplace_back(Tripl(0, 0, NTL::zz_p(5l)));
-    // triplets.back().value().init(7l);
-    // triplets.push_back(Tripl(0, 0, NTL::zz_p(2l)));
-    // triplets.back().value().init(7l);
+    // mX = vec_min_poly(A, b, engine);
 
-    // m.setFromTriplets(triplets.begin(), triplets.end());
-    logger log;
-
-    std::vector<int64_t> res = Utility::primes::download<int64_t>(10);
-    for (auto p : res)
-    {
-        log.out() << p << " ";
-    }
-    log.out() << endl;
+    // cout << "min poly: " << mX << endl;
 
     // using Field1 = Givaro::Modular<Givaro::Integer>;
     // Field1 F1(101);
@@ -57,24 +45,6 @@ int main(int argc, char **argv)
     // LinBox::SparseMatrix<Field2> A2(F2);
     // Field2::Element d2;
     // det(d2, A2, M);
-
-    Eigen::SparseMatrix<int64_t> A(2, 2);
-    A.insert(0, 0) = 1;
-    A.insert(0, 1) = 2;
-    A.insert(1, 0) = 2;
-    A.insert(1, 1) = 1;
-
-    int64_t det = abs(Utility::NTL::det(A));
-
-    Eigen::SparseMatrix<int64_t> H = Utility::NTL::compute_HNF(A, det);
-    Eigen::SparseMatrix<int64_t> H1;
-    Utility::flint::compute_HNF(A, H1);
-
-    log.out()
-        << H << endl;
-
-    log.out()
-        << H1 << endl;
 
     // nmodxx_ctx n(7ul);
     // nmodxx x = nmodxx::make_nored(3, n);
