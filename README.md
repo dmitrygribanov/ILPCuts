@@ -2,6 +2,10 @@
 * correct parallel version
 * correct time limit for ILPCuts generators
 * fast systems solving in ZZ
+* feasibility checking with random directions
+* add less expensive boosting
+* make normal README file
+* it is a good idea to split CPlex-adapter and reading/writing for CPlex solver
 
 # README #
 

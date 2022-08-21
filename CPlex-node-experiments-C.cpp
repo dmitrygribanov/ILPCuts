@@ -10,6 +10,7 @@ ILOSTLBEGIN
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
+using namespace ModuleCPlex;
 
 using int_type = int64_t;
 using lint_type = mpz_class;

@@ -25,7 +25,7 @@ namespace ILPCuts
     template <typename cutsGenT>
     double root_node_boosting_console_subprogram(IloCplex cplex_master, IloCplex cplex_relaxed,
                                                  IloObjective obj, IloRangeArray orig_rngs, IloNumVarArray vars,
-                                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+                                                 ModuleCPlex::CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                                  double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
         IloEnv env = cplex_master.getEnv();
@@ -167,7 +167,7 @@ namespace ILPCuts
     template <typename cutsGenT>
     void cuts_applier_subprogram(IloCplex cplex_master,
                                  IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
-                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+                                 ModuleCPlex::CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                  string model_cuts_switch)
     {
         IloEnv env = cplex_master.getEnv();
@@ -193,7 +193,7 @@ namespace ILPCuts
     template <typename cutsGenT>
     void hard_cuts_validation_subprogram(IloCplex cplex_relaxed,
                                          IloRangeArray rngs, IloNumVarArray vars,
-                                         CPlexAdapter<cutsGenT> &cuts_gen_adapter)
+                                         ModuleCPlex::CPlexAdapter<cutsGenT> &cuts_gen_adapter)
     {
         IloEnv env = cplex_relaxed.getEnv();
 

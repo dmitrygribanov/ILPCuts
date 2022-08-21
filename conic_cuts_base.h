@@ -22,8 +22,6 @@ namespace ILPCuts
 		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
 		using base = base_alg<intT, rationalT, lintT, lrationalT>;
 
-		friend class CPlexAdapter<my_type>;
-
 	public:
 		using typename base::int_type;
 		using typename base::lint_type;

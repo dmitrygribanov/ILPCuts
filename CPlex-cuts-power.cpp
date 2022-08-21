@@ -8,6 +8,7 @@ ILOSTLBEGIN
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
+using namespace ModuleCPlex;
 
 using int_type = int64_t;
 using lint_type = mpz_class;
@@ -16,7 +17,7 @@ using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = class CPlexAdapter<CutsGen_Base>;
+using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
