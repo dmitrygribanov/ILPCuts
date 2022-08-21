@@ -180,38 +180,7 @@ void run_cplex_experiment(
 	// import main problem from file
 	cplex_master.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
-	// IloExpr::LinearIterator obj_iter = obj.getLinearIterator();
-	// size_t obj_nonzero_counter = 0;
-	// while (obj_iter.ok())
-	// {
-	// 	if (abs(obj_iter.getCoef()) > numeric_limits<IloNum>::epsilon())
-	// 	{
-	// 		++obj_nonzero_counter;
-	// 	}
-	// 	++obj_iter;
-	// }
-	// if (obj_nonzero_counter == 0)
-	// {
-	// 	master_model.remove(obj);
-	// 	obj.end();
-
-	// 	IloExpr expr(env);
-	// 	expr = vars[0] * IloInt(1);
-	// 	obj = IloObjective(env, expr, IloObjective::Sense::Maximize);
-	// 	master_model.add(obj);
-	// }
-	// for (size_t i = 0; i < rngs.getSize(); ++i)
-	// {
-	// 	IloRange rng = rngs[i];
-	// 	env.out() << "range(" << i << ") : " << rng.getLB() << " <= " << rng.getUB() << endl;
-	// 	IloExpr::LinearIterator riter = rng.getLinearIterator();
-	// 	while (riter.ok())
-	// 	{
-	// 		env.out() << riter.getCoef() << "*" << riter.getVar() << " ";
-	// 		++riter;
-	// 	}
-	// 	env.out() << endl;
-	// }
+	// env.out() << print_IloRangeArray(rngs) << endl;
 
 	// checking dimensional requrements for the problem
 	if (vars.getSize() < min_dim)
@@ -299,8 +268,7 @@ void run_cplex_experiment(
 	// cplex_master.setParam(IloCplex::Param::MIP::Interval, 1000);
 	// cplex_master.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	double originalRelaxedObjVal = root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-																		 master_model, relaxed_model,
+	double originalRelaxedObjVal = root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
 																		 obj, rngs, vars,
 																		 cuts_gen_adapter,
 																		 cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);

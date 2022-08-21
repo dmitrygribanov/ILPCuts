@@ -96,7 +96,7 @@ namespace ILPCuts
 		void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
 
 		std::tuple<is_mat, rs_vec, rs_vec>
-		extract_problem_info(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+		extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
 		std::tuple<is_mat, rs_vec, rs_vec>
 		extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
@@ -117,7 +117,7 @@ namespace ILPCuts
 
 			generate_cuts(move(A), move(c), move(optLP));
 		}
-		void generate_cuts(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+		void generate_cuts(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 		{
 			is_mat A;
 			rs_vec c, optLP;
@@ -127,7 +127,7 @@ namespace ILPCuts
 			Timer timer;
 			timer.start();
 
-			tie(A, c, optLP) = extract_problem_info(cplex, model, obj, constrs, vars);
+			tie(A, c, optLP) = extract_problem_info(cplex, obj, constrs, vars);
 
 			out() << "transformation time: " << timer.finish_str();
 
@@ -199,7 +199,7 @@ namespace ILPCuts
 
 	template <typename cutsGenT>
 	std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-	CPlexAdapter<cutsGenT>::extract_problem_info(IloCplex cplex, IloModel model, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+	CPlexAdapter<cutsGenT>::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 	{
 		size_t n = vars.getSize();
 
@@ -249,7 +249,8 @@ namespace ILPCuts
 
 				IloExpr::LinearIterator iter = constr.getLinearIterator();
 
-				if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper)
+				if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper ||
+					constrs_basis[i] == IloCplex::BasisStatus::AtLower && constr.getLB() == -numeric_limits<IloNum>::infinity())
 				{
 					_fill_triplets_IloRow(&triplets, &iter, 1, basis_i, var_index_map, constr);
 					++basis_i;
@@ -626,23 +627,23 @@ namespace ILPCuts
 	}
 
 	template <typename cutsGenT>
-	bool generate_cuts_with_time_limit(CPlexAdapter<cutsGenT> &cuts_gen_adapter, double time_limit, IloCplex solver, IloModel model, IloObjective obj, IloRangeArray rngs, IloNumVarArray vars)
+	bool generate_cuts_with_time_limit(CPlexAdapter<cutsGenT> &cuts_gen_adapter, double time_limit, IloCplex solver, IloObjective obj, IloRangeArray rngs, IloNumVarArray vars)
 	{
 		using CPlexAdapter = CPlexAdapter<cutsGenT>;
 
 		if (time_limit > 0.0)
 		{
 			// chose correct overloaded member "generate_cuts" from "CutsGenAdapter"
-			auto ptr_generate_cuts = static_cast<void (CPlexAdapter::*)(IloCplex, IloModel, IloObjective, IloRangeArray, IloNumVarArray)>(&CPlexAdapter::generate_cuts);
+			auto ptr_generate_cuts = static_cast<void (CPlexAdapter::*)(IloCplex, IloObjective, IloRangeArray, IloNumVarArray)>(&CPlexAdapter::generate_cuts);
 
 			// bind it to a compact function of the type "void()"
-			auto bind_generate_cuts = bind(ptr_generate_cuts, &cuts_gen_adapter, solver, model, obj, rngs, vars);
+			auto bind_generate_cuts = bind(ptr_generate_cuts, &cuts_gen_adapter, solver, obj, rngs, vars);
 
 			return run_async_function_with_time_limit(time_limit, bind_generate_cuts);
 		}
 		else
 		{
-			cuts_gen_adapter.generate_cuts(solver, model, obj, rngs, vars);
+			cuts_gen_adapter.generate_cuts(solver, obj, rngs, vars);
 
 			return true;
 		}

@@ -23,15 +23,33 @@ namespace ILPCuts
     }
 
     template <typename cutsGenT>
-    double root_node_boosting_console_subprogram(IloEnv env,
-                                                 IloCplex cplex_master, IloCplex cplex_relaxed,
-                                                 IloModel master_model, IloModel relaxed_model,
-                                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
+    double root_node_boosting_console_subprogram(IloCplex cplex_master, IloCplex cplex_relaxed,
+                                                 IloObjective obj, IloRangeArray orig_rngs, IloNumVarArray vars,
                                                  CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                                  double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
+        IloEnv env = cplex_master.getEnv();
+
         cplex_relaxed.clearModel();
         cplex_master.clearModel();
+
+        IloRangeArray rngs(env);
+        rngs.add(orig_rngs);
+
+        IloModel master_model(env);
+        master_model.add(vars);
+        master_model.add(rngs);
+        master_model.add(obj);
+
+        IloModel relaxed_model(env);
+        relaxed_model.add(master_model);
+
+        // make all variables of the relaxed model to be rational
+        for (size_t i = 0; i < vars.getSize(); ++i)
+        {
+            relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
+        }
+
         // put the relaxed model into the solver
         cplex_relaxed.extract(relaxed_model);
         env.out() << "solving relaxed model ...\n";
@@ -72,7 +90,7 @@ namespace ILPCuts
 
                 // generate cuts from the relaxed model
                 env.out() << "cuts generation ..." << endl;
-                if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, relaxed_model, obj, rngs, vars))
+                if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, obj, rngs, vars))
                 {
                     env.out() << "\ncutting plane generation has been stopped due to the time limit (" << cuts_tl << "s),\n"
                               << "terminate..." << endl;
@@ -80,7 +98,7 @@ namespace ILPCuts
                 }
 
                 // checking cuts validity
-                env.out() << "validity checking of the generated cuts ..." << endl;
+                env.out() << "initial validity checking of the generated cuts ..." << endl;
                 cuts_gen_adapter.check_cuts_validity();
 
                 // adding cuts to the relaxed model as constraints
@@ -147,12 +165,13 @@ namespace ILPCuts
     }
 
     template <typename cutsGenT>
-    void cuts_applier_subprogram(IloEnv env,
-                                 IloCplex cplex_master,
+    void cuts_applier_subprogram(IloCplex cplex_master,
                                  IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
                                  CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                  string model_cuts_switch)
     {
+        IloEnv env = cplex_master.getEnv();
+
         IloModel master_model(env);
         master_model.add(vars);
         master_model.add(rngs);
@@ -172,11 +191,12 @@ namespace ILPCuts
     }
 
     template <typename cutsGenT>
-    void hard_cuts_validation_subprogram(IloEnv env,
-                                         IloCplex cplex_relaxed,
+    void hard_cuts_validation_subprogram(IloCplex cplex_relaxed,
                                          IloRangeArray rngs, IloNumVarArray vars,
                                          CPlexAdapter<cutsGenT> &cuts_gen_adapter)
     {
+        IloEnv env = cplex_relaxed.getEnv();
+
         const auto &cuts = cuts_gen_adapter.get_cuts();
 
         IloModel relaxed_model(env);
@@ -188,20 +208,6 @@ namespace ILPCuts
         {
             relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
         }
-        // {
-        //     IloModel::Iterator iter(relaxed_model);
-        //     size_t cc = 0;
-        //     while (iter.ok())
-        //     {
-        //         if ((*iter).isObjective())
-        //         {
-        //             ++cc;
-        //         }
-
-        //         ++iter;
-        //     }
-        //     cout << "1::::" << cc << endl;
-        // }
 
         for (size_t i = 0; i < cuts.size(); ++i)
         {

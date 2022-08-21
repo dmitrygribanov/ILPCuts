@@ -158,4 +158,32 @@ namespace ILPCuts
 
         return res;
     }
+
+    string print_IloRange(IloRange rng)
+    {
+        stringstream res;
+
+        res << rng.getLB() << " <= " << rng.getUB() << "\n";
+        IloExpr::LinearIterator riter = rng.getLinearIterator();
+        while (riter.ok())
+        {
+            res << riter.getCoef() << "*" << riter.getVar() << " ";
+            ++riter;
+        }
+
+        return res.str();
+    }
+
+    string print_IloRangeArray(IloRangeArray rngs)
+    {
+        stringstream res;
+
+        for (size_t i = 0; i < rngs.getSize(); ++i)
+        {
+            IloRange rng = rngs[i];
+            res << "range(" << i << ") : " << print_IloRange(rng) << "\n";
+        }
+
+        return res.str();
+    }
 } // namespace ILPCuts

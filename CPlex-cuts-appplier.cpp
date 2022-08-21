@@ -120,12 +120,12 @@ void run_cplex_experiment(logger &log,
     //----------------------------------------------------------
     if (validation)
     {
-        hard_cuts_validation_subprogram(env, cplex_relaxed,
+        hard_cuts_validation_subprogram(cplex_relaxed,
                                         rngs, vars,
                                         cuts_gen_adapter);
     }
 
-    cuts_applier_subprogram(env, cplex_master,
+    cuts_applier_subprogram(cplex_master,
                             obj, rngs, vars,
                             cuts_gen_adapter,
                             model_cuts_switch);

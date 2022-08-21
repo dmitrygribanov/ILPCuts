@@ -384,7 +384,7 @@ void run_cplex_experiment(logger &log,
 
         // generate cuts from the relaxed model
         env.out() << "constraints generation ..." << endl;
-        cuts_gen_adapter.generate_cuts(cplex_relaxed, relaxed_model, obj, rngs, vars);
+        cuts_gen_adapter.generate_cuts(cplex_relaxed, obj, rngs, vars);
 
         // adding cuts to the original model
         // env.out() << "adding cuts to original model ..." << endl;
