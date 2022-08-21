@@ -274,8 +274,8 @@ namespace ILPCuts
 
         Utility::sparse_transform<lint_type> data;
 
-        static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>::make;
-        static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>::make;
+        static constexpr auto _to_single_int = conv<lint_type, int_type>::make;
+        static constexpr auto _to_single_rat = conv<lrational_type, rational_type>::make;
 
         // Utility::ToSingle<lint_type, int_type> _to_single_int;
         // Utility::ToSingle<lrational_type, rational_type> _to_single_rat;

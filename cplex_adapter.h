@@ -31,10 +31,10 @@ namespace ILPCuts
 		std::unique_ptr<generator_base> generator_ptr;
 
 	private:
-		static constexpr auto to_IloInt = Utility::conv<int_type, IloInt>::make;
-		static constexpr auto from_IloNum_to_int = Utility::conv<IloNum, int_type>::make;
-		static constexpr auto from_IloNum_to_rat = Utility::conv<IloNum, rational_type>::make;
-		// static constexpr auto from_CPXINT_to_int = Utility::conv<CPXINT, rational_type>;
+		static constexpr auto to_IloInt = conv<int_type, IloInt>::make;
+		static constexpr auto from_IloNum_to_int = conv<IloNum, int_type>::make;
+		static constexpr auto from_IloNum_to_rat = conv<IloNum, rational_type>::make;
+		// static constexpr auto from_CPXINT_to_int = conv<CPXINT, rational_type>;
 
 		using Trilpl = Triplet<int_type>;
 		void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)

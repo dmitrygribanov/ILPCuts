@@ -74,7 +74,7 @@ namespace ILPCuts
             // {
             //     cout << p << endl;
             // }
-            is_vec x = Utility::NTL::kernel_vec_Zp(C.A, p);
+            is_vec x = ModuleNTL::kernel_vec_Zp(C.A, p);
 
             // is_vec y = C.A * x;
             // cout << y << endl;
@@ -89,7 +89,7 @@ namespace ILPCuts
 
         void process_even_case(const cone_traits &C, process_func pf)
         {
-            is_vec x = Utility::NTL::kernel_vec_GF2(C.A);
+            is_vec x = ModuleNTL::kernel_vec_GF2(C.A);
 
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {
@@ -117,7 +117,7 @@ namespace ILPCuts
 
         void process_odd_case_zp(const cone_traits &C, process_func pf, int_type p)
         {
-            is_vec x = Utility::NTL::kernel_vec_Zp(C.A, p);
+            is_vec x = ModuleNTL::kernel_vec_Zp(C.A, p);
 
             process_odd_x<int_type, sparse_transform>(x, pf, p);
         }
@@ -139,7 +139,7 @@ namespace ILPCuts
 
                 // cout << "b: " << b << endl;
 
-                x = Utility::NTL::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
+                x = ModuleNTL::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
 
                 // cout << "x: " << x << endl;
 
@@ -218,7 +218,7 @@ namespace ILPCuts
 
                 out() << "Determinant computation is started ..." << endl;
                 // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
-                lint_type det = Utility::NTL::det(A.template cast<lint_type>().eval());
+                lint_type det = ModuleNTL::det(A.template cast<lint_type>().eval());
                 // lint_type det;
                 // Utility::flint::compute_det(A.template cast<lint_type>().eval(), det);
                 // //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
@@ -233,4 +233,4 @@ namespace ILPCuts
             }
         }
     };
-}
+} // namespace ILPCuts

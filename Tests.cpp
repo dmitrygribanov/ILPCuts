@@ -25,7 +25,7 @@ namespace ILPCuts
 
         log.out() << "sequence: " << str.str() << endl;
 
-        zz_pX mX = seq_min_poly(fX);
+        zz_pX mX = ModuleNTL::seq_min_poly(fX);
         log.out() << "minimal polynomial: " << mX << endl;
 
         str << "[2 2 1]";
@@ -57,7 +57,7 @@ namespace ILPCuts
                   << "(k, n-k) = (2,2)" << endl;
 
         zz_pX sX, tX;
-        tie(sX, tX) = pade_approx(fX, 4, 2);
+        tie(sX, tX) = ModuleNTL::pade_approx(fX, 4, 2);
 
         log.out() << "result is (s/t):\n"
                   << "s(x) = " << sX << "\n"
@@ -98,9 +98,9 @@ namespace ILPCuts
                   << A_dense << endl;
 
         SparseMatrix<int64_t> A_sparse(A_dense.cast<int64_t>().sparseView());
-        Oracle_zzp<int64_t> O(A_sparse);
+        ModuleNTL::Oracle_zzp<int64_t> O(A_sparse);
 
-        wiedemanns_alg wd_alg(log);
+        ModuleNTL::WiedemannsAlg wd_alg(log);
 
         str << "[3 1 2]";
         vec_zz_p b;
@@ -140,15 +140,15 @@ namespace ILPCuts
         log.out() << "modulus = " << modulus << endl;
 
         SparseMatrix<int64_t> A_sparse(A_dense.cast<int64_t>().sparseView());
-        Oracle_zzp<int64_t> O(A_sparse);
+        ModuleNTL::Oracle_zzp<int64_t> O(A_sparse);
 
-        wiedemanns_alg wd_alg(log);
+        ModuleNTL::WiedemannsAlg wd_alg(log);
 
         vec_zz_p dense_x = wd_alg.solve_kernel_v1(O);
         log.out() << "solution \"x\" is: " << dense_x << endl;
 
-        auto sparse_x = Utility::conv<vec_zz_p, SparseVector<int64_t>>::make(dense_x);
-        if (Utility::is_zero((A_sparse * sparse_x).unaryExpr(Utility::mod_unaryop(det)).eval()))
+        auto sparse_x = conv<vec_zz_p, SparseVector<int64_t>>::make(dense_x);
+        if (Utility::is_zero((A_sparse * sparse_x).unaryExpr(Utility::mod_unaryop(modulus)).eval()))
         {
             log.out() << "A x == 0\n"
                       << "---DONE---\n"

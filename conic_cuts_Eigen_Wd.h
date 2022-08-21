@@ -1,7 +1,6 @@
 #pragma once
 
 #include "conic_cuts_base.h"
-#include "ntl_module.h"
 #include "wiedemann_alg.h"
 #include "primes_downloader.h"
 
@@ -51,7 +50,7 @@ namespace ILPCuts
     private:
         std::vector<int_type> _primes_data;
 
-        wiedemanns_alg _wd_alg;
+        ModuleNTL::WiedemannsAlg _wd_alg;
 
         void init_params_Wiedemanns_alg()
         {
@@ -60,7 +59,7 @@ namespace ILPCuts
 
         is_vec find_kernel_vec_Wd(const is_mat &A, int_type p)
         {
-            using WdOracle = Oracle_zzp<int_type>;
+            using WdOracle = ModuleNTL::Oracle_zzp<int_type>;
 
             zz_p::init(p);
 
@@ -70,7 +69,7 @@ namespace ILPCuts
             WdOracle O(std::move(cA));
             vec_zz_p wd_solution = _wd_alg.solve_kernel_v1(O);
 
-            return Utility::conv<vec_zz_p, is_vec>::make(wd_solution);
+            return conv<vec_zz_p, is_vec>::make(wd_solution);
         }
 
         std::unique_ptr<cone_traits> create_cone_traits(const is_mat &A, const lint_type &det, const std::vector<rs_vec> &directions_pool)
@@ -113,7 +112,7 @@ namespace ILPCuts
 
         void process_even_case(const cone_traits &C, process_func pf)
         {
-            is_vec x = Utility::NTL::kernel_vec_GF2(C.A);
+            is_vec x = ModuleNTL::kernel_vec_GF2(C.A);
             // is_vec x = find_kernel_vec_Wd(C.A, 2);
 
             for (typename is_vec::InnerIterator it(x); it; ++it)
@@ -164,7 +163,7 @@ namespace ILPCuts
 
                 // cout << "b: " << b << endl;
 
-                x = Utility::NTL::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
+                x = ModuleNTL::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
 
                 // cout << "x: " << x << endl;
 
@@ -250,7 +249,7 @@ namespace ILPCuts
 
                 out() << "Determinant computation is started ..." << endl;
                 // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
-                lint_type det = Utility::NTL::det(A.template cast<lint_type>().eval());
+                lint_type det = ModuleNTL::det(A.template cast<lint_type>().eval());
                 // lint_type det;
                 // Utility::flint::compute_det(A.template cast<lint_type>().eval(), det);
                 // //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());

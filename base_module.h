@@ -5,8 +5,7 @@
 #include <memory>
 
 #include "basic_utils.h"
-#include "gmp_eigen_supp.h"
-#include "ntl_eigen_supp.h"
+#include "gmp_supp.h"
 #include "timer.h"
 #include "cuts_strategies.h"
 #include "sparse_transform.h"
@@ -43,8 +42,8 @@ namespace ILPCuts
         RatToInt_Unary _rat_to_int;
         LRatToLInt_Unary _lrat_to_lint;
 
-        static constexpr auto _to_single_int = Utility::conv<lint_type, int_type>::make;
-        static constexpr auto _to_single_rat = Utility::conv<lrational_type, rational_type>::make;
+        static constexpr auto _to_single_int = conv<lint_type, int_type>::make;
+        static constexpr auto _to_single_rat = conv<lrational_type, rational_type>::make;
 
     private:
         using my_type = base_alg<intT, rationalT, lintT, lrationalT>;

@@ -138,57 +138,56 @@ namespace ILPCuts
 			: Exception(msg) {}
 	};
 
+	template <typename inT, typename outT>
+	struct conv
+	{
+		static outT make(const inT &a)
+		{
+			return outT(a);
+		}
+	};
+
+	template <typename inT, typename outVecT>
+	struct conv<SparseVector<inT>, outVecT>
+	{
+		static outVecT make(const SparseVector<inT> &a)
+		{
+			using out_val_type = typename outVecT::value_type;
+
+			size_t n = a.size();
+
+			vector<out_val_type> res(n, out_val_type(0));
+
+			for (typename SparseVector<inT>::InnerIterator it(a); it; ++it)
+			{
+				res[it.index()] = conv<inT, out_val_type>::make(it.value());
+			}
+
+			return res;
+		}
+	};
+
+	template <typename inVecT, typename outT>
+	struct conv<inVecT, SparseVector<outT>>
+	{
+		static SparseVector<outT> make(const inVecT &a)
+		{
+			using in_val_type = typename inVecT::value_type;
+
+			size_t n = a.size();
+
+			SparseVector<outT> res(n);
+			for (size_t i = 0; i < n; ++i)
+			{
+				if (a[i] != 0)
+					res.insertBack(i) = conv<in_val_type, outT>::make(a[i]);
+			}
+
+			return res;
+		}
+	};
 	namespace Utility
 	{
-
-		template <typename inT, typename outT>
-		struct conv
-		{
-			static outT make(const inT &a)
-			{
-				return outT(a);
-			}
-		};
-
-		template <typename inT, typename outVecT>
-		struct conv<SparseVector<inT>, outVecT>
-		{
-			static outVecT make(const SparseVector<inT> &a)
-			{
-				using out_val_type = typename outVecT::value_type;
-
-				size_t n = a.size();
-
-				vector<out_val_type> res(n, out_val_type(0));
-
-				for (typename SparseVector<inT>::InnerIterator it(a); it; ++it)
-				{
-					res[it.index()] = conv<inT, out_val_type>::make(it.value());
-				}
-
-				return res;
-			}
-		};
-
-		template <typename inVecT, typename outT>
-		struct conv<inVecT, SparseVector<outT>>
-		{
-			static SparseVector<outT> make(const inVecT &a)
-			{
-				using in_val_type = typename inVecT::value_type;
-
-				size_t n = a.size();
-
-				SparseVector<outT> res(n);
-				for (size_t i = 0; i < n; ++i)
-				{
-					if (a[i] != 0)
-						res.insertBack(i) = conv<in_val_type, outT>::make(a[i]);
-				}
-
-				return res;
-			}
-		};
 
 		template <typename intT, typename ratT>
 		intT rat_to_int(const ratT &rat_x, double err_tolerance)
@@ -557,6 +556,5 @@ namespace ILPCuts
 		{
 			return dense_vec_to_str(conv<SparseVector<valT>, vector<valT>>::make(v));
 		}
-
-	};
-}
+	} // namespace Utility
+} // namespace ILPCuts
