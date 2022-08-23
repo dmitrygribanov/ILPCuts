@@ -8,6 +8,7 @@ ILOSTLBEGIN
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
+using namespace ModuleCPlex;
 
 using int_type = int64_t;
 using lint_type = mpz_class;
@@ -16,7 +17,7 @@ using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = class CPlexAdapter<CutsGen_Base>;
+using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
@@ -322,29 +323,9 @@ void run_cplex_experiment(
 
         cuts_gen_adapter.clear_cuts();
 
-        // creating copies of the models and constraints
-        // we need this, because root_node_boosting_console_subprogram
-        // can write to them
-        IloModel master_model_copy(env);
-        IloModel relaxed_model_copy(env);
-        IloRangeArray rngs_copy(env);
-
-        // import data to the copy of the relaxed model
-        // and copy of constraints
-        rngs_copy.add(rngs);
-        master_model_copy.add(master_model);
-        relaxed_model_copy.add(master_model_copy);
-
-        // make all variables of the copy to be rational
-        for (size_t i = 0; i < vars.getSize(); ++i)
-        {
-            relaxed_model_copy.add(IloConversion(env, vars[i], ILOFLOAT));
-        }
-
         // solving the problem in the root node with ILPCuts cutting planes
-        root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-                                              master_model_copy, relaxed_model_copy,
-                                              obj, rngs_copy, vars,
+        root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
+                                              obj, rngs, vars,
                                               cuts_gen_adapter,
                                               cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
@@ -364,9 +345,6 @@ void run_cplex_experiment(
 
         cplex_master.clearModel();
         cplex_relaxed.clearModel();
-        rngs_copy.end();
-        relaxed_model_copy.end();
-        master_model_copy.end();
     };
 
     // adding some hybrid solutions-configurations

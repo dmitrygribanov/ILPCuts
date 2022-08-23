@@ -279,7 +279,7 @@ namespace ILPCuts
 			timer.start();
 
 			out() << "determinant computation is started ..." << endl;
-			lint_type det = abs(Utility::NTL::det(A.template cast<lint_type>().eval()));
+			lint_type det = abs(ModuleNTL::det(A.template cast<lint_type>().eval()));
 			// lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
 			out() << "determinant computation time: " << timer.finish_str()
 				  << "determinant is: " << det << endl;
@@ -287,4 +287,4 @@ namespace ILPCuts
 			generate_cuts(A, optLP, det);
 		}
 	};
-}
+} // namespace ILPCuts

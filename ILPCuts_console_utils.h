@@ -23,15 +23,33 @@ namespace ILPCuts
     }
 
     template <typename cutsGenT>
-    double root_node_boosting_console_subprogram(IloEnv env,
-                                                 IloCplex cplex_master, IloCplex cplex_relaxed,
-                                                 IloModel master_model, IloModel relaxed_model,
-                                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
-                                                 CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+    double root_node_boosting_console_subprogram(IloCplex cplex_master, IloCplex cplex_relaxed,
+                                                 IloObjective obj, IloRangeArray orig_rngs, IloNumVarArray vars,
+                                                 ModuleCPlex::CPlexAdapter<cutsGenT> &cuts_gen_adapter,
                                                  double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
+        IloEnv env = cplex_master.getEnv();
+
         cplex_relaxed.clearModel();
         cplex_master.clearModel();
+
+        IloRangeArray rngs(env);
+        rngs.add(orig_rngs);
+
+        IloModel master_model(env);
+        master_model.add(vars);
+        master_model.add(rngs);
+        master_model.add(obj);
+
+        IloModel relaxed_model(env);
+        relaxed_model.add(master_model);
+
+        // make all variables of the relaxed model to be rational
+        for (size_t i = 0; i < vars.getSize(); ++i)
+        {
+            relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
+        }
+
         // put the relaxed model into the solver
         cplex_relaxed.extract(relaxed_model);
         env.out() << "solving relaxed model ...\n";
@@ -71,8 +89,8 @@ namespace ILPCuts
                 env.out() << "root node boosting iteration " << iteration_idx << " is started..." << endl;
 
                 // generate cuts from the relaxed model
-                env.out() << "constraints generation ..." << endl;
-                if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, relaxed_model, obj, rngs, vars))
+                env.out() << "cuts generation ..." << endl;
+                if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, obj, rngs, vars))
                 {
                     env.out() << "\ncutting plane generation has been stopped due to the time limit (" << cuts_tl << "s),\n"
                               << "terminate..." << endl;
@@ -80,6 +98,7 @@ namespace ILPCuts
                 }
 
                 // checking cuts validity
+                env.out() << "initial validity checking of the generated cuts ..." << endl;
                 cuts_gen_adapter.check_cuts_validity();
 
                 // adding cuts to the relaxed model as constraints
@@ -145,4 +164,88 @@ namespace ILPCuts
         return originalRelaxedObjVal;
     }
 
+    template <typename cutsGenT>
+    void cuts_applier_subprogram(IloCplex cplex_master,
+                                 IloObjective obj, IloRangeArray rngs, IloNumVarArray vars,
+                                 ModuleCPlex::CPlexAdapter<cutsGenT> &cuts_gen_adapter,
+                                 string model_cuts_switch)
+    {
+        IloEnv env = cplex_master.getEnv();
+
+        IloModel master_model(env);
+        master_model.add(vars);
+        master_model.add(rngs);
+        master_model.add(obj);
+
+        if (model_cuts_switch == "off")
+        {
+            cplex_master.extract(master_model);
+            cuts_gen_adapter.add_cuts(cplex_master, vars);
+        }
+        else
+        {
+            IloRangeArray cuts_as_constraints = cuts_gen_adapter.create_IloConstraints_from_cuts(env, vars);
+            master_model.add(cuts_as_constraints);
+            cplex_master.extract(master_model);
+        }
+    }
+
+    template <typename cutsGenT>
+    void hard_cuts_validation_subprogram(IloCplex cplex_relaxed,
+                                         IloRangeArray rngs, IloNumVarArray vars,
+                                         ModuleCPlex::CPlexAdapter<cutsGenT> &cuts_gen_adapter)
+    {
+        IloEnv env = cplex_relaxed.getEnv();
+
+        const auto &cuts = cuts_gen_adapter.get_cuts();
+
+        IloModel relaxed_model(env);
+        relaxed_model.add(vars);
+        relaxed_model.add(rngs);
+
+        // make all variables of the relaxed model to be rational
+        for (size_t i = 0; i < vars.getSize(); ++i)
+        {
+            relaxed_model.add(IloConversion(env, vars[i], ILOFLOAT));
+        }
+
+        for (size_t i = 0; i < cuts.size(); ++i)
+        {
+            env.out() << "Validating the cut with index (" << i << ")...\n";
+
+            const auto &ray = cuts[i].ray;
+            const auto &rhs = cuts[i].rhs;
+
+            IloObjective obj = cuts_gen_adapter.apply_objective(ray, relaxed_model, vars);
+
+            cplex_relaxed.clearModel();
+            cplex_relaxed.extract(relaxed_model);
+
+            // run solver
+            if (!cplex_relaxed.solve())
+            {
+                env.out() << "LP optimal solution does not found...\n"
+                          << "Solution status is " << cplex_relaxed.getStatus() << "\n"
+                          << "Validation has failed!" << endl;
+                exit(0);
+            }
+
+            double obj_val = cplex_relaxed.getObjValue();
+
+            env.out()
+                << "Max objective value is " << obj_val << "; RHS is " << rhs << "\n";
+            if (static_cast<int64_t>(floor(obj_val)) != static_cast<int64_t>(rhs))
+            {
+                env.out() << "RHS of the cut is not correct...\n"
+                          << "Abs. diff is " << abs(static_cast<double>(rhs) - obj_val) << "\n"
+                          << "Validation has failed!" << endl;
+                exit(0);
+            }
+
+            relaxed_model.remove(obj);
+            obj.end();
+        }
+
+        env.out() << "Validation was successful!" << endl;
+    }
 }

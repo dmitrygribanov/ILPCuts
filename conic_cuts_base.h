@@ -22,8 +22,6 @@ namespace ILPCuts
 		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
 		using base = base_alg<intT, rationalT, lintT, lrationalT>;
 
-		friend class CPlexAdapter<my_type>;
-
 	public:
 		using typename base::int_type;
 		using typename base::lint_type;
@@ -295,8 +293,45 @@ namespace ILPCuts
 		{
 			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
 			{
-				out_file << Utility::vec_to_str_dense(_resulting_cuts[i].ray) << " "
+				out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
 						 << _resulting_cuts[i].rhs << "\n";
+			}
+		}
+
+		void export_cuts_full(ofstream &out_file)
+		{
+			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
+			{
+				out_file << Utility::dense_vec_to_str(_resulting_cuts[i].ray) << " "
+						 << _resulting_cuts[i].rhs << " "
+						 << _resulting_cuts[i].frac_rhs << "\n";
+			}
+		}
+
+		void import_cuts(istream &in_file)
+		{
+			clear_cuts();
+
+			string line;
+
+			while (std::getline(in_file, line))
+			{
+				istringstream iss_line(line);
+				vector<int_type> elems;
+				while (!iss_line.eof())
+				{
+					elems.emplace_back(int_type(0));
+					iss_line >> elems.back();
+				}
+
+				size_t dim = elems.size() - 1;
+				is_vec new_ray(dim);
+				for (size_t i = 0; i < dim; ++i)
+				{
+					if (elems[i] != 0)
+						new_ray.insertBack(i) = elems[i];
+				}
+				_resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0});
 			}
 		}
 
@@ -307,7 +342,7 @@ namespace ILPCuts
 			_optLP_copy.resize(0);
 		}
 
-		void check_cuts_validity() const
+		void check_cuts_validity()
 		{
 			size_t n = _AT_copy.cols();
 			assert(n > 0);
@@ -327,6 +362,9 @@ namespace ILPCuts
 						throw Exception(msg.str());
 					}
 				}
+
+				// rational_type vall = cut.ray.template cast<rational_type>().dot(_optLP_copy);
+				// out() << "vall: " << vall << endl;
 
 				if (abs(cut.ray.template cast<rational_type>().dot(_optLP_copy) - cut.frac_rhs) > err_tolerance)
 				{

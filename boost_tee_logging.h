@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <ostream>
 #include <fstream>
 #include <boost/iostreams/stream.hpp>
@@ -18,9 +19,10 @@ namespace ILPCuts
         ofstream _file;
         tee_device _tee_dev;
         stream _stream;
+        stream _empty_stream;
 
     public:
-        logger(string log_file_name = "log.txt", ostream &a_ostr = cout)
+        logger(string log_file_name = "log.txt", ostream &a_ostr = std::cout)
             : _log_file_name(log_file_name), _file(_log_file_name), _tee_dev(a_ostr, _file), _stream(_tee_dev)
         {
         }
@@ -34,6 +36,8 @@ namespace ILPCuts
         }
 
         stream &out() { return _stream; }
+
+        stream &empty() { return _empty_stream; }
 
         void print_command_line_params(int argc, char **argv)
         {

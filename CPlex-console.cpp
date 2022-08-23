@@ -7,9 +7,11 @@ ILOSTLBEGIN
 #include "conic_cuts_Eigen_adj.h"
 #include "conic_cuts_Eigen_LU.h"
 #include "conic_cuts_Eigen_Zp.h"
+#include "conic_cuts_Eigen_Wd.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
+using namespace ModuleCPlex;
 
 using int_type = int64_t;
 using lint_type = mpz_class;
@@ -18,10 +20,11 @@ using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
 using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = class CPlexAdapter<CutsGen_Base>;
+using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
 using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Wd = ConicCutsGenerator_Wd<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
 	logger &log,
@@ -72,7 +75,7 @@ void check_input_params(
 		exit(0);
 	}
 
-	if (solver_type != "adj" && solver_type != "lu" && solver_type != "zp")
+	if (solver_type != "adj" && solver_type != "lu" && solver_type != "zp" && solver_type != "wd")
 	{
 		log.out() << "Wrong value of the CLI parameter -cg(--cgen): "
 				  << solver_type << std::endl;
@@ -180,6 +183,8 @@ void run_cplex_experiment(
 	// import main problem from file
 	cplex_master.importModel(master_model, input_path.c_str(), obj, vars, rngs);
 
+	// env.out() << print_IloRangeArray(rngs) << endl;
+
 	// checking dimensional requrements for the problem
 	if (vars.getSize() < min_dim)
 	{
@@ -219,6 +224,8 @@ void run_cplex_experiment(
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(log);
 	else if (solver_type == "zp")
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(log);
+	else if (solver_type == "wd")
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Wd>(log);
 
 	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
@@ -230,7 +237,7 @@ void run_cplex_experiment(
 	cuts_gen_ptr->threads = threads_cuts_gen;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
 	cuts_gen_ptr->rgen = &engine;
-	if (solver_type == "zp")
+	if (solver_type == "zp" || solver_type == "wd")
 		static_cast<CutsGen_Zp *>(cuts_gen_ptr)->max_conservative_prime = cprime;
 
 	// set strategies for cutting generation
@@ -266,8 +273,7 @@ void run_cplex_experiment(
 	// cplex_master.setParam(IloCplex::Param::MIP::Interval, 1000);
 	// cplex_master.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	double originalRelaxedObjVal = root_node_boosting_console_subprogram(env, cplex_master, cplex_relaxed,
-																		 master_model, relaxed_model,
+	double originalRelaxedObjVal = root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
 																		 obj, rngs, vars,
 																		 cuts_gen_adapter,
 																		 cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
@@ -328,7 +334,7 @@ int main(int argc, char **argv)
 
 	program.add_argument("--cgen")
 		.default_value(std::string("zp"))
-		.help("type of cutting generation algorithm; can be \"adj\", \"lu\" or \"zp\"");
+		.help("type of cutting generation algorithm; can be \"adj\", \"lu\", \"zp\" or \"wd\"");
 
 	program.add_argument("-t", "--tolerance")
 		.default_value(0.000001)
