@@ -365,15 +365,15 @@ void run_cplex_experiment(
         {
 
             comparison_results << "Cut-type = \"" << cut_name << "\": "
-                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObjVal << "; "
-                               << "MILP Diff. = " << originalRelaxedObjVal - solution_info.bestMILPObjVal << "; "
-                               << "Cutoff Diff. = " << originalRelaxedObjVal - solution_info.cutoff << "\n"
+                               << "LP Diff. = " << abs(originalRelaxedObjVal - solution_info.bestLPObjVal) << "; "
+                               << "MILP Diff. = " << abs(originalRelaxedObjVal - solution_info.bestMILPObjVal) << "; "
+                               << "Cutoff Diff. = " << abs(originalRelaxedObjVal - solution_info.cutoff) << "\n"
                                << endl;
         }
         else
         {
             comparison_results << "Cut-type = \"" << cut_name << "\": No incumbent; "
-                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObjVal << "; "
+                               << "LP Diff. = " << abs(originalRelaxedObjVal - solution_info.bestLPObjVal) << "; "
                                << endl;
         }
     }
