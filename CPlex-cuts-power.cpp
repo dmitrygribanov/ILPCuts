@@ -1,7 +1,7 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-//#define ILPCUTS_PARALLEL_OFF
+// #define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
 #include "conic_cuts_Eigen_Zp.h"
@@ -268,6 +268,8 @@ void run_cplex_experiment(
     // setting parameters for solving in integer variables
     cplex_master.setParam(IloCplex::Param::Threads, threads_cplex);
     cplex_master.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
+    cplex_master.setParam(IloCplex::Param::MIP::Strategy::HeuristicEffort, 0);
+    cplex_master.setParam(IloCplex::Param::MIP::Strategy::HeuristicFreq, -1);
 
     if (cplex_tl > 0.0)
     {
@@ -365,15 +367,15 @@ void run_cplex_experiment(
         {
 
             comparison_results << "Cut-type = \"" << cut_name << "\": "
-                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObjVal << "; "
-                               << "MILP Diff. = " << originalRelaxedObjVal - solution_info.bestMILPObjVal << "; "
-                               << "Cutoff Diff. = " << originalRelaxedObjVal - solution_info.cutoff << "\n"
+                               << "LP Diff. = " << abs(originalRelaxedObjVal - solution_info.bestLPObjVal) << "; "
+                               << "MILP Diff. = " << abs(originalRelaxedObjVal - solution_info.bestMILPObjVal) << "; "
+                               << "Cutoff Diff. = " << abs(originalRelaxedObjVal - solution_info.cutoff) << "\n"
                                << endl;
         }
         else
         {
             comparison_results << "Cut-type = \"" << cut_name << "\": No incumbent; "
-                               << "LP Diff. = " << originalRelaxedObjVal - solution_info.bestLPObjVal << "; "
+                               << "LP Diff. = " << abs(originalRelaxedObjVal - solution_info.bestLPObjVal) << "; "
                                << endl;
         }
     }
