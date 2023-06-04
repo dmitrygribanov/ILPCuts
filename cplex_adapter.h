@@ -1,7 +1,8 @@
 #pragma once
 
 #include "cplex_utils.h"
-#include "base_module.h"
+#include "base_algo.h"
+#include "local_instance.h"
 namespace ILPCuts
 {
 	namespace ModuleCPlex

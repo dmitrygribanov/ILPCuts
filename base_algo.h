@@ -13,8 +13,42 @@
 
 namespace ILPCuts
 {
+    template <typename intT, typename rationalT>
+    class single_type_base_alg
+    {
+    public:
+        using rational_type = rationalT;
+        using int_type = intT;
+
+        using is_mat = SparseMatrix<int_type>;
+        using rs_mat = SparseMatrix<rational_type>;
+
+        using is_vec = SparseVector<int_type>;
+        using rs_vec = SparseVector<rational_type>;
+
+    protected:
+        using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
+
+        RatToInt_Unary _rat_to_int;
+
+    private:
+        using my_type = single_type_base_alg<intT, rationalT>;
+
+    public:
+        logger &log;
+
+        double tolerance = 0.000001;
+        double err_tolerance = 0.01;
+        size_t threads = 8;
+        std::mt19937 *rgen = nullptr;
+
+        single_type_base_alg(logger &a_log)
+            : log(a_log), _rat_to_int(err_tolerance)
+        {
+        }
+    };
     template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-    class base_alg
+    class dual_type_base_alg
     {
     public:
         using rational_type = rationalT;
@@ -46,7 +80,7 @@ namespace ILPCuts
         static constexpr auto _to_single_rat = conv<lrational_type, rational_type>::make;
 
     private:
-        using my_type = base_alg<intT, rationalT, lintT, lrationalT>;
+        using my_type = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
 
     public:
         logger &log;
@@ -56,7 +90,7 @@ namespace ILPCuts
         size_t threads = 8;
         std::mt19937 *rgen = nullptr;
 
-        base_alg(logger &a_log)
+        dual_type_base_alg(logger &a_log)
             : log(a_log), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
         {
         }

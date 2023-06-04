@@ -1,10 +1,10 @@
 #include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-//#define ILPCUTS_PARALLEL_OFF
+// #define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
-#include "conic_cuts_Eigen_Zp.h"
+#include "cone_coverer_Zp.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
@@ -15,9 +15,9 @@ using lint_type = mpz_class;
 using rational_type = double;
 using lrational_type = mpq_class;
 
-using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Base = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
-using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
     logger &log,

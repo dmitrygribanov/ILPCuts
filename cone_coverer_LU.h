@@ -1,6 +1,6 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "cone_coverer_base.h"
 #include "Eigen_solving_utilities.h"
 #include "ntl_module.h"
 
@@ -8,12 +8,12 @@ namespace ILPCuts
 {
 
 	template <typename intT, typename ratT, typename lintT, typename lratT>
-	class ConicCutsGenerator_LU
-		: public ConicCutsGenerator_Base<intT, ratT, lintT, lratT>
+	class ConeCoverer_LU
+		: public ConeCoverer_Base<intT, ratT, lintT, lratT>
 	{
 	private:
-		using base = ConicCutsGenerator_Base<intT, ratT, lintT, lratT>;
-		using my_type = ConicCutsGenerator_LU<intT, ratT, lintT, lratT>;
+		using base = ConeCoverer_Base<intT, ratT, lintT, lratT>;
+		using my_type = ConeCoverer_LU<intT, ratT, lintT, lratT>;
 
 	public:
 		using typename base::int_type;

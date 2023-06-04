@@ -1,16 +1,16 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "cone_coverer_base.h"
 #include "Eigen_solving_utilities.h"
 #include "ntl_module.h"
 namespace ILPCuts
 {
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	class ConicCutsGenerator_adj : public ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>
+	class ConeCoverer_adj : public ConeCoverer_Base<intT, rationalT, lintT, lratT>
 	{
 	private:
-		using base = ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>;
+		using base = ConeCoverer_Base<intT, rationalT, lintT, lratT>;
 
 	public:
 		using typename base::int_type;
@@ -180,7 +180,7 @@ namespace ILPCuts
 		}
 
 	public:
-		/*ConicCutsGenerator_adj(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
+		/*ConeCoverer_adj(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:base(outs, errs) {}*/
 
 		void generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det);
@@ -189,7 +189,7 @@ namespace ILPCuts
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	void ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
+	void ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
 	{
 
 		out() << "Generating directions pool ..." << endl;
@@ -202,7 +202,7 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	void ConicCutsGenerator_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
+	void ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
 	{
 		try
 		{

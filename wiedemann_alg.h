@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base_module.h"
+#include "base_algo.h"
 #include "ntl_module.h"
 #include <NTL/lzz_pX.h>
 #include <NTL/vec_lzz_p.h>

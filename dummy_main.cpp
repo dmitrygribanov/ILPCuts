@@ -8,7 +8,7 @@
 
 #include <valarray>
 
-#include "base_module.h"
+#include "base_algo.h"
 #include "ntl_module.h"
 #include "flint_module.h"
 #include "primes_downloader.h"
@@ -21,7 +21,7 @@ using namespace std;
 // #include <linbox/matrix/sparse-matrix.h>
 // #include <linbox/solutions/det.h>
 // #include <linbox/solutions/solve.h>
-//#include <gmp++/gmp++.h>
+// #include <gmp++/gmp++.h>
 
 // #include "conic_cuts_Eigen.h"
 

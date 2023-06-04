@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base_module.h"
+#include "base_algo.h"
 #include "Hilbert_base_alg.h"
 
 // all optional modules are added at the moment
@@ -15,12 +15,12 @@
 namespace ILPCuts
 {
 	template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-	class ConicCutsGenerator_Base
-		: public base_alg<intT, rationalT, lintT, lrationalT>
+	class ConeCoverer_Base
+		: public dual_type_base_alg<intT, rationalT, lintT, lrationalT>
 	{
 	private:
-		using my_type = ConicCutsGenerator_Base<intT, rationalT, lintT, lrationalT>;
-		using base = base_alg<intT, rationalT, lintT, lrationalT>;
+		using my_type = ConeCoverer_Base<intT, rationalT, lintT, lrationalT>;
+		using base = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
 
 	public:
 		using typename base::int_type;
@@ -254,7 +254,7 @@ namespace ILPCuts
 		size_func determinant_cut_limit = [](size_t n) -> size_t
 		{ return n; };
 
-		explicit ConicCutsGenerator_Base(logger &log)
+		explicit ConeCoverer_Base(logger &log)
 			: base(log), _Hilbert_base_alg(log)
 		{
 		}
@@ -384,8 +384,8 @@ namespace ILPCuts
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::is_mat>
-	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::partial_uni_decomp(std::unique_ptr<const cone_traits> C)
+	std::vector<typename ConeCoverer_Base<intT, rationalT, lintT, lratT>::is_mat>
+	ConeCoverer_Base<intT, rationalT, lintT, lratT>::partial_uni_decomp(std::unique_ptr<const cone_traits> C)
 	{
 		size_t n = C->A.cols();
 		omp_set_dynamic(std::max(threads, size_t(1)));
@@ -448,9 +448,9 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<std::unique_ptr<typename ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::cone_traits>>
-	ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::compute_layer(const cone_traits *C,
-																		  std::vector<Atomic<size_t>> &directions_evaluation_counter)
+	std::vector<std::unique_ptr<typename ConeCoverer_Base<intT, rationalT, lintT, lratT>::cone_traits>>
+	ConeCoverer_Base<intT, rationalT, lintT, lratT>::compute_layer(const cone_traits *C,
+																   std::vector<Atomic<size_t>> &directions_evaluation_counter)
 	{
 
 		std::vector<std::unique_ptr<cone_traits>> result;
@@ -488,7 +488,7 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	void ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
+	void ConeCoverer_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
 	{
 
 		init_Hilbert_alg_params();

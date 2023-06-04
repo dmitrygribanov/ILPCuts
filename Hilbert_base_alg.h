@@ -1,6 +1,6 @@
 #pragma once
 
-#include "base_module.h"
+#include "base_algo.h"
 
 #include "Eigen_solving_utilities.h"
 #include "flint_module.h"
@@ -9,11 +9,11 @@ namespace ILPCuts
 {
     template <typename intT, typename rationalT, typename lintT, typename lrationalT>
     class Hilbert_base_alg
-        : public base_alg<intT, rationalT, lintT, lrationalT>
+        : public dual_type_base_alg<intT, rationalT, lintT, lrationalT>
     {
     private:
         using my_type = Hilbert_base_alg<intT, rationalT, lintT, lrationalT>;
-        using base = base_alg<intT, rationalT, lintT, lrationalT>;
+        using base = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
 
     public:
         using typename base::int_type;

@@ -1,13 +1,13 @@
 ﻿#include <ilcplex/ilocplex.h>
 ILOSTLBEGIN
 
-//#define ILPCUTS_PARALLEL_OFF
+// #define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
-#include "conic_cuts_Eigen_adj.h"
-#include "conic_cuts_Eigen_LU.h"
-#include "conic_cuts_Eigen_Zp.h"
-#include "conic_cuts_Eigen_Wd.h"
+#include "cone_coverer_adj.h"
+#include "cone_coverer_LU.h"
+#include "cone_coverer_Zp.h"
+#include "cone_coverer_Wd.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
@@ -19,12 +19,12 @@ using rational_type = double;
 using lrational_type = mpq_class;
 
 using Strategies = CutsGenStrategies<int_type, rational_type>;
-using CutsGen_Base = ConicCutsGenerator_Base<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Base = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
-using CutsGen_Adj = ConicCutsGenerator_adj<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_LU = ConicCutsGenerator_LU<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_Zp = ConicCutsGenerator_Zp<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_Wd = ConicCutsGenerator_Wd<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Adj = ConeCoverer_adj<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_LU = ConeCoverer_LU<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen_Wd = ConeCoverer_Wd<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
 	logger &log,

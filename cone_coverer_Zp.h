@@ -1,16 +1,16 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "cone_coverer_base.h"
 #include "ntl_module.h"
 #include "primes_downloader.h"
 
 namespace ILPCuts
 {
     template <typename intT, typename rationalT, typename lintT, typename lratT>
-    class ConicCutsGenerator_Zp : public ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>
+    class ConeCoverer_Zp : public ConeCoverer_Base<intT, rationalT, lintT, lratT>
     {
     private:
-        using base = ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>;
+        using base = ConeCoverer_Base<intT, rationalT, lintT, lratT>;
 
     public:
         using typename base::int_type;

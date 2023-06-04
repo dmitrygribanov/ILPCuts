@@ -1,16 +1,16 @@
 #pragma once
 
-#include "conic_cuts_base.h"
+#include "cone_coverer_base.h"
 #include "wiedemann_alg.h"
 #include "primes_downloader.h"
 
 namespace ILPCuts
 {
     template <typename intT, typename rationalT, typename lintT, typename lratT>
-    class ConicCutsGenerator_Wd : public ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>
+    class ConeCoverer_Wd : public ConeCoverer_Base<intT, rationalT, lintT, lratT>
     {
     private:
-        using base = ConicCutsGenerator_Base<intT, rationalT, lintT, lratT>;
+        using base = ConeCoverer_Base<intT, rationalT, lintT, lratT>;
 
     public:
         using typename base::int_type;
@@ -208,7 +208,7 @@ namespace ILPCuts
         }
 
     public:
-        ConicCutsGenerator_Wd(logger &log)
+        ConeCoverer_Wd(logger &log)
             : base(log), _wd_alg(log) {}
 
         void generate_cuts(const is_mat &A, const rs_vec &optLP, const lint_type &det)
