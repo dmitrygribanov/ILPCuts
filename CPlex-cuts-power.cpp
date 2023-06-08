@@ -321,8 +321,6 @@ void run_cplex_experiment(
     // solution_name -- stores hybrid configuration name
     auto add_hybrid_solution = [&](string solution_name, string cplex_param)
     {
-        cplex_cut_types.set_param(cplex_master, cplex_param);
-
         cuts_gen_adapter.clear_cuts();
 
         // solving the problem in the root node with ILPCuts cutting planes
@@ -332,6 +330,8 @@ void run_cplex_experiment(
                                               cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
         solutions_map[solution_name];
+
+        cplex_cut_types.set_param(cplex_master, cplex_param);
 
         if (cplex_master.solve())
         {

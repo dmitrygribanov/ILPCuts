@@ -60,8 +60,17 @@ namespace ILPCuts
                 return name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
             }
 
+            void restore_params(IloCplex cplex) const
+            {
+                for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
+                    cplex.setParam(types_iter->second, 0);
+            }
+
             void set_param(IloCplex cplex, string name) const
             {
+                // restore params to default if they were changed before
+                restore_params(cplex);
+
                 // if all-type is used, we run defoult cplex solver
                 if (name != "all")
                 {
@@ -72,11 +81,14 @@ namespace ILPCuts
                             cplex.setParam(types_iter->second, -1);
                     }
                     // if type != none, we turn off all cuts except (cplex_cuts_param)-variable
+                    // the last is set to agressive(=2) switch
                     else
                     {
                         for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
                             if (types_iter->first != name)
                                 cplex.setParam(types_iter->second, -1);
+                            else
+                                cplex.setParam(types_iter->second, 2);
                     }
                 }
             }
