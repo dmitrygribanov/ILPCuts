@@ -342,5 +342,5 @@ healthchecksdb
 
 # Игнорировать все файлы в каталоге build/
 build/
-scripts/CPlexConsole_run.sh
-scripts/CPlexCutsPower_run.sh
+scripts/run_rootNodeSolve.sh
+scripts/run_cutsPower.sh
