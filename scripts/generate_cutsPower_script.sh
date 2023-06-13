@@ -1,7 +1,7 @@
 #!/bin/sh
 
 PROBLEMS_DIR=../problems/pure_int_bench
-OUTPUT_SCRIPT=CPlexCutsPower_run.sh
+OUTPUT_SCRIPT=run_cutsPower.sh
 
 echo "Problems path is: $PROBLEMS_DIR"
 echo "Output script is: $OUTPUT_SCRIPT"
@@ -15,7 +15,7 @@ echo >> $OUTPUT_SCRIPT
 echo "cp -r -f ../primes_table ../build/primes_table" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
-echo "OUT_DIR=CPlexCutsPower_\`date +\"%d.%m.%Y_%a_%H-%M\"\`" >> $OUTPUT_SCRIPT
+echo "OUT_DIR=cutsPower_\`date +\"%d.%m.%Y_%a_%H-%M\"\`" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
 echo "rm -r -f ../build/\$OUT_DIR" >> $OUTPUT_SCRIPT
@@ -33,8 +33,9 @@ do
     MAX_DIM=${3:-0} #maximal problem dim
     CUTS_TL=${4:-0.0} #cuts gen time limit in minutes
     CPLEX_TL=${5:-0.0} #cplex time limit in minutes
-    MODEL_CUTS_SWITCH=${6:-on} #switch for model cuts option
-    NODE_LIM=${7:-1} #node limit for CPlex
+    CUTS_GEN_ROUNDS=${6:-1} #number of cuts generation iterations
+    MODEL_CUTS_SWITCH=${7:-on} #switch for model cuts option
+    NODE_LIM=${8:-1} #node limit for CPlex
     CUTS_TL=`echo "$CUTS_TL * 60" | bc` #transforming into TL in seconds
     CPLEX_TL=`echo "$CPLEX_TL * 60" | bc` #transforming into TL in seconds
     LOGF=${FNAME}_log.txt #out log file name
@@ -44,7 +45,7 @@ do
     echo "#$FNAME" >> $OUTPUT_SCRIPT
     echo "#-------------------------------------------------------" >> $OUTPUT_SCRIPT
     echo ../CPlexCutsPower -i ../$PROB_PATH -o $LOGF --cuts_output $CUTSF --comp_result $RESF \
-    --wcgn 1 --wcpl $CPLEX_WS --node_lim $NODE_LIM --model_cuts $MODEL_CUTS_SWITCH \
+    --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS --node_lim $NODE_LIM --model_cuts $MODEL_CUTS_SWITCH \
     --cplex_tl $CPLEX_TL --cuts_tl $CUTS_TL --min_dim $MIN_DIM --max_dim $MAX_DIM >> $OUTPUT_SCRIPT
     #echo >> $OUTPUT_SCRIPT
 done

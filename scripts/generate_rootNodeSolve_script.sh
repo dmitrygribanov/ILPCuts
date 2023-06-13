@@ -1,7 +1,7 @@
 #!/bin/sh
 
 PROBLEMS_DIR=../problems/pure_int_bench
-OUTPUT_SCRIPT=CPlexConsole_run.sh
+OUTPUT_SCRIPT=run_rootNodeSolve.sh
 
 echo "Problems path is: $PROBLEMS_DIR"
 echo "Output script is: $OUTPUT_SCRIPT"
@@ -15,7 +15,7 @@ echo >> $OUTPUT_SCRIPT
 echo "cp -r -f ../primes_table ../build/primes_table" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
-echo "OUT_DIR=CPlexCutsPower_\`date +\"%d.%m.%Y_%a_%H-%M\"\`" >> $OUTPUT_SCRIPT
+echo "OUT_DIR=rootNodeSolve_\`date +\"%d.%m.%Y_%a_%H-%M\"\`" >> $OUTPUT_SCRIPT
 echo >> $OUTPUT_SCRIPT
 
 echo "rm -r -f ../build/\$OUT_DIR" >> $OUTPUT_SCRIPT
