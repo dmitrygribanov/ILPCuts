@@ -17,7 +17,7 @@ using lint_type = mpz_class;
 using rational_type = double;
 using lrational_type = mpq_class;
 
-using Strategies = CutsGenStrategies<int_type, rational_type>;
+using Strategies = DirectionStrategies<int_type, rational_type>;
 using CutsGen_Base = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
 using CutsGen_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;

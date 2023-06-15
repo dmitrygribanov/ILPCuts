@@ -2,6 +2,7 @@
 
 #include "base_algo.h"
 #include "Hilbert_base_alg.h"
+#include "direction_strategies.h"
 
 // all optional modules are added at the moment
 // to simplify experiments
@@ -49,7 +50,7 @@ namespace ILPCuts
 		using base::threads;
 		using base::tolerance;
 
-		using Strategies = CutsGenStrategies<int_type, rational_type>;
+		using Strategies = DirectionStrategies<int_type, rational_type>;
 
 		struct cut_info
 		{

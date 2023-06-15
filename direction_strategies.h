@@ -5,7 +5,7 @@
 namespace ILPCuts
 {
     template <typename intT, typename ratT>
-    struct CutsGenStrategies
+    struct DirectionStrategies
     {
         using int_type = intT;
         using rational_type = ratT;
