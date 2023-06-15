@@ -8,6 +8,7 @@ ILOSTLBEGIN
 #include "cone_coverer_LU.h"
 #include "cone_coverer_Zp.h"
 #include "cone_coverer_Wd.h"
+#include "cuts_gen_base.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
@@ -19,12 +20,13 @@ using rational_type = double;
 using lrational_type = mpq_class;
 
 using Strategies = DirectionStrategies<int_type, rational_type>;
-using CutsGen_Base = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
-using CutsGen_Adj = ConeCoverer_adj<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_LU = ConeCoverer_LU<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen_Wd = ConeCoverer_Wd<int_type, rational_type, lint_type, lrational_type>;
+using ConeCoverer = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen = ConeCoverCutSGenerator<int_type, rational_type, lint_type, lrational_type>;
+using CutsGenAdapter = CPlexAdapter<CutsGen>;
+using CC_Adj = ILPCuts::ConeCoverer_adj<int_type, rational_type, lint_type, lrational_type>;
+using CC_LU = ILPCuts::ConeCoverer_LU<int_type, rational_type, lint_type, lrational_type>;
+using CC_Zp = ILPCuts::ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
+using CC_Wd = ILPCuts::ConeCoverer_Wd<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
 	logger &log,
@@ -217,37 +219,40 @@ void run_cplex_experiment(
 	// createing adapter object
 	CutsGenAdapter cuts_gen_adapter;
 
+	cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen>(log);
+	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
+
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Adj>(log);
+		cuts_gen_ptr->cone_coverer = std::make_unique<CC_Adj>(log);
 	else if (solver_type == "lu")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_LU>(log);
+		cuts_gen_ptr->cone_coverer = std::make_unique<CC_LU>(log);
 	else if (solver_type == "zp")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(log);
+		cuts_gen_ptr->cone_coverer = std::make_unique<CC_Zp>(log);
 	else if (solver_type == "wd")
-		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Wd>(log);
+		cuts_gen_ptr->cone_coverer = std::make_unique<CC_Wd>(log);
 
-	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
+	auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer.get();
 
 	// initialization of cuts generator and setting parameters
 	std::mt19937 engine;
-	cuts_gen_ptr->tolerance = tolerance;
-	cuts_gen_ptr->err_tolerance = err_tolerance;
-	cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
-	cuts_gen_ptr->threads = threads_cuts_gen;
+	cuts_gen_ptr->tolerance = cone_coverer_ptr->tolerance = tolerance;
+	cuts_gen_ptr->err_tolerance = cone_coverer_ptr->err_tolerance = err_tolerance;
+	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
+	cuts_gen_ptr->threads = cone_coverer_ptr->threads = threads_cuts_gen;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
-	cuts_gen_ptr->rgen = &engine;
+	cone_coverer_ptr->rgen = &engine;
 	if (solver_type == "zp" || solver_type == "wd")
-		static_cast<CutsGen_Zp *>(cuts_gen_ptr)->max_conservative_prime = cprime;
+		static_cast<CC_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 
 	// set strategies for cutting generation
 	if (rand_directions > 0)
 	{
 		using RandStrategy = typename Strategies::ConvUniform<std::mt19937>;
-		cuts_gen_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+		cone_coverer_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
 	}
 	if (some_direction)
-		cuts_gen_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
+		cone_coverer_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
 
 	// setting parameters for solving in integer variables
 	cplex_master.setParam(IloCplex::Param::Threads, threads_cplex);

@@ -158,26 +158,26 @@ namespace ILPCuts
 		/*ConeCoverer_adj(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:base(outs, errs) {}*/
 
-		void generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det);
+		std::vector<is_mat> generate_cuts(const is_mat &A, const lis_mat &adjA, const lint_type &det);
 
-		void generate_cuts(const is_mat &A, const rs_vec &optLP) override;
+		std::vector<is_mat> generate_cuts(const is_mat &A) override;
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	void ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const rs_vec &optLP, const lint_type &det)
+	std::vector<typename ConeCoverer_adj<intT, rationalT, lintT, lratT>::is_mat>
+	ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const lint_type &det)
 	{
 
 		out() << "Generating directions pool ..." << endl;
 
 		auto directions_pool = std::move(base::generate_directions_pool(A));
 
-		base::generate_cuts(
-			create_cone_traits(A, adjA, det, directions_pool),
-			optLP);
+		return base::generate_cuts(create_cone_traits(A, adjA, det, directions_pool));
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	void ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const rs_vec &optLP)
+	std::vector<typename ConeCoverer_adj<intT, rationalT, lintT, lratT>::is_mat>
+	ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A)
 	{
 		try
 		{
@@ -192,11 +192,12 @@ namespace ILPCuts
 			// 	Utility::compute_abs_adjugate_and_det(A.template cast<lrational_type>().eval()));
 			out() << "matrix inversion time: " << timer.finish_str();
 
-			generate_cuts(A, adjA, optLP, abs(det));
+			return generate_cuts(A, adjA, abs(det));
 		}
 		catch (ToleranceErrorException exc)
 		{
 			out() << "determinant computing tolerance error: " << exc.what() << endl;
+			return std::vector<is_mat>();
 		}
 	}
 } // namespace ILPCuts

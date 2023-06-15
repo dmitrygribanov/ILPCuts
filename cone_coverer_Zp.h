@@ -210,6 +210,7 @@ namespace ILPCuts
             catch (ToleranceErrorException exc)
             {
                 out() << "determinant computing tolerance error: " << exc.what() << endl;
+                return std::vector<is_mat>();
             }
         }
     };

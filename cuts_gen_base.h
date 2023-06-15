@@ -35,75 +35,23 @@ namespace ILPCuts
             return Utility::SparseVecEquiv<int_type>()(ray, arg.ray) && rhs == arg.rhs;
         }
     };
-    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-    class cuts_gen_base : public dual_type_base_alg<intT, rationalT, lintT, lrationalT>
+    template <typename intT, typename rationalT>
+    class cuts_gen_base : public single_type_base_alg<intT, rationalT>
     {
     private:
-        using my_type = cuts_gen_base<intT, rationalT, lintT, lrationalT>;
-        using base = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
+        using my_type = cuts_gen_base<intT, rationalT>;
+        using base = single_type_base_alg<intT, rationalT>;
 
     public:
-        DUAL_TYPE_ALGO_DEFS
+        SINGLE_TYPE_ALGO_DEFS
 
-        using cut_info = cut_info<intT, rationalT>;
-        using local_instance = local_instance<intT, rationalT>;
+        using cut_info = ILPCuts::cut_info<intT, rationalT>;
+        using local_instance = ILPCuts::local_instance<intT, rationalT>;
+
+        local_instance LocalInstance;
 
     protected:
         std::vector<cut_info> _resulting_cuts;
-        local_instance _instance_copy;
-
-        vector<cut_info> generate_cuts_from_row_matrix(const is_mat &cuts_mat)
-        {
-            vector<cut_info> res;
-
-            rs_vec rat_b = cuts_mat.template cast<rational_type>() * _instance_copy.v;
-            is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(_rat_to_int);
-            is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(_rat_to_int);
-
-            rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
-
-            typename rs_vec::InnerIterator diff_it(diff_b);
-            while (diff_it)
-            {
-                if (diff_it.value() > rational_type(tolerance))
-                {
-                    is_vec ray = cuts_mat.row(diff_it.index());
-                    int_type rhs = floor_b.coeff(diff_it.index());
-                    rational_type frac_rhs = rat_b.coeff(diff_it.index());
-
-                    res.emplace_back(cut_info{ray, rhs, frac_rhs});
-                }
-                ++diff_it;
-            }
-
-            return res;
-        }
-
-        void append_cuts_from_row_matrices(std::vector<is_mat> mat_pool)
-        {
-            out() << "Transforming rays to cuts..." << endl;
-            timer.start();
-
-            for (auto &mat : mat_pool)
-            {
-                mat = mat.transpose().eval();
-            }
-
-            for (const auto &mat : mat_pool)
-            {
-                auto new_cuts = generate_cuts_from_row_matrix(mat, _instance_copy.v);
-
-                _resulting_cuts.insert(_resulting_cuts.end(), make_move_iterator(new_cuts.begin()),
-                                       make_move_iterator(new_cuts.end()));
-            }
-
-            out() << "Transforming is finished, time = " << timer.finish_str()
-                  << "Filtering duplicate cuts..." << endl;
-
-            std::sort(_resulting_cuts.begin(), _resulting_cuts.end());
-            auto last = std::unique(_resulting_cuts.begin(), _resulting_cuts.end());
-            _resulting_cuts.erase(last, _resulting_cuts.end());
-        }
 
     public:
         logger::stream &out()
@@ -112,7 +60,7 @@ namespace ILPCuts
             return log.out();
         }
 
-        void set_instance(local_instance ins) { _instance_copy = std::move(ins); }
+        // void set_instance(local_instance ins) { LocalInstance = std::move(ins); }
 
         virtual void generate_cuts() = 0;
 
@@ -168,6 +116,22 @@ namespace ILPCuts
             }
         }
 
+        is_mat adjust_normal_cone(is_mat A, const rs_vec &c)
+        {
+            rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c);
+
+            for (typename rs_vec::InnerIterator it(t); it; ++it)
+            {
+                // it.value() < tolerance previouse code. working fast but its must be not correct
+                if (it.value() < 0 && abs(it.value()) > tolerance)
+                {
+                    A.col(it.index()) = -A.col(it.index());
+                }
+            }
+
+            return std::move(A);
+        }
+
         void clear_cuts()
         {
             _resulting_cuts.clear();
@@ -175,14 +139,16 @@ namespace ILPCuts
 
         void check_cuts_validity()
         {
-            size_t n = _AT_copy.cols();
+            is_mat AT = LocalInstance.A.transpose();
+
+            size_t n = AT.cols();
             assert(n > 0);
 
             for (size_t i = 0; i < _resulting_cuts.size(); ++i)
             {
                 const auto &cut = _resulting_cuts[i];
 
-                rs_vec t = Utility::system_solve(_instance_copy.A.transpose().template cast<rational_type>().eval(), cut.ray.template cast<rational_type>().eval());
+                rs_vec t = Utility::system_solve(AT.template cast<rational_type>().eval(), cut.ray.template cast<rational_type>().eval());
 
                 for (typename rs_vec::InnerIterator it(t); it; ++it)
                 {
@@ -197,7 +163,7 @@ namespace ILPCuts
                 // rational_type vall = cut.ray.template cast<rational_type>().dot(_optLP_copy);
                 // out() << "vall: " << vall << endl;
 
-                if (abs(cut.ray.template cast<rational_type>().dot(_instance_copy.v) - cut.frac_rhs) > err_tolerance)
+                if (abs(cut.ray.template cast<rational_type>().dot(LocalInstance.v) - cut.frac_rhs) > err_tolerance)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";
@@ -211,6 +177,88 @@ namespace ILPCuts
                     throw Exception(msg.str());
                 }
             }
+        }
+    };
+
+    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
+    class ConeCoverCutSGenerator : public cuts_gen_base<intT, rationalT>
+    {
+    private:
+        using my_type = ConeCoverCutSGenerator<intT, rationalT, lintT, lrationalT>;
+        using base = cuts_gen_base<intT, rationalT>;
+
+    public:
+        SINGLE_TYPE_ALGO_DEFS
+
+        using ConeCoverer_Base = ILPCuts::ConeCoverer_Base<intT, rationalT, lintT, lrationalT>;
+
+        std::unique_ptr<ConeCoverer_Base> cone_coverer;
+
+        using base::_resulting_cuts;
+        using base::LocalInstance;
+        using base::out;
+        using typename base::cut_info;
+
+    protected:
+        vector<cut_info> generate_cuts_from_row_matrix(const is_mat &cuts_mat)
+        {
+            vector<cut_info> res;
+
+            rs_vec rat_b = cuts_mat.template cast<rational_type>() * LocalInstance.v;
+            is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(_rat_to_int);
+            is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(_rat_to_int);
+
+            rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
+
+            typename rs_vec::InnerIterator diff_it(diff_b);
+            while (diff_it)
+            {
+                if (diff_it.value() > rational_type(tolerance))
+                {
+                    is_vec ray = cuts_mat.row(diff_it.index());
+                    int_type rhs = floor_b.coeff(diff_it.index());
+                    rational_type frac_rhs = rat_b.coeff(diff_it.index());
+
+                    res.emplace_back(cut_info{ray, rhs, frac_rhs});
+                }
+                ++diff_it;
+            }
+
+            return res;
+        }
+
+        void append_cuts_from_row_matrices(std::vector<is_mat> mat_pool)
+        {
+            Timer timer;
+            out() << "Transforming rays to cuts..." << endl;
+            timer.start();
+
+            for (auto &mat : mat_pool)
+            {
+                mat = mat.transpose().eval();
+            }
+
+            for (const auto &mat : mat_pool)
+            {
+                auto new_cuts = generate_cuts_from_row_matrix(mat);
+
+                _resulting_cuts.insert(_resulting_cuts.end(), make_move_iterator(new_cuts.begin()),
+                                       make_move_iterator(new_cuts.end()));
+            }
+
+            out() << "Transforming is finished, time = " << timer.finish_str()
+                  << "Filtering duplicate cuts..." << endl;
+
+            std::sort(_resulting_cuts.begin(), _resulting_cuts.end());
+            auto last = std::unique(_resulting_cuts.begin(), _resulting_cuts.end());
+            _resulting_cuts.erase(last, _resulting_cuts.end());
+        }
+
+    public:
+        void generate_cuts() override
+        {
+            auto mat_pool = cone_coverer->generate_cuts(LocalInstance.A.transpose());
+            append_cuts_from_row_matrices(mat_pool);
         }
     };
 } // namespace ILPCuts

@@ -186,22 +186,6 @@ namespace ILPCuts
 			return log.out();
 		}
 
-		is_mat adjust_normal_cone(is_mat A, const rs_vec &c)
-		{
-			rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c);
-
-			for (typename rs_vec::InnerIterator it(t); it; ++it)
-			{
-				// it.value() < tolerance previouse code. working fast but its must be not correct
-				if (it.value() < 0 && abs(it.value()) > tolerance)
-				{
-					A.col(it.index()) = -A.col(it.index());
-				}
-			}
-
-			return std::move(A);
-		}
-
 		virtual std::vector<is_mat> generate_cuts(const is_mat &A) = 0;
 	};
 

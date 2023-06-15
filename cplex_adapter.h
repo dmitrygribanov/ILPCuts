@@ -2,6 +2,7 @@
 
 #include "cplex_utils.h"
 #include "base_algo.h"
+#include "cuts_gen_base.h"
 #include "local_instance.h"
 namespace ILPCuts
 {
@@ -19,7 +20,7 @@ namespace ILPCuts
 			using rs_mat = typename generator_base::rs_mat;
 			using is_vec = typename generator_base::is_vec;
 			using rs_vec = typename generator_base::rs_vec;
-			using Strategies = typename generator_base::Strategies;
+			using Strategies = typename generator_base::ConeCoverer_Base::Strategies;
 			using cut_info = typename generator_base::cut_info;
 
 			enum class IsLazy
@@ -319,7 +320,7 @@ namespace ILPCuts
 
 			out() << "normal cone adjusting..." << endl;
 
-			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
+			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
 
 			return std::make_tuple(A_basis, c, optLP);
 		}
@@ -516,7 +517,7 @@ namespace ILPCuts
 			// cout << A_basis << endl;
 			// cout << A_basis.cols() << ",  " << A_basis.rows() << endl;
 
-			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c);
+			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
 
 			return std::make_tuple(A_basis, c, optLP);
 		}
@@ -592,20 +593,23 @@ namespace ILPCuts
 		template <typename cutsGenT>
 		void CPlexAdapter<cutsGenT>::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
 		{
-			generator_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
+			generator_ptr->cone_coverer->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
 
 			Timer timer;
 			timer.start();
 			out() << "cutting plane generation is started..." << endl;
 
-			generator_ptr->generate_cuts(A, optLP);
+			generator_ptr->LocalInstance.A = std::move(A);
+			generator_ptr->LocalInstance.c = std::move(c);
+			generator_ptr->LocalInstance.v = std::move(optLP);
+			generator_ptr->generate_cuts();
 
 			out() << "cutting plane generation is finished,\n"
 				  << "total time: " << timer.finish_str() << "\n"
 				  << "number of added cuts: " << get_cuts().size() << "\n"
 				  << endl;
 
-			generator_ptr->direction_strategies.pop_back();
+			generator_ptr->cone_coverer->direction_strategies.pop_back();
 		}
 
 		template <typename cutsGenT>

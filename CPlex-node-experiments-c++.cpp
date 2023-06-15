@@ -16,9 +16,10 @@ using rational_type = double;
 using lrational_type = mpq_class;
 
 using Strategies = DirectionStrategies<int_type, rational_type>;
-using CutsGen_Base = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = CPlexAdapter<CutsGen_Base>;
-using CutsGen_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
+using ConeCoverer = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen = ConeCoverCutSGenerator<int_type, rational_type, lint_type, lrational_type>;
+using CutsGenAdapter = CPlexAdapter<CutsGen>;
+using CC_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
 
 // ILOUSERCUTCALLBACK4(myCutsCallback, IloCplex, cplex, IloObjective, obj, IloNumVarArray, vars, IloRangeArray, rangs)
 
@@ -360,28 +361,30 @@ void run_cplex_experiment(logger &log,
 
     if (!baseline)
     {
-        cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_Zp>(log);
-
+        cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen>(log);
         auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
+
+        cuts_gen_ptr->cone_coverer = std::make_unique<CC_Zp>(log);
+        auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer.get();
 
         // initialization of cuts generator and setting parameters
         std::mt19937 engine;
-        cuts_gen_ptr->rgen = &engine;
-        cuts_gen_ptr->tolerance = tolerance;
-        cuts_gen_ptr->err_tolerance = err_tolerance;
-        cuts_gen_ptr->cone_limit_per_direction = cone_limit_per_direction;
-        cuts_gen_ptr->threads = threads_cuts_gen;
+        cone_coverer_ptr->rgen = cuts_gen_ptr->rgen = &engine;
+        cone_coverer_ptr->tolerance = cuts_gen_ptr->tolerance = tolerance;
+        cone_coverer_ptr->err_tolerance = cuts_gen_ptr->err_tolerance = err_tolerance;
+        cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
+        cone_coverer_ptr->threads = cuts_gen_ptr->threads = threads_cuts_gen;
         cuts_gen_adapter.is_lazy = CutsGenAdapter::IsLazy::on;
-        static_cast<CutsGen_Zp *>(cuts_gen_ptr)->max_conservative_prime = cprime;
+        static_cast<CC_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 
         // set strategies for cutting generation
         if (rand_directions > 0)
         {
             using RandStrategy = typename Strategies::ConvUniform<std::mt19937>;
-            cuts_gen_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
         }
         if (some_direction)
-            cuts_gen_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
 
         // generate cuts from the relaxed model
         env.out() << "constraints generation ..." << endl;
