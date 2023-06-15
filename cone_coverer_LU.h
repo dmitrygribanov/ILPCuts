@@ -16,20 +16,7 @@ namespace ILPCuts
 		using my_type = ConeCoverer_LU<intT, ratT, lintT, lratT>;
 
 	public:
-		using typename base::int_type;
-		using typename base::lint_type;
-		using typename base::lrational_type;
-		using typename base::rational_type;
-
-		using typename base::is_mat;
-		using typename base::lis_mat;
-		using typename base::lrs_mat;
-		using typename base::rs_mat;
-
-		using typename base::is_vec;
-		using typename base::lis_vec;
-		using typename base::lrs_vec;
-		using typename base::rs_vec;
+		DUAL_TYPE_ALGO_DEFS
 
 		using typename base::cone_traits;
 		using typename base::dir_coeffs;
@@ -37,21 +24,9 @@ namespace ILPCuts
 		using typename base::process_func;
 		using typename base::transform_base;
 
-		using base::_lrat_to_lint;
-		using base::_rat_to_int;
-		using base::_to_single_int;
-		using base::_to_single_rat;
 		using base::cone_limit_per_direction;
 		using base::direction_strategies;
-		using base::err_tolerance;
-		using base::rgen;
-		using base::threads;
-		using base::tolerance;
-
-		using base::log;
 		using base::out;
-
-		using base::base;
 
 	private:
 		using perm_mat = SparseMatrix<int>;

@@ -24,31 +24,7 @@ namespace ILPCuts
 		using base = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
 
 	public:
-		using typename base::int_type;
-		using typename base::lint_type;
-		using typename base::lrational_type;
-		using typename base::rational_type;
-
-		using typename base::is_mat;
-		using typename base::lis_mat;
-		using typename base::lrs_mat;
-		using typename base::rs_mat;
-
-		using typename base::is_vec;
-		using typename base::lis_vec;
-		using typename base::lrs_vec;
-		using typename base::rs_vec;
-
-		using base::_lrat_to_lint;
-		using base::_rat_to_int;
-		using base::_to_single_int;
-		using base::_to_single_rat;
-		using base::base;
-		using base::err_tolerance;
-		using base::log;
-		using base::rgen;
-		using base::threads;
-		using base::tolerance;
+		DUAL_TYPE_ALGO_DEFS
 
 		using Strategies = DirectionStrategies<int_type, rational_type>;
 

@@ -13,20 +13,7 @@ namespace ILPCuts
         using base = ConeCoverer_Base<intT, rationalT, lintT, lratT>;
 
     public:
-        using typename base::int_type;
-        using typename base::lint_type;
-        using typename base::lrational_type;
-        using typename base::rational_type;
-
-        using typename base::is_mat;
-        using typename base::lis_mat;
-        using typename base::lrs_mat;
-        using typename base::rs_mat;
-
-        using typename base::is_vec;
-        using typename base::lis_vec;
-        using typename base::lrs_vec;
-        using typename base::rs_vec;
+        DUAL_TYPE_ALGO_DEFS
 
         using typename base::cone_traits;
         using typename base::dir_coeffs;
@@ -35,14 +22,7 @@ namespace ILPCuts
         using typename base::sparse_transform;
         using typename base::transform_base;
 
-        using base::log;
         using base::out;
-
-        using typename base::base;
-
-        using base::_lrat_to_lint;
-        using base::err_tolerance;
-        using base::tolerance;
 
         size_t max_conservative_prime = 101;
 
