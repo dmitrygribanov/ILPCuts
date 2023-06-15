@@ -28,33 +28,6 @@ namespace ILPCuts
 
 		using Strategies = DirectionStrategies<int_type, rational_type>;
 
-		struct cut_info
-		{
-			is_vec ray;
-			int_type rhs;
-			rational_type frac_rhs;
-
-			bool operator<(const cut_info &arg)
-			{
-				bool is_rays_less = Utility::SparseVecLess<int_type>()(ray, arg.ray);
-				if (is_rays_less)
-					return true;
-
-				bool is_rays_equal = Utility::SparseVecEquiv<int_type>()(ray, arg.ray);
-				if (is_rays_equal)
-				{
-					return rhs < arg.rhs;
-				}
-
-				return false;
-			}
-
-			bool operator==(const cut_info &arg)
-			{
-				return Utility::SparseVecEquiv<int_type>()(ray, arg.ray) && rhs == arg.rhs;
-			}
-		};
-
 	private:
 		Hilbert_base_alg<intT, rationalT, lintT, lrationalT> _Hilbert_base_alg;
 
@@ -66,16 +39,14 @@ namespace ILPCuts
 			_Hilbert_base_alg.threads = threads;
 		}
 
-		is_mat _AT_copy;
-		rs_vec _optLP_copy;
+		// is_mat _AT_copy;
+		// rs_vec _optLP_copy;
 
-		std::vector<cut_info> _resulting_cuts;
-
-		void copy_original_problem_info(const is_mat &A, const rs_vec &optLP)
-		{
-			_AT_copy = A;
-			_optLP_copy = optLP;
-		}
+		// void copy_original_problem_info(const is_mat &A, const rs_vec &optLP)
+		// {
+		// 	_AT_copy = A;
+		// 	_optLP_copy = optLP;
+		// }
 
 	protected:
 		using transform_base = ILPCuts::transform_base<int_type, rational_type, lint_type, lrational_type>;
@@ -179,7 +150,7 @@ namespace ILPCuts
 
 		virtual void process_node(const cone_traits &C, process_func pf) = 0;
 
-		void generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP);
+		std::vector<is_mat> generate_cuts(std::unique_ptr<const cone_traits> C);
 
 		std::vector<rs_vec> generate_directions_pool(const is_mat &A)
 		{
@@ -194,33 +165,6 @@ namespace ILPCuts
 			}
 
 			return std::move(directions_pool);
-		}
-
-		vector<cut_info> generate_cuts_from_row_matrix(const is_mat &cuts_mat, const rs_vec &optLP)
-		{
-			vector<cut_info> res;
-
-			rs_vec rat_b = cuts_mat.template cast<rational_type>() * optLP;
-			is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(_rat_to_int);
-			is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(_rat_to_int);
-
-			rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
-
-			typename rs_vec::InnerIterator diff_it(diff_b);
-			while (diff_it)
-			{
-				if (diff_it.value() > rational_type(tolerance))
-				{
-					is_vec ray = cuts_mat.row(diff_it.index());
-					int_type rhs = floor_b.coeff(diff_it.index());
-					rational_type frac_rhs = rat_b.coeff(diff_it.index());
-
-					res.emplace_back(cut_info{ray, rhs, frac_rhs});
-				}
-				++diff_it;
-			}
-
-			return res;
 		}
 
 	public:
@@ -258,106 +202,7 @@ namespace ILPCuts
 			return std::move(A);
 		}
 
-		virtual void generate_cuts(const is_mat &A, const rs_vec &optLP) = 0;
-
-		const std::vector<cut_info> &get_cuts() const { return _resulting_cuts; }
-
-		// this function takes a collection of resulting cuts
-		// and prints them to a string
-		// each cut is separtated by \n
-		// the last cut is also finished by \n
-		void export_cuts(ofstream &out_file)
-		{
-			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
-			{
-				out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
-						 << _resulting_cuts[i].rhs << "\n";
-			}
-		}
-
-		void export_cuts_full(ofstream &out_file)
-		{
-			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
-			{
-				out_file << Utility::dense_vec_to_str(_resulting_cuts[i].ray) << " "
-						 << _resulting_cuts[i].rhs << " "
-						 << _resulting_cuts[i].frac_rhs << "\n";
-			}
-		}
-
-		void import_cuts(istream &in_file)
-		{
-			clear_cuts();
-
-			string line;
-
-			while (std::getline(in_file, line))
-			{
-				istringstream iss_line(line);
-				vector<int_type> elems;
-				while (!iss_line.eof())
-				{
-					elems.emplace_back(int_type(0));
-					iss_line >> elems.back();
-				}
-
-				size_t dim = elems.size() - 1;
-				is_vec new_ray(dim);
-				for (size_t i = 0; i < dim; ++i)
-				{
-					if (elems[i] != 0)
-						new_ray.insertBack(i) = elems[i];
-				}
-				_resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0});
-			}
-		}
-
-		void clear_cuts()
-		{
-			_resulting_cuts.clear();
-			_AT_copy.resize(0, 0);
-			_optLP_copy.resize(0);
-		}
-
-		void check_cuts_validity()
-		{
-			size_t n = _AT_copy.cols();
-			assert(n > 0);
-
-			for (size_t i = 0; i < _resulting_cuts.size(); ++i)
-			{
-				const auto &cut = _resulting_cuts[i];
-
-				rs_vec t = Utility::system_solve(_AT_copy.template cast<rational_type>().eval(), cut.ray.template cast<rational_type>().eval());
-
-				for (typename rs_vec::InnerIterator it(t); it; ++it)
-				{
-					if (it.value() < 0 && abs(it.value()) > tolerance)
-					{
-						stringstream msg;
-						msg << "ILPCuts error: cut(" << i << ") is invalid: negative solution(" << it.value() << ")...\n";
-						throw Exception(msg.str());
-					}
-				}
-
-				// rational_type vall = cut.ray.template cast<rational_type>().dot(_optLP_copy);
-				// out() << "vall: " << vall << endl;
-
-				if (abs(cut.ray.template cast<rational_type>().dot(_optLP_copy) - cut.frac_rhs) > err_tolerance)
-				{
-					stringstream msg;
-					msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";
-					throw Exception(msg.str());
-				}
-
-				if (floor(cut.frac_rhs) != cut.rhs)
-				{
-					stringstream msg;
-					msg << "ILPCuts error: cut(" << i << ") is invalid: invalid floor rounding...\n";
-					throw Exception(msg.str());
-				}
-			}
-		}
+		virtual std::vector<is_mat> generate_cuts(const is_mat &A) = 0;
 	};
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
@@ -465,14 +310,15 @@ namespace ILPCuts
 	}
 
 	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	void ConeCoverer_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C, const rs_vec &optLP)
+	std::vector<typename ConeCoverer_Base<intT, rationalT, lintT, lratT>::is_mat>
+	ConeCoverer_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C)
 	{
 
 		init_Hilbert_alg_params();
 
-		clear_cuts();
+		// clear_cuts();
 
-		copy_original_problem_info(C->A, optLP);
+		// copy_original_problem_info(C->A, optLP);
 
 		Timer timer;
 		timer.start();
@@ -484,27 +330,6 @@ namespace ILPCuts
 
 		out() << "Cone decomposition procedure is finished, time = " << timer.finish_str();
 
-		for (is_mat &uni_mat : uni_mat_pool)
-		{
-			uni_mat = uni_mat.transpose().eval();
-		}
-
-		out() << "Transforming cones to cuts..." << endl;
-		timer.start();
-
-		for (const is_mat &uni_mat : uni_mat_pool)
-		{
-			auto new_cuts = generate_cuts_from_row_matrix(uni_mat, optLP);
-
-			_resulting_cuts.insert(_resulting_cuts.end(), make_move_iterator(new_cuts.begin()),
-								   make_move_iterator(new_cuts.end()));
-		}
-
-		out() << "Transforming is finished, time = " << timer.finish_str()
-			  << "Filtering duplicate cuts..." << endl;
-
-		std::sort(_resulting_cuts.begin(), _resulting_cuts.end());
-		auto last = std::unique(_resulting_cuts.begin(), _resulting_cuts.end());
-		_resulting_cuts.erase(last, _resulting_cuts.end());
+		return uni_mat_pool;
 	}
 }

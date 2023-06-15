@@ -12,18 +12,30 @@
 
 namespace ILPCuts
 {
+#define SINGLE_NUMERIC_TYPES_DEFS(INT_TYPE, RATIONAL_TYPE) \
+    using rational_type = RATIONAL_TYPE;                   \
+    using int_type = INT_TYPE;                             \
+                                                           \
+    using is_mat = SparseMatrix<int_type>;                 \
+    using rs_mat = SparseMatrix<rational_type>;            \
+                                                           \
+    using is_vec = SparseVector<int_type>;                 \
+    using rs_vec = SparseVector<rational_type>;
+
+#define LONG_NUMERIC_TYPES_DEFS(LINT_TYPE, LRATIONAL_TYPE) \
+    using lrational_type = LRATIONAL_TYPE;                 \
+    using lint_type = LINT_TYPE;                           \
+                                                           \
+    using lis_mat = SparseMatrix<lint_type>;               \
+    using lrs_mat = SparseMatrix<lrational_type>;          \
+                                                           \
+    using lis_vec = SparseVector<lint_type>;               \
+    using lrs_vec = SparseVector<lrational_type>;
     template <typename intT, typename rationalT>
     class single_type_base_alg
     {
     public:
-        using rational_type = rationalT;
-        using int_type = intT;
-
-        using is_mat = SparseMatrix<int_type>;
-        using rs_mat = SparseMatrix<rational_type>;
-
-        using is_vec = SparseVector<int_type>;
-        using rs_vec = SparseVector<rational_type>;
+        SINGLE_NUMERIC_TYPES_DEFS(intT, rationalT)
 
     protected:
         using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
@@ -50,23 +62,8 @@ namespace ILPCuts
     class dual_type_base_alg
     {
     public:
-        using rational_type = rationalT;
-        using int_type = intT;
-
-        using lrational_type = lrationalT;
-        using lint_type = lintT;
-
-        using is_mat = SparseMatrix<int_type>;
-        using rs_mat = SparseMatrix<rational_type>;
-
-        using lis_mat = SparseMatrix<lint_type>;
-        using lrs_mat = SparseMatrix<lrational_type>;
-
-        using is_vec = SparseVector<int_type>;
-        using rs_vec = SparseVector<rational_type>;
-
-        using lis_vec = SparseVector<lint_type>;
-        using lrs_vec = SparseVector<lrational_type>;
+        SINGLE_NUMERIC_TYPES_DEFS(intT, rationalT)
+        LONG_NUMERIC_TYPES_DEFS(lintT, lrationalT)
 
     protected:
         using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;

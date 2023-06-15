@@ -5,17 +5,10 @@
 namespace ILPCuts
 {
     template <typename intT, typename ratT>
-    class LocalInstance
+    class local_instance
     {
     public:
-        using rational_type = ratT;
-        using int_type = intT;
-
-        using is_mat = SparseMatrix<int_type>;
-        using rs_mat = SparseMatrix<rational_type>;
-
-        using is_vec = SparseVector<int_type>;
-        using rs_vec = SparseVector<rational_type>;
+        SINGLE_NUMERIC_TYPES_DEFS(intT, ratT)
 
         enum class var_ILP_type
         {
@@ -26,6 +19,7 @@ namespace ILPCuts
         is_mat A;
         is_vec b;
         rs_vec c;
+        rs_vec v;
         std::vector<var_ILP_type> ILP_var_types;
 
         size_t get_num_vars() const { return A.ncols(); }

@@ -238,17 +238,15 @@ namespace ILPCuts
 		}
 
 	public:
-		void generate_cuts(const is_mat &A, const rs_vec &optLP, const lint_type &det)
+		std::vector<is_mat> generate_cuts(const is_mat &A, const lint_type &det)
 		{
 
 			auto directions_pool = std::move(base::generate_directions_pool(A));
 
-			base::generate_cuts(
-				create_cone_traits(A, det, directions_pool),
-				optLP);
+			return base::generate_cuts(create_cone_traits(A, det, directions_pool));
 		}
 
-		void generate_cuts(const is_mat &A, const rs_vec &optLP) override
+		std::vector<is_mat> generate_cuts(const is_mat &A) override
 		{
 			Timer timer;
 			timer.start();
@@ -259,7 +257,7 @@ namespace ILPCuts
 			out() << "determinant computation time: " << timer.finish_str()
 				  << "determinant is: " << det << endl;
 
-			generate_cuts(A, optLP, det);
+			return generate_cuts(A, det);
 		}
 	};
 } // namespace ILPCuts
