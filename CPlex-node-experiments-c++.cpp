@@ -4,6 +4,7 @@ ILOSTLBEGIN
 // #define ILPCUTS_PARALLEL_OFF
 
 #include "cplex_adapter.h"
+#include "cuts_gen_cone_coverer.h"
 #include "cone_coverer_Zp.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
@@ -17,7 +18,7 @@ using lrational_type = mpq_class;
 
 using Strategies = DirectionStrategies<int_type, rational_type>;
 using ConeCoverer = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen = ConeCoverCutSGenerator<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen = ConeCoverCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen>;
 using CC_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
 
@@ -364,16 +365,13 @@ void run_cplex_experiment(logger &log,
         cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen>(log);
         auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
-        cuts_gen_ptr->cone_coverer = std::make_unique<CC_Zp>(log);
-        auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer.get();
+        cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Zp>(log);
+        auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer_ptr.get();
 
         // initialization of cuts generator and setting parameters
         std::mt19937 engine;
-        cone_coverer_ptr->rgen = cuts_gen_ptr->rgen = &engine;
-        cone_coverer_ptr->tolerance = cuts_gen_ptr->tolerance = tolerance;
-        cone_coverer_ptr->err_tolerance = cuts_gen_ptr->err_tolerance = err_tolerance;
+        cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
         cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
-        cone_coverer_ptr->threads = cuts_gen_ptr->threads = threads_cuts_gen;
         cuts_gen_adapter.is_lazy = CutsGenAdapter::IsLazy::on;
         static_cast<CC_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 

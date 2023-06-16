@@ -2,8 +2,6 @@
 
 #include "cplex_utils.h"
 #include "base_algo.h"
-#include "cuts_gen_base.h"
-#include "local_instance.h"
 namespace ILPCuts
 {
 	namespace ModuleCPlex
@@ -20,7 +18,7 @@ namespace ILPCuts
 			using rs_mat = typename generator_base::rs_mat;
 			using is_vec = typename generator_base::is_vec;
 			using rs_vec = typename generator_base::rs_vec;
-			using Strategies = typename generator_base::ConeCoverer_Base::Strategies;
+			using Strategies = typename generator_base::ConeCoverer::Strategies;
 			using cut_info = typename generator_base::cut_info;
 
 			enum class IsLazy
@@ -593,7 +591,7 @@ namespace ILPCuts
 		template <typename cutsGenT>
 		void CPlexAdapter<cutsGenT>::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
 		{
-			generator_ptr->cone_coverer->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
+			generator_ptr->cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
 
 			Timer timer;
 			timer.start();
@@ -609,7 +607,7 @@ namespace ILPCuts
 				  << "number of added cuts: " << get_cuts().size() << "\n"
 				  << endl;
 
-			generator_ptr->cone_coverer->direction_strategies.pop_back();
+			generator_ptr->cone_coverer_ptr->direction_strategies.pop_back();
 		}
 
 		template <typename cutsGenT>

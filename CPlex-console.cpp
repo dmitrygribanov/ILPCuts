@@ -8,7 +8,7 @@ ILOSTLBEGIN
 #include "cone_coverer_LU.h"
 #include "cone_coverer_Zp.h"
 #include "cone_coverer_Wd.h"
-#include "cuts_gen_base.h"
+#include "cuts_gen_cone_coverer.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 using namespace ILPCuts;
@@ -21,7 +21,7 @@ using lrational_type = mpq_class;
 
 using Strategies = DirectionStrategies<int_type, rational_type>;
 using ConeCoverer = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen = ConeCoverCutSGenerator<int_type, rational_type, lint_type, lrational_type>;
+using CutsGen = ConeCoverCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
 using CutsGenAdapter = CPlexAdapter<CutsGen>;
 using CC_Adj = ILPCuts::ConeCoverer_adj<int_type, rational_type, lint_type, lrational_type>;
 using CC_LU = ILPCuts::ConeCoverer_LU<int_type, rational_type, lint_type, lrational_type>;
@@ -224,24 +224,21 @@ void run_cplex_experiment(
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
-		cuts_gen_ptr->cone_coverer = std::make_unique<CC_Adj>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Adj>(log);
 	else if (solver_type == "lu")
-		cuts_gen_ptr->cone_coverer = std::make_unique<CC_LU>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_LU>(log);
 	else if (solver_type == "zp")
-		cuts_gen_ptr->cone_coverer = std::make_unique<CC_Zp>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Zp>(log);
 	else if (solver_type == "wd")
-		cuts_gen_ptr->cone_coverer = std::make_unique<CC_Wd>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Wd>(log);
 
-	auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer.get();
+	auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer_ptr.get();
 
 	// initialization of cuts generator and setting parameters
 	std::mt19937 engine;
-	cuts_gen_ptr->tolerance = cone_coverer_ptr->tolerance = tolerance;
-	cuts_gen_ptr->err_tolerance = cone_coverer_ptr->err_tolerance = err_tolerance;
+	cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
-	cuts_gen_ptr->threads = cone_coverer_ptr->threads = threads_cuts_gen;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
-	cone_coverer_ptr->rgen = &engine;
 	if (solver_type == "zp" || solver_type == "wd")
 		static_cast<CC_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 
