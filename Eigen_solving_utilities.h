@@ -1,5 +1,7 @@
 #pragma once
 
+#include <eigen3/Eigen/SparseLU>
+
 #include "basic_utils.h"
 
 namespace ILPCuts

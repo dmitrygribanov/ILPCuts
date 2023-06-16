@@ -3,30 +3,16 @@ ILOSTLBEGIN
 
 // #define ILPCUTS_PARALLEL_OFF
 
-#include "cplex_adapter.h"
 #include "cone_coverer_adj.h"
 #include "cone_coverer_LU.h"
 #include "cone_coverer_Zp.h"
 #include "cone_coverer_Wd.h"
-#include "cuts_gen_cone_coverer.h"
+#include "cplex_adapter.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
+
 using namespace ILPCuts;
 using namespace ModuleCPlex;
-
-using int_type = int64_t;
-using lint_type = mpz_class;
-using rational_type = double;
-using lrational_type = mpq_class;
-
-using Strategies = DirectionStrategies<int_type, rational_type>;
-using ConeCoverer = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen = ConeCoverCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = CPlexAdapter<CutsGen>;
-using CC_Adj = ILPCuts::ConeCoverer_adj<int_type, rational_type, lint_type, lrational_type>;
-using CC_LU = ILPCuts::ConeCoverer_LU<int_type, rational_type, lint_type, lrational_type>;
-using CC_Zp = ILPCuts::ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
-using CC_Wd = ILPCuts::ConeCoverer_Wd<int_type, rational_type, lint_type, lrational_type>;
 
 void check_input_params(
 	logger &log,
@@ -217,20 +203,20 @@ void run_cplex_experiment(
 	cplex_relaxed.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
 	// createing adapter object
-	CutsGenAdapter cuts_gen_adapter;
+	CPlexAdapter cuts_gen_adapter;
 
-	cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen>(log);
+	cuts_gen_adapter.generator_ptr = std::make_unique<ConeCoverCutsGenerator>(log);
 	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
-		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Adj>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_adj>(log);
 	else if (solver_type == "lu")
-		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_LU>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_LU>(log);
 	else if (solver_type == "zp")
-		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Zp>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_Zp>(log);
 	else if (solver_type == "wd")
-		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Wd>(log);
+		cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_Wd>(log);
 
 	auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer_ptr.get();
 
@@ -240,16 +226,16 @@ void run_cplex_experiment(
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
 	if (solver_type == "zp" || solver_type == "wd")
-		static_cast<CC_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
+		static_cast<ConeCoverer_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 
 	// set strategies for cutting generation
 	if (rand_directions > 0)
 	{
-		using RandStrategy = typename Strategies::ConvUniform<std::mt19937>;
+		using RandStrategy = typename DirectionStrategies::ConvUniform<std::mt19937>;
 		cone_coverer_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
 	}
 	if (some_direction)
-		cone_coverer_ptr->direction_strategies.push_back(std::make_unique<Strategies::SomeDirection>());
+		cone_coverer_ptr->direction_strategies.push_back(std::make_unique<DirectionStrategies::SomeDirection>());
 
 	// setting parameters for solving in integer variables
 	cplex_master.setParam(IloCplex::Param::Threads, threads_cplex);

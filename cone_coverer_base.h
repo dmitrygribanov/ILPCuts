@@ -1,8 +1,13 @@
 #pragma once
 
+#include <omp.h>
+#include <atomic>
+
 #include "base_algo.h"
 #include "Hilbert_base_alg.h"
 #include "direction_strategies.h"
+
+#include "sparse_transform.h"
 
 // all optional modules are added at the moment
 // to simplify experiments
@@ -10,26 +15,20 @@
 #include "flint_module.h"
 #include "ntl_module.h"
 
-#include <omp.h>
-#include <atomic>
-
 namespace ILPCuts
 {
-	template <typename intT, typename rationalT, typename lintT, typename lrationalT>
 	class ConeCoverer_Base
-		: public dual_type_base_alg<intT, rationalT, lintT, lrationalT>
+		: public base_alg
 	{
 	private:
-		using my_type = ConeCoverer_Base<intT, rationalT, lintT, lrationalT>;
-		using base = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
+		using my_type = ConeCoverer_Base;
+		using base = base_alg;
 
 	public:
-		DUAL_TYPE_ALGO_DEFS
-
-		using Strategies = DirectionStrategies<int_type, rational_type>;
+		using Strategies = DirectionStrategies;
 
 	private:
-		Hilbert_base_alg<intT, rationalT, lintT, lrationalT> _Hilbert_base_alg;
+		Hilbert_base_alg _Hilbert_base_alg;
 
 		void init_Hilbert_alg_params()
 		{
@@ -49,9 +48,9 @@ namespace ILPCuts
 		// }
 
 	protected:
-		using transform_base = ILPCuts::transform_base<int_type, rational_type, lint_type, lrational_type>;
-		using sparse_transform = ILPCuts::sparse_transform<int_type, rational_type, lint_type, lrational_type>;
-		using lsparse_transform = ILPCuts::lsparse_transform<int_type, rational_type, lint_type, lrational_type>;
+		using transform_base = ILPCuts::transform_base;
+		using sparse_transform = ILPCuts::sparse_transform;
+		using lsparse_transform = ILPCuts::lsparse_transform;
 		struct dir_coeffs
 		{
 			rs_vec coeffs;
@@ -189,9 +188,7 @@ namespace ILPCuts
 		virtual std::vector<is_mat> generate_cuts(const is_mat &A) = 0;
 	};
 
-	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConeCoverer_Base<intT, rationalT, lintT, lratT>::is_mat>
-	ConeCoverer_Base<intT, rationalT, lintT, lratT>::partial_uni_decomp(std::unique_ptr<const cone_traits> C)
+	std::vector<is_mat> ConeCoverer_Base::partial_uni_decomp(std::unique_ptr<const cone_traits> C)
 	{
 		size_t n = C->A.cols();
 		omp_set_dynamic(std::max(threads, size_t(1)));
@@ -253,10 +250,9 @@ namespace ILPCuts
 		return std::move(concatenated_result);
 	}
 
-	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<std::unique_ptr<typename ConeCoverer_Base<intT, rationalT, lintT, lratT>::cone_traits>>
-	ConeCoverer_Base<intT, rationalT, lintT, lratT>::compute_layer(const cone_traits *C,
-																   std::vector<Atomic<size_t>> &directions_evaluation_counter)
+	std::vector<std::unique_ptr<typename ConeCoverer_Base::cone_traits>>
+	ConeCoverer_Base::compute_layer(const cone_traits *C,
+									std::vector<Atomic<size_t>> &directions_evaluation_counter)
 	{
 
 		std::vector<std::unique_ptr<cone_traits>> result;
@@ -293,9 +289,7 @@ namespace ILPCuts
 		return std::move(result);
 	}
 
-	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConeCoverer_Base<intT, rationalT, lintT, lratT>::is_mat>
-	ConeCoverer_Base<intT, rationalT, lintT, lratT>::generate_cuts(std::unique_ptr<const cone_traits> C)
+	std::vector<is_mat> ConeCoverer_Base::generate_cuts(std::unique_ptr<const cone_traits> C)
 	{
 
 		init_Hilbert_alg_params();

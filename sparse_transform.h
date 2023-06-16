@@ -1,6 +1,6 @@
 #pragma once
 
-#include "basic_utils.h"
+#include "numeric_module.h"
 
 namespace ILPCuts
 {
@@ -136,37 +136,17 @@ namespace ILPCuts
         }
     } // namespace Utility
 
-    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
     class transform_base
     {
-    public:
-        using rational_type = rationalT;
-        using int_type = intT;
-
-        using lrational_type = lrationalT;
-        using lint_type = lintT;
-
-        using is_mat = SparseMatrix<int_type>;
-        using rs_mat = SparseMatrix<rational_type>;
-
-        using lis_mat = SparseMatrix<lint_type>;
-        using lrs_mat = SparseMatrix<lrational_type>;
-
-        using is_vec = SparseVector<int_type>;
-        using rs_vec = SparseVector<rational_type>;
-
-        using lis_vec = SparseVector<lint_type>;
-        using lrs_vec = SparseVector<lrational_type>;
-
     protected:
-        Utility::RatToInt_Unary<lint_type, lrational_type> _lrat_to_lint;
-        Utility::RatToInt_Unary<int_type, rational_type> _rat_to_int;
-
         const double &_tolerance;
+
+        RatToInt_Unary _rat_to_int;
+        LRatToLInt_Unary _lrat_to_lint;
 
     public:
         transform_base(const double &a_tol, const double &a_err_tol)
-            : _tolerance(a_tol), _lrat_to_lint(a_err_tol), _rat_to_int(a_err_tol) {}
+            : _tolerance(a_tol), _rat_to_int(a_err_tol), _lrat_to_lint(a_err_tol) {}
 
         const double &get_tolerance() const { return _tolerance; }
 
@@ -177,37 +157,15 @@ namespace ILPCuts
         virtual lis_mat compute_adj(lis_mat old_adjA) const = 0;
     };
 
-    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-    class sparse_transform : public transform_base<intT, rationalT, lintT, lrationalT>
+    class sparse_transform : public transform_base
     {
     private:
-        using base = transform_base<intT, rationalT, lintT, lrationalT>;
-
-        using typename base::int_type;
-        using typename base::lint_type;
-        using typename base::lrational_type;
-        using typename base::rational_type;
-
-        using typename base::is_mat;
-        using typename base::lis_mat;
-        using typename base::lrs_mat;
-        using typename base::rs_mat;
-
-        using typename base::is_vec;
-        using typename base::lis_vec;
-        using typename base::lrs_vec;
-        using typename base::rs_vec;
-
-        using base::_lrat_to_lint;
-        using base::_rat_to_int;
-        using base::_tolerance;
-
         Utility::sparse_transform<int_type> data;
 
     public:
         sparse_transform(const double &a_tol, const double &a_err_tol, size_t ai,
                          const is_vec &at, const int_type &adenum)
-            : base(a_tol, a_err_tol), data{ai, at, adenum}
+            : transform_base(a_tol, a_err_tol), data{ai, at, adenum}
         {
         }
 
@@ -247,43 +205,15 @@ namespace ILPCuts
         }
     };
 
-    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-    struct lsparse_transform : public transform_base<intT, rationalT, lintT, lrationalT>
+    struct lsparse_transform : public transform_base
     {
     private:
-        using base = transform_base<intT, rationalT, lintT, lrationalT>;
-
-        using typename base::int_type;
-        using typename base::lint_type;
-        using typename base::lrational_type;
-        using typename base::rational_type;
-
-        using typename base::is_mat;
-        using typename base::lis_mat;
-        using typename base::lrs_mat;
-        using typename base::rs_mat;
-
-        using typename base::is_vec;
-        using typename base::lis_vec;
-        using typename base::lrs_vec;
-        using typename base::rs_vec;
-
-        using base::_lrat_to_lint;
-        using base::_rat_to_int;
-        using base::_tolerance;
-
         Utility::sparse_transform<lint_type> data;
-
-        static constexpr auto _to_single_int = conv<lint_type, int_type>::make;
-        static constexpr auto _to_single_rat = conv<lrational_type, rational_type>::make;
-
-        // Utility::ToSingle<lint_type, int_type> _to_single_int;
-        // Utility::ToSingle<lrational_type, rational_type> _to_single_rat;
 
     public:
         lsparse_transform(const double &a_tol, const double &a_err_tol, size_t ai,
                           const lis_vec &at, const lint_type &adenum)
-            : base(a_tol, a_err_tol), data{ai, at, adenum}
+            : transform_base(a_tol, a_err_tol), data{ai, at, adenum}
         {
         }
 

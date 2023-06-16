@@ -1,18 +1,13 @@
 // it's a sandbox
 #include <iostream>
 
-#include <eigen3/Eigen/SparseCore>
-#include <NTL/ZZ_p.h>
-#include <NTL/lzz_p.h>
-#include <NTL/ZZ.h>
-
-#include <valarray>
-
-#include "base_algo.h"
-#include "ntl_module.h"
-#include "flint_module.h"
-#include "primes_downloader.h"
-#include "wiedemann_alg.h"
+#include "cplex_adapter.h"
+#include "cuts_gen_base.h"
+#include "cone_coverer_adj.h"
+#include "cone_coverer_LU.h"
+#include "cone_coverer_Zp.h"
+#include "cone_coverer_Wd.h"
+#include "ILPCuts_console_utils.h"
 
 using namespace ILPCuts;
 using namespace std;
@@ -27,7 +22,11 @@ using namespace std;
 
 int main(int argc, char **argv)
 {
-    // mX = vec_min_poly(A, b, engine);
+    // logger log;
+    //  ConeCoverCutsGenerator g1(log);
+    //  ConeCoverer_Zp zp(log);
+    //  ModuleCPlex::CPlexAdapter adap;
+    //  mX = vec_min_poly(A, b, engine);
 
     // cout << "min poly: " << mX << endl;
 

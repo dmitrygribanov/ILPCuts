@@ -6,24 +6,12 @@
 
 namespace ILPCuts
 {
-    template <typename intT, typename rationalT, typename lintT, typename lratT>
-    class ConeCoverer_Zp : public ConeCoverer_Base<intT, rationalT, lintT, lratT>
+    class ConeCoverer_Zp : public ConeCoverer_Base
     {
     private:
-        using base = ConeCoverer_Base<intT, rationalT, lintT, lratT>;
+        using base = ConeCoverer_Base;
 
     public:
-        DUAL_TYPE_ALGO_DEFS
-
-        using typename base::cone_traits;
-        using typename base::dir_coeffs;
-        using typename base::lsparse_transform;
-        using typename base::process_func;
-        using typename base::sparse_transform;
-        using typename base::transform_base;
-
-        using base::out;
-
         size_t max_conservative_prime = 101;
 
     private:
@@ -162,6 +150,8 @@ namespace ILPCuts
         }
 
     public:
+        using base::base;
+
         std::vector<is_mat> generate_cuts(const is_mat &A, const lint_type &det)
         {
             out() << "Generating directions pool ..." << endl;

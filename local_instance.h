@@ -2,14 +2,13 @@
 
 #include <vector>
 
+#include "numeric_module.h"
+
 namespace ILPCuts
 {
-    template <typename intT, typename ratT>
     class local_instance
     {
     public:
-        SINGLE_NUMERIC_TYPES_DEFS(intT, ratT)
-
         enum class var_ILP_type
         {
             Int,
@@ -22,7 +21,7 @@ namespace ILPCuts
         rs_vec v;
         std::vector<var_ILP_type> ILP_var_types;
 
-        size_t get_num_vars() const { return A.ncols(); }
-        size_t get_num_constr() const { return A.nrows(); }
+        size_t get_num_vars() const { return A.cols(); }
+        size_t get_num_constr() const { return A.rows(); }
     };
 }

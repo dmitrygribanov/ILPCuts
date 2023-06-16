@@ -4,8 +4,6 @@
 
 #include <eigen3/Eigen/Core>
 
-#include "basic_utils.h"
-
 namespace Eigen
 {
     template <>
@@ -125,6 +123,8 @@ mpq_class round(const mpq_class &x)
 
 namespace ILPCuts
 {
+    template <typename inT, typename outT>
+    struct conv;
     template <>
     struct conv<mpz_class, int64_t>
     {
@@ -172,6 +172,8 @@ namespace ILPCuts
 
     namespace Utility
     {
+        template <typename intT>
+        intT mod_equation_solve(const intT &a, const intT &b, const intT &mod);
 
         template <>
         mpz_class mod_equation_solve(const mpz_class &a, const mpz_class &b, const mpz_class &mod)

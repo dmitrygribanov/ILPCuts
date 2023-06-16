@@ -6,27 +6,12 @@
 
 namespace ILPCuts
 {
-
-	template <typename intT, typename ratT, typename lintT, typename lratT>
 	class ConeCoverer_LU
-		: public ConeCoverer_Base<intT, ratT, lintT, lratT>
+		: public ConeCoverer_Base
 	{
 	private:
-		using base = ConeCoverer_Base<intT, ratT, lintT, lratT>;
-		using my_type = ConeCoverer_LU<intT, ratT, lintT, lratT>;
-
-	public:
-		DUAL_TYPE_ALGO_DEFS
-
-		using typename base::cone_traits;
-		using typename base::dir_coeffs;
-		using typename base::lsparse_transform;
-		using typename base::process_func;
-		using typename base::transform_base;
-
-		using base::cone_limit_per_direction;
-		using base::direction_strategies;
-		using base::out;
+		using base = ConeCoverer_Base;
+		using my_type = ConeCoverer_LU;
 
 	private:
 		using perm_mat = SparseMatrix<int>;
@@ -238,6 +223,8 @@ namespace ILPCuts
 		}
 
 	public:
+		using base::base;
+
 		std::vector<is_mat> generate_cuts(const is_mat &A, const lint_type &det)
 		{
 

@@ -5,26 +5,10 @@
 #include "ntl_module.h"
 namespace ILPCuts
 {
-
-	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	class ConeCoverer_adj : public ConeCoverer_Base<intT, rationalT, lintT, lratT>
+	class ConeCoverer_adj : public ConeCoverer_Base
 	{
 	private:
-		using base = ConeCoverer_Base<intT, rationalT, lintT, lratT>;
-
-	public:
-		DUAL_TYPE_ALGO_DEFS
-
-		using typename base::cone_traits;
-		using typename base::dir_coeffs;
-		using typename base::lsparse_transform;
-		using typename base::process_func;
-		using typename base::sparse_transform;
-		using typename base::transform_base;
-
-		using base::cone_limit_per_direction;
-		using base::direction_strategies;
-		using base::out;
+		using base = ConeCoverer_Base;
 
 	private:
 		struct cone_traits_spec
@@ -155,6 +139,7 @@ namespace ILPCuts
 		}
 
 	public:
+		using base::base;
 		/*ConeCoverer_adj(std::ostream* outs = &std::cout, std::ostream* errs = &std::cout)
 			:base(outs, errs) {}*/
 
@@ -163,9 +148,7 @@ namespace ILPCuts
 		std::vector<is_mat> generate_cuts(const is_mat &A) override;
 	};
 
-	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConeCoverer_adj<intT, rationalT, lintT, lratT>::is_mat>
-	ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A, const lis_mat &adjA, const lint_type &det)
+	std::vector<is_mat> ConeCoverer_adj::generate_cuts(const is_mat &A, const lis_mat &adjA, const lint_type &det)
 	{
 
 		out() << "Generating directions pool ..." << endl;
@@ -175,9 +158,7 @@ namespace ILPCuts
 		return base::generate_cuts(create_cone_traits(A, adjA, det, directions_pool));
 	}
 
-	template <typename intT, typename rationalT, typename lintT, typename lratT>
-	std::vector<typename ConeCoverer_adj<intT, rationalT, lintT, lratT>::is_mat>
-	ConeCoverer_adj<intT, rationalT, lintT, lratT>::generate_cuts(const is_mat &A)
+	std::vector<is_mat> ConeCoverer_adj::generate_cuts(const is_mat &A)
 	{
 		try
 		{

@@ -7,16 +7,12 @@
 
 namespace ILPCuts
 {
-    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
     class Hilbert_base_alg
-        : public dual_type_base_alg<intT, rationalT, lintT, lrationalT>
+        : public base_alg
     {
     private:
-        using my_type = Hilbert_base_alg<intT, rationalT, lintT, lrationalT>;
-        using base = dual_type_base_alg<intT, rationalT, lintT, lrationalT>;
-
-    public:
-        DUAL_TYPE_ALGO_DEFS
+        using my_type = Hilbert_base_alg;
+        using base = base_alg;
 
     private:
         void fill_parall_vectors(const std::vector<std::vector<int_type>> &A, size_t i, std::vector<rational_type> &x, std::vector<int_type> &y, std::vector<std::vector<int_type>> &R)
@@ -65,6 +61,8 @@ namespace ILPCuts
         }
 
     public:
+        using base::base;
+
         logger::stream &out()
         {
             log.out() << "ILPCuts-Hilbert-base-alg: ";

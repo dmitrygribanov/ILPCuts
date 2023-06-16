@@ -4,15 +4,8 @@
 
 namespace ILPCuts
 {
-    template <typename intT, typename ratT>
     struct DirectionStrategies
     {
-        using int_type = intT;
-        using rational_type = ratT;
-        using is_mat = SparseMatrix<int_type>;
-        using is_vec = SparseVector<int_type>;
-        using rs_vec = SparseVector<rational_type>;
-
         class DirectionsStrategyBase
         {
         public:

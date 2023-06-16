@@ -1,16 +1,13 @@
 #pragma once
 
+#include "base_algo.h"
 #include "local_instance.h"
-#include "basic_utils.h"
 #include "Eigen_solving_utilities.h"
 
 namespace ILPCuts
 {
-    template <typename intT, typename rationalT>
     struct cut_info
     {
-        SINGLE_NUMERIC_TYPES_DEFS(intT, rationalT)
-
         is_vec ray;
         int_type rhs;
         rational_type frac_rhs;
@@ -35,25 +32,17 @@ namespace ILPCuts
             return Utility::SparseVecEquiv<int_type>()(ray, arg.ray) && rhs == arg.rhs;
         }
     };
-    template <typename intT, typename rationalT>
-    class cuts_gen_base : public single_type_base_alg<intT, rationalT>
+    class cuts_gen_base : public base_alg
     {
-    private:
-        using my_type = cuts_gen_base<intT, rationalT>;
-        using base = single_type_base_alg<intT, rationalT>;
-
     public:
-        SINGLE_TYPE_ALGO_DEFS
-
-        using cut_info = ILPCuts::cut_info<intT, rationalT>;
-        using local_instance = ILPCuts::local_instance<intT, rationalT>;
-
         local_instance LocalInstance;
 
     protected:
         std::vector<cut_info> _resulting_cuts;
 
     public:
+        cuts_gen_base(logger &a_log) : base_alg(a_log) {}
+
         logger::stream &out()
         {
             log.out() << "ILPCuts-CutsGenerator: ";
@@ -83,7 +72,7 @@ namespace ILPCuts
         {
             for (size_t i = 0; i < _resulting_cuts.size(); ++i)
             {
-                out_file << Utility::dense_vec_to_str(_resulting_cuts[i].ray) << " "
+                out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
                          << _resulting_cuts[i].rhs << " "
                          << _resulting_cuts[i].frac_rhs << "\n";
             }

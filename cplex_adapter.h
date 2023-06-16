@@ -1,25 +1,17 @@
 #pragma once
 
+#include "cuts_gen_cone_coverer.h"
 #include "cplex_utils.h"
-#include "base_algo.h"
 namespace ILPCuts
 {
 	namespace ModuleCPlex
 	{
-		template <typename cutsGenT>
 		class CPlexAdapter
 		{
 		public:
-			using generator_base = cutsGenT;
+			using generator_base = ConeCoverCutsGenerator;
 
-			using int_type = typename generator_base::int_type;
-			using rational_type = typename generator_base::rational_type;
-			using is_mat = typename generator_base::is_mat;
-			using rs_mat = typename generator_base::rs_mat;
-			using is_vec = typename generator_base::is_vec;
-			using rs_vec = typename generator_base::rs_vec;
-			using Strategies = typename generator_base::ConeCoverer::Strategies;
-			using cut_info = typename generator_base::cut_info;
+			using Strategies = typename ConeCoverer_Base::Strategies;
 
 			enum class IsLazy
 			{
@@ -199,9 +191,7 @@ namespace ILPCuts
 			}
 		};
 
-		template <typename cutsGenT>
-		std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-		CPlexAdapter<cutsGenT>::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+		std::tuple<is_mat, rs_vec, rs_vec> CPlexAdapter::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 		{
 			size_t n = vars.getSize();
 
@@ -323,9 +313,7 @@ namespace ILPCuts
 			return std::make_tuple(A_basis, c, optLP);
 		}
 
-		template <typename cutsGenT>
-		std::tuple<typename CPlexAdapter<cutsGenT>::is_mat, typename CPlexAdapter<cutsGenT>::rs_vec, typename CPlexAdapter<cutsGenT>::rs_vec>
-		CPlexAdapter<cutsGenT>::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
+		std::tuple<is_mat, rs_vec, rs_vec> CPlexAdapter::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
 		{
 			int status = 0;
 
@@ -520,8 +508,7 @@ namespace ILPCuts
 			return std::make_tuple(A_basis, c, optLP);
 		}
 
-		template <typename cutsGenT>
-		void CPlexAdapter<cutsGenT>::add_cuts(CPXCENVptr env, void *cbdata, int wherefrom)
+		void CPlexAdapter::add_cuts(CPXCENVptr env, void *cbdata, int wherefrom)
 		{
 			int status = 0;
 
@@ -562,8 +549,7 @@ namespace ILPCuts
 			}
 		}
 
-		template <typename cutsGenT>
-		void CPlexAdapter<cutsGenT>::add_cuts(IloCplex cplex, IloNumVarArray vars)
+		void CPlexAdapter::add_cuts(IloCplex cplex, IloNumVarArray vars)
 		{
 			IloEnv env = cplex.getEnv();
 
@@ -588,8 +574,7 @@ namespace ILPCuts
 			ilo_cuts.end();
 		}
 
-		template <typename cutsGenT>
-		void CPlexAdapter<cutsGenT>::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
+		void CPlexAdapter::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
 		{
 			generator_ptr->cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
 
@@ -610,8 +595,7 @@ namespace ILPCuts
 			generator_ptr->cone_coverer_ptr->direction_strategies.pop_back();
 		}
 
-		template <typename cutsGenT>
-		void CPlexAdapter<cutsGenT>::transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr)
+		void CPlexAdapter::transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr)
 		{
 			size_t n = vars.getSize();
 
@@ -631,10 +615,9 @@ namespace ILPCuts
 			}
 		}
 
-		template <typename cutsGenT>
-		bool generate_cuts_with_time_limit(CPlexAdapter<cutsGenT> &cuts_gen_adapter, double time_limit, IloCplex solver, IloObjective obj, IloRangeArray rngs, IloNumVarArray vars)
+		bool generate_cuts_with_time_limit(CPlexAdapter &cuts_gen_adapter, double time_limit, IloCplex solver, IloObjective obj, IloRangeArray rngs, IloNumVarArray vars)
 		{
-			using CPlexAdapter = CPlexAdapter<cutsGenT>;
+			using CPlexAdapter = CPlexAdapter;
 
 			if (time_limit > 0.0)
 			{

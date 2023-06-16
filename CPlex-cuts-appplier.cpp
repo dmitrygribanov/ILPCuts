@@ -11,16 +11,6 @@ ILOSTLBEGIN
 using namespace ILPCuts;
 using namespace ModuleCPlex;
 
-using int_type = int64_t;
-using lint_type = mpz_class;
-using rational_type = double;
-using lrational_type = mpq_class;
-
-using ConeCoverer = ConeCoverer_Base<int_type, rational_type, lint_type, lrational_type>;
-using CutsGen = ConeCoverCutsGenerator<int_type, rational_type, lint_type, lrational_type>;
-using CutsGenAdapter = CPlexAdapter<CutsGen>;
-using CC_Zp = ConeCoverer_Zp<int_type, rational_type, lint_type, lrational_type>;
-
 void check_input_params(
     logger &log,
     size_t threads_global,
@@ -76,11 +66,11 @@ void run_cplex_experiment(logger &log,
                           string model_cuts_switch,
                           double cplex_tl)
 {
-    CutsGenAdapter cuts_gen_adapter;
-    cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen>(log);
+    CPlexAdapter cuts_gen_adapter;
+    cuts_gen_adapter.generator_ptr = std::make_unique<ConeCoverCutsGenerator>(log);
     auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
 
-    cuts_gen_ptr->cone_coverer_ptr = std::make_unique<CC_Zp>(log);
+    cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_Zp>(log);
     auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer_ptr.get();
 
     // initialization of cuts generator and setting parameters

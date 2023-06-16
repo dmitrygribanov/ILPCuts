@@ -5,24 +5,14 @@
 
 namespace ILPCuts
 {
-    template <typename intT, typename rationalT, typename lintT, typename lrationalT>
-    class ConeCoverCutsGenerator : public cuts_gen_base<intT, rationalT>
+    class ConeCoverCutsGenerator : public cuts_gen_base
     {
     private:
-        using my_type = ConeCoverCutsGenerator<intT, rationalT, lintT, lrationalT>;
-        using base = cuts_gen_base<intT, rationalT>;
+        using my_type = ConeCoverCutsGenerator;
+        using base = cuts_gen_base;
 
     public:
-        SINGLE_TYPE_ALGO_DEFS
-
-        using ConeCoverer = ILPCuts::ConeCoverer_Base<intT, rationalT, lintT, lrationalT>;
-
-        std::unique_ptr<ConeCoverer> cone_coverer_ptr;
-
-        using base::_resulting_cuts;
-        using base::LocalInstance;
-        using base::out;
-        using typename base::cut_info;
+        std::unique_ptr<ConeCoverer_Base> cone_coverer_ptr;
 
     protected:
         vector<cut_info> generate_cuts_from_row_matrix(const is_mat &cuts_mat)
@@ -80,6 +70,8 @@ namespace ILPCuts
         }
 
     public:
+        using base::base;
+
         void generate_cuts() override
         {
             auto mat_pool = cone_coverer_ptr->generate_cuts(LocalInstance.A.transpose());
