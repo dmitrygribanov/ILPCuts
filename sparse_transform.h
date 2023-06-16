@@ -171,7 +171,7 @@ namespace ILPCuts
 
         is_vec operator()(const is_mat &A) const override
         {
-            rs_vec res = (A * data.t).template cast<rational_type>() / data.denum;
+            rs_vec res = (A * data.t).cast<rational_type>() / data.denum;
 
             return res.unaryExpr(rat_to_int);
         }
@@ -197,7 +197,7 @@ namespace ILPCuts
         {
             size_t n = old_adjA.cols();
             is_mat Q = compute_adj_Q(n, data);
-            old_adjA = ((Q.template cast<lint_type>() * old_adjA).template cast<lrational_type>() / data.denum)
+            old_adjA = ((Q.cast<lint_type>() * old_adjA).cast<lrational_type>() / data.denum)
                            .unaryExpr(lrat_to_lint)
                            .eval();
 
@@ -219,7 +219,7 @@ namespace ILPCuts
 
         is_vec operator()(const is_mat &A) const override
         {
-            lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / data.denum;
+            lrs_vec res = (A.cast<lint_type>() * data.t).cast<lrational_type>() / data.denum;
 
             return res.unaryExpr(lrat_to_lint).unaryExpr(to_single_int);
         }
@@ -233,7 +233,7 @@ namespace ILPCuts
 
         rs_vec compute_coeffs(const rs_vec &old_coefs) const override
         {
-            return Utility::compute_transformed_coeffs(old_coefs.template cast<lrational_type>().eval(),
+            return Utility::compute_transformed_coeffs(old_coefs.cast<lrational_type>().eval(),
                                                        data,
                                                        _tolerance)
                 .unaryExpr(to_single_rat);
@@ -245,7 +245,7 @@ namespace ILPCuts
         {
             size_t n = old_adjA.cols();
             lis_mat Q = compute_adj_Q(n, data);
-            old_adjA = ((Q * old_adjA).template cast<lrational_type>() / data.denum)
+            old_adjA = ((Q * old_adjA).cast<lrational_type>() / data.denum)
                            .unaryExpr(lrat_to_lint)
                            .eval();
 

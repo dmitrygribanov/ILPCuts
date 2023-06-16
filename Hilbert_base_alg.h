@@ -89,13 +89,13 @@ namespace ILPCuts
 
             out() << "computation of the H^-1 is started...\n";
             timer.start();
-            Hi = Utility::compute_inverse(H.template cast<rational_type>().eval());
+            Hi = Utility::compute_inverse(H.cast<rational_type>().eval());
             //  ModuleFlint::compute_inverse<int64_t>(H, denum, Hi);
             out() << "HNF^-1 computation time: " << timer.finish_str();
 
             out() << "computation of the P^-1 is started...\n";
             timer.start();
-            Pi = (A.template cast<rational_type>() * Hi).unaryExpr(rat_to_int);
+            Pi = (A.cast<rational_type>() * Hi).unaryExpr(rat_to_int);
             out() << "P^-1 computation time: " << timer.finish_str();
 
             std::vector<std::vector<int_type>> H_dense;

@@ -107,7 +107,7 @@ namespace ILPCuts
 
         is_mat adjust_normal_cone(is_mat A, const rs_vec &c)
         {
-            rs_vec t = Utility::system_solve(A.template cast<rational_type>().eval(), c);
+            rs_vec t = Utility::system_solve(A.cast<rational_type>().eval(), c);
 
             for (typename rs_vec::InnerIterator it(t); it; ++it)
             {
@@ -137,7 +137,7 @@ namespace ILPCuts
             {
                 const auto &cut = _resulting_cuts[i];
 
-                rs_vec t = Utility::system_solve(AT.template cast<rational_type>().eval(), cut.ray.template cast<rational_type>().eval());
+                rs_vec t = Utility::system_solve(AT.cast<rational_type>().eval(), cut.ray.cast<rational_type>().eval());
 
                 for (typename rs_vec::InnerIterator it(t); it; ++it)
                 {
@@ -149,10 +149,10 @@ namespace ILPCuts
                     }
                 }
 
-                // rational_type vall = cut.ray.template cast<rational_type>().dot(_optLP_copy);
+                // rational_type vall = cut.ray.cast<rational_type>().dot(_optLP_copy);
                 // out() << "vall: " << vall << endl;
 
-                if (abs(cut.ray.template cast<rational_type>().dot(LocalInstance.v) - cut.frac_rhs) > err_tolerance)
+                if (abs(cut.ray.cast<rational_type>().dot(LocalInstance.v) - cut.frac_rhs) > err_tolerance)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";

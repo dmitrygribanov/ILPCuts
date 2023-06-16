@@ -40,7 +40,7 @@ namespace ILPCuts
 
                 for (size_t i = 0; i < n; ++i)
                 {
-                    direction += A.template cast<rational_type>().col(i);
+                    direction += A.cast<rational_type>().col(i);
                 }
                 direction /= rational_type(n);
 
@@ -75,11 +75,11 @@ namespace ILPCuts
 
                 for (size_t i = 0; i < _rand_dir_num; ++i)
                 {
-                    rs_vec new_dir = A.col(0).template cast<rational_type>();
+                    rs_vec new_dir = A.col(0).cast<rational_type>();
                     for (size_t j = 1; j < n; ++j)
                     {
                         rational_type alpha = udistr(_gen);
-                        new_dir = (new_dir * alpha + A.col(j).template cast<rational_type>() * (1.0 - alpha)).eval();
+                        new_dir = (new_dir * alpha + A.col(j).cast<rational_type>() * (1.0 - alpha)).eval();
                     }
                     result_directions.push_back(std::move(new_dir));
                 }

@@ -30,7 +30,7 @@ namespace ILPCuts
 			for (size_t i = 0; i < directions_pool.size(); ++i)
 			{
 				res->dir_coeffs_pull.emplace_back(dir_coeffs{
-					(adjA.template cast<lrational_type>() * directions_pool[i].template cast<lrational_type>()).unaryExpr(to_single_rat), i});
+					(adjA.cast<lrational_type>() * directions_pool[i].cast<lrational_type>()).unaryExpr(to_single_rat), i});
 			}
 
 			return std::move(res);

@@ -44,7 +44,7 @@ namespace ILPCuts
 
 			try
 			{
-				new_cone->decomp = std::make_unique<typename cone_traits_spec::decomp_type>(new_cone->A.template cast<lrational_type>());
+				new_cone->decomp = std::make_unique<typename cone_traits_spec::decomp_type>(new_cone->A.cast<lrational_type>());
 			}
 			catch (ToleranceErrorException exc)
 			{
@@ -61,11 +61,11 @@ namespace ILPCuts
 
 			res->A = A;
 			res->det = det;
-			res->decomp = std::make_unique<typename cone_traits_spec::decomp_type>(A.template cast<lrational_type>());
+			res->decomp = std::make_unique<typename cone_traits_spec::decomp_type>(A.cast<lrational_type>());
 
 			for (size_t i = 0; i < directions_pool.size(); ++i)
 			{
-				auto t = Utility::system_solve(directions_pool[i].template cast<lrational_type>().eval(), *(res->decomp));
+				auto t = Utility::system_solve(directions_pool[i].cast<lrational_type>().eval(), *(res->decomp));
 				res->dir_coeffs_pull.emplace_back(dir_coeffs{
 					t.unaryExpr(to_single_rat), i});
 			}
@@ -203,7 +203,7 @@ namespace ILPCuts
 
 		void process_even_case(const cone_traits_spec &C, process_func pf)
 		{
-			lis_vec x = even_system_solve(C).template cast<lint_type>();
+			lis_vec x = even_system_solve(C).cast<lint_type>();
 			for (typename lis_vec::InnerIterator it(x); it; ++it)
 				if (it.value() > 0)
 					pf(lsparse_transform(tolerance, err_tolerance, static_cast<size_t>(it.index()), std::move(x), 2));
@@ -239,8 +239,8 @@ namespace ILPCuts
 			timer.start();
 
 			out() << "determinant computation is started ..." << endl;
-			lint_type det = abs(ModuleNTL::det(A.template cast<lint_type>().eval()));
-			// lint_type det = lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+			lint_type det = abs(ModuleNTL::det(A.cast<lint_type>().eval()));
+			// lint_type det = lrat_to_lint(Utility::compute_abs_det(A.cast<lrational_type>().eval()));
 			out() << "determinant computation time: " << timer.finish_str()
 				  << "determinant is: " << det << endl;
 

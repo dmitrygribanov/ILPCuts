@@ -25,7 +25,7 @@ namespace ILPCuts
             res->A = A;
             res->det = det;
 
-            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.template cast<rational_type>());
+            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
 
             for (size_t i = 0; i < directions_pool.size(); ++i)
             {
@@ -99,7 +99,7 @@ namespace ILPCuts
             lis_vec x;
             while (!has_non_zero_solution)
             {
-                lis_vec b = Utility::bernouly_vec_generate<int_type>(n, *base::rgen).template cast<lint_type>();
+                lis_vec b = Utility::bernouly_vec_generate<int_type>(n, *base::rgen).cast<lint_type>();
 
                 // cout << "b: " << b << endl;
 
@@ -107,7 +107,7 @@ namespace ILPCuts
 
                 // cout << "b: " << b << endl;
 
-                x = ModuleNTL::solve_ZZ(C.A.template cast<lint_type>().eval(), b);
+                x = ModuleNTL::solve_ZZ(C.A.cast<lint_type>().eval(), b);
 
                 // cout << "x: " << x << endl;
 
@@ -187,11 +187,11 @@ namespace ILPCuts
                 timer.start();
 
                 out() << "Determinant computation is started ..." << endl;
-                // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
-                lint_type det = ModuleNTL::det(A.template cast<lint_type>().eval());
+                // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.cast<lrational_type>().eval()));
+                lint_type det = ModuleNTL::det(A.cast<lint_type>().eval());
                 // lint_type det;
-                // ModuleFlint::compute_det(A.template cast<lint_type>().eval(), det);
-                // //  lint_type det = Utility::LinBox::compute_det(A.template cast<lint_type>().eval());
+                // ModuleFlint::compute_det(A.cast<lint_type>().eval(), det);
+                // //  lint_type det = Utility::LinBox::compute_det(A.cast<lint_type>().eval());
                 out() << "determinant computation time: " << timer.finish_str()
                       << "determinant is: " << det << endl;
 
