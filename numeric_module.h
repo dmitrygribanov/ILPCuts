@@ -236,8 +236,8 @@ namespace ILPCuts
     using RatToInt_Unary = Utility::RatToInt_Unary<int_type, rational_type>;
     using LRatToLInt_Unary = Utility::RatToInt_Unary<lint_type, lrational_type>;
 
-    constexpr auto _to_single_int = conv<lint_type, int_type>::make;
-    constexpr auto _to_single_rat = conv<lrational_type, rational_type>::make;
+    constexpr auto to_single_int = conv<lint_type, int_type>::make;
+    constexpr auto to_single_rat = conv<lrational_type, rational_type>::make;
 
     using is_mat = SparseMatrix<int_type>;
     using rs_mat = SparseMatrix<rational_type>;

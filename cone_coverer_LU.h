@@ -67,7 +67,7 @@ namespace ILPCuts
 			{
 				auto t = Utility::system_solve(directions_pool[i].template cast<lrational_type>().eval(), *(res->decomp));
 				res->dir_coeffs_pull.emplace_back(dir_coeffs{
-					t.unaryExpr(_to_single_rat), i});
+					t.unaryExpr(to_single_rat), i});
 			}
 
 			return std::move(res);
@@ -85,7 +85,7 @@ namespace ILPCuts
 			res.U = solver.matrixU();
 			res.rowsP = solver.rowsPermutation();
 			res.colsP = solver.colsPermutation();
-			res.det = (*_lrat_to_lint)( abs(solver.determinant()) );
+			res.det = (*lrat_to_lint)( abs(solver.determinant()) );
 
 			return std::move(res);
 		}*/
@@ -137,7 +137,7 @@ namespace ILPCuts
 				cin.ignore();*/
 
 				// create long integer solution
-				lis_vec int_x = (x * C.det).unaryExpr(_lrat_to_lint);
+				lis_vec int_x = (x * C.det).unaryExpr(lrat_to_lint);
 
 				lint_type max_2_pow = Utility::vec_max2pow(int_x);
 				if ((static_cast<lint_type>(C.det) / max_2_pow) % 2 == 0)
@@ -150,7 +150,7 @@ namespace ILPCuts
 					cin.ignore();*/
 
 					// find odd solutions and convert them to 1 in result vector
-					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(_to_single_int);
+					res = int_x.unaryExpr(std::ref(Utility::mod2_unaryop<lint_type>)).unaryExpr(to_single_int);
 
 					/*cout << res << endl;
 					cin.ignore();*/
@@ -185,7 +185,7 @@ namespace ILPCuts
 				lrs_vec x = std::move(Utility::system_solve(rhs, *C.decomp));
 
 				// create long integer solution
-				res = (x * C.det).unaryExpr(_lrat_to_lint);
+				res = (x * C.det).unaryExpr(lrat_to_lint);
 
 				// transform modulo det
 				res = res.unaryExpr(Utility::mod_unaryop<lint_type>(C.det));
@@ -240,7 +240,7 @@ namespace ILPCuts
 
 			out() << "determinant computation is started ..." << endl;
 			lint_type det = abs(ModuleNTL::det(A.template cast<lint_type>().eval()));
-			// lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+			// lint_type det = lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
 			out() << "determinant computation time: " << timer.finish_str()
 				  << "determinant is: " << det << endl;
 

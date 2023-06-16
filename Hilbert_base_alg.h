@@ -80,8 +80,8 @@ namespace ILPCuts
             out() << "computation of the HNF is started...\n";
             timer.start();
             // ModuleFlint::compute_HNF(C.A, C.A);
-            // H = ModuleNTL::compute_HNF<int_type>(C.A.transpose(), _to_single_int(C.det));
-            ModuleFlint::compute_HNF(A, _to_single_int(det), H);
+            // H = ModuleNTL::compute_HNF<int_type>(C.A.transpose(), to_single_int(C.det));
+            ModuleFlint::compute_HNF(A, to_single_int(det), H);
 
             // cout << "Is Upper triang: " << Utility::is_upper_triang(H) << endl;
 
@@ -95,7 +95,7 @@ namespace ILPCuts
 
             out() << "computation of the P^-1 is started...\n";
             timer.start();
-            Pi = (A.template cast<rational_type>() * Hi).unaryExpr(_rat_to_int);
+            Pi = (A.template cast<rational_type>() * Hi).unaryExpr(rat_to_int);
             out() << "P^-1 computation time: " << timer.finish_str();
 
             std::vector<std::vector<int_type>> H_dense;

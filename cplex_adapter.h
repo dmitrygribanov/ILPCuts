@@ -11,8 +11,6 @@ namespace ILPCuts
 		public:
 			using generator_base = ConeCoverCutsGenerator;
 
-			using Strategies = typename ConeCoverer_Base::Strategies;
-
 			enum class IsLazy
 			{
 				on,
@@ -53,7 +51,7 @@ namespace ILPCuts
 
 					try
 					{
-						coeff_int = generator_ptr->_rat_to_int(coeff);
+						coeff_int = generator_ptr->rat_to_int(coeff);
 					}
 					catch (ToleranceErrorException)
 					{
@@ -434,7 +432,7 @@ namespace ILPCuts
 
 								try
 								{
-									val_int = generator_ptr->_rat_to_int(val);
+									val_int = generator_ptr->rat_to_int(val);
 								}
 								catch (ToleranceErrorException)
 								{
@@ -576,7 +574,7 @@ namespace ILPCuts
 
 		void CPlexAdapter::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
 		{
-			generator_ptr->cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename Strategies::GreadyDirection>(c));
+			generator_ptr->cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::GreadyDirection>(c));
 
 			Timer timer;
 			timer.start();

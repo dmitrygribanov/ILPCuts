@@ -141,12 +141,12 @@ namespace ILPCuts
     protected:
         const double &_tolerance;
 
-        RatToInt_Unary _rat_to_int;
-        LRatToLInt_Unary _lrat_to_lint;
+        RatToInt_Unary rat_to_int;
+        LRatToLInt_Unary lrat_to_lint;
 
     public:
         transform_base(const double &a_tol, const double &a_err_tol)
-            : _tolerance(a_tol), _rat_to_int(a_err_tol), _lrat_to_lint(a_err_tol) {}
+            : _tolerance(a_tol), rat_to_int(a_err_tol), lrat_to_lint(a_err_tol) {}
 
         const double &get_tolerance() const { return _tolerance; }
 
@@ -173,7 +173,7 @@ namespace ILPCuts
         {
             rs_vec res = (A * data.t).template cast<rational_type>() / data.denum;
 
-            return res.unaryExpr(_rat_to_int);
+            return res.unaryExpr(rat_to_int);
         }
 
         lint_type operator[](const lint_type &det) const override
@@ -181,7 +181,7 @@ namespace ILPCuts
             const int_type &ti = data.t.coeff(data.i);
             lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
 
-            return _lrat_to_lint(res);
+            return lrat_to_lint(res);
         }
 
         rs_vec compute_coeffs(const rs_vec &old_coefs) const override
@@ -198,7 +198,7 @@ namespace ILPCuts
             size_t n = old_adjA.cols();
             is_mat Q = compute_adj_Q(n, data);
             old_adjA = ((Q.template cast<lint_type>() * old_adjA).template cast<lrational_type>() / data.denum)
-                           .unaryExpr(_lrat_to_lint)
+                           .unaryExpr(lrat_to_lint)
                            .eval();
 
             return std::move(old_adjA);
@@ -221,14 +221,14 @@ namespace ILPCuts
         {
             lrs_vec res = (A.template cast<lint_type>() * data.t).template cast<lrational_type>() / data.denum;
 
-            return res.unaryExpr(_lrat_to_lint).unaryExpr(_to_single_int);
+            return res.unaryExpr(lrat_to_lint).unaryExpr(to_single_int);
         }
 
         lint_type operator[](const lint_type &det) const override
         {
             const lint_type &ti = data.t.coeff(data.i);
             lrational_type res(static_cast<lrational_type>(det * ti) / data.denum);
-            return _lrat_to_lint(res);
+            return lrat_to_lint(res);
         }
 
         rs_vec compute_coeffs(const rs_vec &old_coefs) const override
@@ -236,7 +236,7 @@ namespace ILPCuts
             return Utility::compute_transformed_coeffs(old_coefs.template cast<lrational_type>().eval(),
                                                        data,
                                                        _tolerance)
-                .unaryExpr(_to_single_rat);
+                .unaryExpr(to_single_rat);
         }
 
         size_t get_i() const override { return data.i; }
@@ -246,7 +246,7 @@ namespace ILPCuts
             size_t n = old_adjA.cols();
             lis_mat Q = compute_adj_Q(n, data);
             old_adjA = ((Q * old_adjA).template cast<lrational_type>() / data.denum)
-                           .unaryExpr(_lrat_to_lint)
+                           .unaryExpr(lrat_to_lint)
                            .eval();
 
             return std::move(old_adjA);

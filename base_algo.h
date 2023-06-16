@@ -16,8 +16,8 @@ namespace ILPCuts
     public:
         logger &log;
 
-        RatToInt_Unary _rat_to_int;
-        LRatToLInt_Unary _lrat_to_lint;
+        RatToInt_Unary rat_to_int;
+        LRatToLInt_Unary lrat_to_lint;
 
         double tolerance = 0.000001;
         double err_tolerance = 0.01;
@@ -25,7 +25,7 @@ namespace ILPCuts
         std::mt19937 *rgen = nullptr;
 
         base_alg(logger &a_log)
-            : log(a_log), _rat_to_int(err_tolerance), _lrat_to_lint(err_tolerance)
+            : log(a_log), rat_to_int(err_tolerance), lrat_to_lint(err_tolerance)
         {
         }
     };

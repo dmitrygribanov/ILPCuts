@@ -24,9 +24,6 @@ namespace ILPCuts
 		using my_type = ConeCoverer_Base;
 		using base = base_alg;
 
-	public:
-		using Strategies = DirectionStrategies;
-
 	private:
 		Hilbert_base_alg _Hilbert_base_alg;
 
@@ -168,7 +165,7 @@ namespace ILPCuts
 
 	public:
 		size_t cone_limit_per_direction = 1;
-		std::vector<std::unique_ptr<typename Strategies::DirectionsStrategyBase>> direction_strategies;
+		std::vector<std::unique_ptr<typename DirectionStrategies::DirectionsStrategyBase>> direction_strategies;
 
 		using size_func = std::function<size_t(size_t)>;
 		size_func determinant_cut_limit = [](size_t n) -> size_t

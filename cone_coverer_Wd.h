@@ -215,7 +215,7 @@ namespace ILPCuts
                 timer.start();
 
                 out() << "Determinant computation is started ..." << endl;
-                // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
+                // lint_type det = lrat_to_lint(Utility::compute_abs_det(A.template cast<lrational_type>().eval()));
                 lint_type det = ModuleNTL::det(A.template cast<lint_type>().eval());
                 // lint_type det;
                 // ModuleFlint::compute_det(A.template cast<lint_type>().eval(), det);

@@ -20,8 +20,8 @@ namespace ILPCuts
             vector<cut_info> res;
 
             rs_vec rat_b = cuts_mat.template cast<rational_type>() * LocalInstance.v;
-            is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(_rat_to_int);
-            is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(_rat_to_int);
+            is_vec rounded_b = rat_b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(rat_to_int);
+            is_vec floor_b = rat_b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(rat_to_int);
 
             rs_vec diff_b = (rat_b - rounded_b.template cast<rational_type>()).cwiseAbs();
 
