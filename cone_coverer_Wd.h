@@ -30,7 +30,6 @@ namespace ILPCuts
 
             zz_p::init(p);
 
-            // cout << A.cols() << ", " << A.rows() << endl;
             is_mat cA = A.unaryExpr(Utility::mod_unaryop<int_type>(p));
             Utility::prune_zeroes_int(cA);
             WdOracle O(std::move(cA));
@@ -60,15 +59,7 @@ namespace ILPCuts
 
         void process_odd_conservative_case_zp(const cone_traits &C, process_func pf, int_type p)
         {
-            // if (p == 1)
-            // {
-            //     cout << p << endl;
-            // }
             is_vec x = find_kernel_vec_Wd(C.A, p);
-
-            // is_vec y = C.A * x;
-            // cout << y << endl;
-            // cin.ignore();
 
             for (typename is_vec::InnerIterator it(x); it; ++it)
             {
@@ -124,20 +115,10 @@ namespace ILPCuts
             {
                 lis_vec b = Utility::bernouly_vec_generate<int_type>(n, *base::rgen).cast<lint_type>();
 
-                // cout << "b: " << b << endl;
-
-                // b *= det;
-
-                // cout << "b: " << b << endl;
-
                 x = ModuleNTL::solve_ZZ(C.A.cast<lint_type>().eval(), b);
-
-                // cout << "x: " << x << endl;
 
                 x = x.unaryExpr(Utility::mod_unaryop(det)).eval();
                 Utility::prune_zeroes_int(x);
-
-                // cout << "x: " << x << endl;
 
                 if (x.nonZeros() > 0)
                     has_non_zero_solution = true;

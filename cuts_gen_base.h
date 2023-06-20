@@ -111,7 +111,6 @@ namespace ILPCuts
 
             for (typename rs_vec::InnerIterator it(t); it; ++it)
             {
-                // it.value() < tolerance previouse code. working fast but its must be not correct
                 if (it.value() < 0 && abs(it.value()) > tolerance)
                 {
                     A.col(it.index()) = -A.col(it.index());
@@ -148,9 +147,6 @@ namespace ILPCuts
                         throw Exception(msg.str());
                     }
                 }
-
-                // rational_type vall = cut.ray.cast<rational_type>().dot(_optLP_copy);
-                // out() << "vall: " << vall << endl;
 
                 if (abs(cut.ray.cast<rational_type>().dot(LocalInstance.v) - cut.frac_rhs) > err_tolerance)
                 {

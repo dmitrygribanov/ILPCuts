@@ -26,9 +26,6 @@ namespace ILPCuts
 
             size_t n = x.rows();
 
-            /*	cout << "N:   " << n << endl;
-                cin.ignore();*/
-
             rs_vec res(n);
 
             int_type ti = trans.t.coeff(trans.i);

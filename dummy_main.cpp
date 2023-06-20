@@ -12,14 +12,6 @@
 using namespace ILPCuts;
 using namespace std;
 
-// #include <givaro/modular.h>
-// #include <linbox/matrix/sparse-matrix.h>
-// #include <linbox/solutions/det.h>
-// #include <linbox/solutions/solve.h>
-// #include <gmp++/gmp++.h>
-
-// #include "conic_cuts_Eigen.h"
-
 int main(int argc, char **argv)
 {
     // logger log;

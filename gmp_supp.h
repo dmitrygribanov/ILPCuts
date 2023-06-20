@@ -114,7 +114,6 @@ mpq_class round(const mpq_class &x)
         return floor(x + mpq_class(1, 2));
     else
     {
-        // cout << "x: " << x << endl;
         return ceil(x - mpq_class(1, 2));
     }
     // return mpq_class(ceil(x));

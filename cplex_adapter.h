@@ -65,10 +65,6 @@ namespace ILPCuts
 						throw FractionalElementException(msg.str());
 					}
 
-					// rational_type rounded_coeff = round(coeff);
-					// if (abs(coeff - rounded_coeff) >= generator_ptr->err_tolerance)
-					// 	throw FractionalElementException();
-
 					triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
 
 					++(*ilo_iter);
@@ -213,10 +209,8 @@ namespace ILPCuts
 				}
 				else
 				{
-					// cout << "Min " << endl;
 					while (iter.ok())
 					{
-						// cout << iter.getCoef() << endl;
 						c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(-iter.getCoef());
 						++iter;
 					}
@@ -331,7 +325,7 @@ namespace ILPCuts
 				{
 					throw Exception("ILPCuts lib error: the LP problem's optimizaton sence var is = 0, so it is not defined...\n");
 				}
-				// CPX_MAX == -1 and CPX_MIN == 1 : we need to change into opposite values
+
 				sence *= -1;
 
 				vector<double> C_obj(n, 0.0);
@@ -428,8 +422,6 @@ namespace ILPCuts
 								double val = mult * mat_vals_C[nonzeros_idx];
 								int_type val_int = 0;
 
-								// out() << "(" << basis_i << ", " << col_idx << ", " << val << ")" << endl;
-
 								try
 								{
 									val_int = generator_ptr->rat_to_int(val);
@@ -472,9 +464,6 @@ namespace ILPCuts
 				}
 
 				A_basis.setFromTriplets(triplets.begin(), triplets.end());
-
-				// cout << "basis_i = " << basis_i << endl;
-				// cin.ignore();
 			}
 
 			{
@@ -497,9 +486,6 @@ namespace ILPCuts
 			}
 
 			out() << "normal cone adjusting..." << endl;
-
-			// cout << A_basis << endl;
-			// cout << A_basis.cols() << ",  " << A_basis.rows() << endl;
 
 			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
 
@@ -527,12 +513,6 @@ namespace ILPCuts
 					nonzero_idxs_C.push_back(it.index());
 					nonzero_vals_C.push_back(int_val);
 				}
-
-				// for (size_t i = 0; i < nonzeros_C; i++)
-				// {
-				//     cout << nonzero_vals_C[i] << " ";
-				// }
-				// cout << endl;
 
 				status = CPXXcutcallbackaddlocal(env, cbdata, wherefrom, nonzeros_C, cut.rhs, 'L',
 												 nonzero_idxs_C.data(), nonzero_vals_C.data());

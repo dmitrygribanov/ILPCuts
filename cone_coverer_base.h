@@ -35,15 +35,6 @@ namespace ILPCuts
 			_Hilbert_base_alg.threads = threads;
 		}
 
-		// is_mat _AT_copy;
-		// rs_vec _optLP_copy;
-
-		// void copy_original_problem_info(const is_mat &A, const rs_vec &optLP)
-		// {
-		// 	_AT_copy = A;
-		// 	_optLP_copy = optLP;
-		// }
-
 	protected:
 		using transform_base = ILPCuts::transform_base;
 		using sparse_transform = ILPCuts::sparse_transform;
@@ -264,14 +255,11 @@ namespace ILPCuts
 
 		auto process_new_candidate = [&](const transform_base &trans)
 		{
-			// out() << "Processing new cone candidate ...\n"
-			// 	  << "Computing new directions coeff. pull ... \n";
 			auto dirr_coeffs_pull = std::move(compute_dirr_coeffs_pull(
 				*C, trans, directions_evaluation_counter));
 
 			if (!dirr_coeffs_pull.empty())
 			{
-				// out() << "New candidate cone is approved ...\n";
 				++directions_evaluation_counter[dirr_coeffs_pull[0].dir_ID];
 
 				std::unique_ptr<cone_traits> new_cone = std::move(compute_cone_traits(
@@ -290,10 +278,6 @@ namespace ILPCuts
 	{
 
 		init_Hilbert_alg_params();
-
-		// clear_cuts();
-
-		// copy_original_problem_info(C->A, optLP);
 
 		Timer timer;
 		timer.start();
