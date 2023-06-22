@@ -7,6 +7,7 @@
 #include <sstream>
 #include <future>
 #include <thread>
+#include <cassert>
 #include <functional>
 
 #include "numeric_module.h"
