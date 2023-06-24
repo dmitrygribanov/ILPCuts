@@ -187,6 +187,27 @@ namespace ILPCuts
         }
 
         template <typename T>
+        SparseMatrix<T> generate_row_submatrix_byidx(const SparseMatrix<T> &A, const std::vector<size_t> &rows)
+        {
+            assert(rows.size() <= A.rows());
+
+            SparseMatrix<T>
+                R(rows.size(), A.cols());
+
+            for (size_t i = 0; i < rows.size(); ++i)
+            {
+                for (size_t j = 0; j < A.cols(); ++j)
+                {
+                    R.insert(i, j) = A.coeff(rows[i], j);
+                }
+            }
+
+            R.makeCompressed();
+
+            return R;
+        }
+
+        template <typename T>
         std::tuple<std::vector<size_t>, std::vector<size_t>> generate_some_square_submatrix(const SparseMatrix<T> &A, size_t m)
         {
             size_t n = A.cols();

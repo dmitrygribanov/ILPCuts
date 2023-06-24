@@ -42,8 +42,7 @@ namespace ILPCuts
         size_t maxSize = 0;
         size_t minSize = 0;
 
-        SqrtDimSizeWindow(size_t aMinSize, size_t aMaxSize)
-            : maxSize(aMaxSize), minSize(aMinSize)
+        SqrtDimSizeWindow()
         {
         }
 
@@ -63,7 +62,6 @@ namespace ILPCuts
         }
     };
 
-    template <typename rgenT>
     class RandomNondegSubmatGen
     {
     public:
@@ -76,7 +74,7 @@ namespace ILPCuts
         std::tuple<std::vector<size_t>, std::vector<size_t>> operator()(const local_instance &inst, submatSizeFunT submat_size_fun) const
         {
             size_t n = inst.get_num_vars();
-            size_t submat_n = submat_size_fun(n);
+            size_t submat_n = submat_size_fun(inst);
 
             std::vector<size_t> idxs(n);
             std::iota(idxs.begin(), idxs.end(), 0);
@@ -94,6 +92,59 @@ namespace ILPCuts
                 if (rank(B) = submat_n)
                     return std::make_tuple(rows, cols);
             }
+
+            return generate_some_square_submatrix(inst.A, submat_n);
+        }
+    };
+    class SomeNondegSubmatGen
+    {
+    public:
+        SomeNondegSubmatGen() {}
+
+        template <typename submatSizeFunT>
+        std::tuple<std::vector<size_t>, std::vector<size_t>> operator()(const local_instance &inst, submatSizeFunT submat_size_fun) const
+        {
+            size_t n = inst.get_num_vars();
+            size_t submat_n = submat_size_fun(inst);
+
+            return generate_some_square_submatrix(inst.A, submat_n);
+        }
+    };
+
+    template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomNondegSubmatGen>
+    class WindowConeCoverCutsGenerator : public ConeCoverCutsGenerator
+    {
+    public:
+        SubmatSizeFunT submat_size_fun;
+        SubmatGenT submat_gen;
+
+        void generate_cuts() override
+        {
+            std::vector<size_t> rows, cols;
+            std::tie(rows, cols) = submat_gen(LocalInstance, submat_size_fun);
+
+            is_mat subM = generate_square_submatrix_byidx(LocalInstance.A, rows, cols);
+
+            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(subM.cast<rational_type>().transpose());
+
+            if (decomp_LU.info() != ComputationInfo::Success)
+                throw EigenSolveException(decomp_LU.info());
+
+            auto subM_pool = cone_coverer_ptr->generate_cuts(subM.transpose());
+
+            std::vector<is_mat> cuts_pool;
+            for (size_t i = 0; i < subM_pool.size(); ++i)
+            {
+                const is_mat &C = subM_pool[i];
+                rs_mat T = decomp_LU.solve(C.cast<rational_type>()).transpose();
+
+                rs_mat cutsMat_rat = T * generate_row_submatrix_byidx(LocalInstance.A, rows).cast<rational_type>();
+                is_mat cutsMat_int = cutsMat_rat.unaryExpr(rat_to_int);
+
+                cuts_pool.push_back(cutsMat_int.transpose());
+            }
+
+            append_cuts_from_row_matrices(cuts_pool);
         }
     };
 
