@@ -20,8 +20,7 @@ namespace ILPCuts
     public:
         size_t maxSize = 0;
 
-        DimSizeWindow(size_t aMaxSize)
-            : maxSize(aMaxSize)
+        DimSizeWindow()
         {
         }
 
@@ -76,24 +75,21 @@ namespace ILPCuts
             size_t n = inst.get_num_vars();
             size_t submat_n = submat_size_fun(inst);
 
-            std::vector<size_t> idxs(n);
-            std::iota(idxs.begin(), idxs.end(), 0);
+            std::vector<size_t> one_to_n_idxs(n);
+            std::iota(one_to_n_idxs.begin(), one_to_n_idxs.end(), 0);
 
-            for (size_t trial = 0; trial < numberOfTrials; ++trial)
-            {
-                std::vector cols, rows;
-                std::sample(idxs.begin(), idxs.end(), std::back_inserter(rows), submat_n, *rgen);
-                std::sample(idxs.begin(), idxs.end(), std::back_inserter(cols), submat_n, *rgen);
-                std::sort(rows.begin(), rows.end());
-                std::sort(cols.begin(), cols.end());
+            std::vector<size_t> rows;
+            std::sample(one_to_n_idxs.begin(), one_to_n_idxs.end(), std::back_inserter(rows), submat_n, *rgen);
+            std::sort(rows.begin(), rows.end());
 
-                auto B = generate_square_submatrix_byidx(inst.A, rows, cols);
+            std::vector<size_t> cols = Utility::generate_nondegenerate_from_rows(inst.A, rows);
 
-                if (rank(B) = submat_n)
-                    return std::make_tuple(rows, cols);
-            }
+            // auto B = Utility::generate_square_submatrix_byidx(inst.A, rows, cols);
 
-            return generate_some_square_submatrix(inst.A, submat_n);
+            // if (Utility::rank(B) == submat_n)
+            //     return std::make_tuple(rows, cols);
+
+            return std::make_tuple(rows, cols);
         }
     };
     class SomeNondegSubmatGen
@@ -107,28 +103,37 @@ namespace ILPCuts
             size_t n = inst.get_num_vars();
             size_t submat_n = submat_size_fun(inst);
 
-            return generate_some_square_submatrix(inst.A, submat_n);
+            std::vector<size_t> rows(submat_n);
+            std::iota(rows.begin(), rows.end(), 0);
+
+            std::vector<size_t> cols = Utility::generate_nondegenerate_from_rows(inst.A, rows);
+
+            return std::make_tuple(rows, cols);
         }
     };
 
     template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomNondegSubmatGen>
     class WindowConeCoverCutsGenerator : public ConeCoverCutsGenerator
     {
+        using base = ConeCoverCutsGenerator;
+
     public:
         SubmatSizeFunT submat_size_fun;
         SubmatGenT submat_gen;
+
+        using base::base;
 
         void generate_cuts() override
         {
             std::vector<size_t> rows, cols;
             std::tie(rows, cols) = submat_gen(LocalInstance, submat_size_fun);
 
-            is_mat subM = generate_square_submatrix_byidx(LocalInstance.A, rows, cols);
+            is_mat subM = Utility::generate_square_submatrix_byidx(LocalInstance.A, rows, cols);
 
             SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(subM.cast<rational_type>().transpose());
 
             if (decomp_LU.info() != ComputationInfo::Success)
-                throw EigenSolveException(decomp_LU.info());
+                throw Utility::EigenSolveException(decomp_LU.info());
 
             auto subM_pool = cone_coverer_ptr->generate_cuts(subM.transpose());
 
@@ -138,7 +143,7 @@ namespace ILPCuts
                 const is_mat &C = subM_pool[i];
                 rs_mat T = decomp_LU.solve(C.cast<rational_type>()).transpose();
 
-                rs_mat cutsMat_rat = T * generate_row_submatrix_byidx(LocalInstance.A, rows).cast<rational_type>();
+                rs_mat cutsMat_rat = T * Utility::generate_row_submatrix_byidx(LocalInstance.A, rows).cast<rational_type>();
                 is_mat cutsMat_int = cutsMat_rat.unaryExpr(rat_to_int);
 
                 cuts_pool.push_back(cutsMat_int.transpose());
@@ -147,5 +152,10 @@ namespace ILPCuts
             append_cuts_from_row_matrices(cuts_pool);
         }
     };
+
+    using CutsGen_CCRWD = WindowConeCoverCutsGenerator<DimSizeWindow, RandomNondegSubmatGen>;
+    using CutsGen_CCRWSqD = WindowConeCoverCutsGenerator<DimSizeWindow, SqrtDimSizeWindow>;
+    using CutsGen_CCSWD = WindowConeCoverCutsGenerator<SomeNondegSubmatGen, RandomNondegSubmatGen>;
+    using CutsGen_CCSWSqD = WindowConeCoverCutsGenerator<SomeNondegSubmatGen, SqrtDimSizeWindow>;
 
 } // namespace ILPCuts

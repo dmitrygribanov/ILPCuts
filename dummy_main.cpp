@@ -9,11 +9,15 @@
 #include "cone_coverer_Wd.h"
 #include "ILPCuts_console_utils.h"
 
+#include "cuts_gen_window_cone.h"
+
 using namespace ILPCuts;
 using namespace std;
 
 int main(int argc, char **argv)
 {
+    logger log;
+    CutsGen_CCRWD cuts_gen(log);
     // logger log;
     //  ConeCoverCutsGenerator g1(log);
     //  ConeCoverer_Zp zp(log);

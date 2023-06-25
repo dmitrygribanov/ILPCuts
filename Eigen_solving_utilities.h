@@ -208,9 +208,31 @@ namespace ILPCuts
         }
 
         template <typename T>
-        std::tuple<std::vector<size_t>, std::vector<size_t>> generate_some_square_submatrix(const SparseMatrix<T> &A, size_t m)
+        SparseMatrix<T> generate_column_submatrix_byidx(const SparseMatrix<T> &A, const std::vector<size_t> &cols)
+        {
+            assert(cols.size() <= A.cols());
+
+            SparseMatrix<T>
+                R(A.rows(), cols.size());
+
+            for (size_t i = 0; i < A.rows(); ++i)
+            {
+                for (size_t j = 0; j < cols.size(); ++j)
+                {
+                    R.insert(i, j) = A.coeff(i, cols[j]);
+                }
+            }
+
+            R.makeCompressed();
+
+            return R;
+        }
+
+        template <typename T>
+        std::vector<size_t> generate_nondegenerate_from_rows(const SparseMatrix<T> &A, std::vector<size_t> rows)
         {
             size_t n = A.cols();
+            size_t m = rows.size();
 
             assert(n == A.rows());
             assert(m <= n);
@@ -218,17 +240,26 @@ namespace ILPCuts
             using rat_type = T;
             using rat_mat = SparseMatrix<rat_type>;
 
-            SparseLU<rat_mat, COLAMDOrdering<int>> decomp_LU(A);
+            is_mat subA = generate_row_submatrix_byidx(A, rows);
 
-            if (decomp_LU.info() != ComputationInfo::Success)
-                throw EigenSolveException(decomp_LU.info());
+            SparseQR<rat_mat, COLAMDOrdering<int>> decomp_QR(subA);
 
-            std::vector<size_t> rows(m), cols(m);
+            if (decomp_QR.info() != ComputationInfo::Success)
+                throw EigenSolveException(decomp_QR.info());
 
-            rows = decomp_LU.rowsPermutation().indices();
-            cols = decomp_LU.colsPermutation().indices();
+            std::vector<size_t> cols(m);
 
-            return std::make_tuple(rows, cols);
+            auto column_perm = decomp_QR.colsPermutation().indices().array();
+
+            for (size_t i = 0; i < m; ++i)
+            {
+                cols[i] = column_perm[i];
+            }
+
+            // rows.assign(, decomp_LU.rowsPermutation().indices().array().cend());
+            // cols = decomp_LU.colsPermutation().indices();
+
+            return cols;
         }
     } // namespace Utility
 
