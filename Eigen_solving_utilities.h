@@ -36,8 +36,8 @@ namespace ILPCuts
         template <typename rationalT>
         SparseVector<rationalT> system_solve(const SparseMatrix<rationalT> &A, const SparseVector<rationalT> &b);
 
-        template <typename rationalT, typename solverT>
-        SparseVector<rationalT> system_solve(const SparseVector<rationalT> &b, solverT &solver);
+        template <typename rationalT, typename T2>
+        SparseVector<rationalT> system_solve(const SparseVector<rationalT> &b, const SparseSolverBase<T2> &solver);
 
         template <typename intT>
         intT vec_max2pow(const SparseVector<intT> &vec);
@@ -158,8 +158,8 @@ namespace ILPCuts
             return std::move(system_solve(b, decomp_LU));
         }
 
-        template <typename rationalT, typename solverT>
-        SparseVector<rationalT> system_solve(const SparseVector<rationalT> &b, solverT &solver)
+        template <typename rationalT, typename T2>
+        SparseVector<rationalT> system_solve(const SparseVector<rationalT> &b, const SparseSolverBase<T2> &solver)
         {
             return std::move(solver.solve(b));
         }
@@ -191,20 +191,10 @@ namespace ILPCuts
         {
             assert(rows.size() <= A.rows());
 
-            SparseMatrix<T>
-                R(rows.size(), A.cols());
+            std::vector<size_t> cols(A.cols());
+            std::iota(cols.begin(), cols.end(), 0);
 
-            for (size_t i = 0; i < rows.size(); ++i)
-            {
-                for (size_t j = 0; j < A.cols(); ++j)
-                {
-                    R.insert(i, j) = A.coeff(rows[i], j);
-                }
-            }
-
-            R.makeCompressed();
-
-            return R;
+            return generate_square_submatrix_byidx(A, rows, cols);
         }
 
         template <typename T>
@@ -212,20 +202,25 @@ namespace ILPCuts
         {
             assert(cols.size() <= A.cols());
 
-            SparseMatrix<T>
-                R(A.rows(), cols.size());
+            std::vector<size_t> rows(A.rows());
+            std::iota(rows.begin(), rows.end(), 0);
 
-            for (size_t i = 0; i < A.rows(); ++i)
+            return generate_square_submatrix_byidx(A, rows, cols);
+        }
+
+        template <typename T>
+        SparseMatrix<T> generate_subvector_byidx(const SparseVector<T> &v, const std::vector<size_t> &idxs)
+        {
+            assert(idxs.size() <= v.size());
+
+            SparseVector<T> res(idxs.size());
+
+            for (size_t i = 0; i < idxs.size(); ++i)
             {
-                for (size_t j = 0; j < cols.size(); ++j)
-                {
-                    R.insert(i, j) = A.coeff(i, cols[j]);
-                }
+                res.insert(i) = v.coeff(idxs[i]);
             }
 
-            R.makeCompressed();
-
-            return R;
+            return res;
         }
 
         template <typename T>
@@ -250,6 +245,8 @@ namespace ILPCuts
             std::vector<size_t> cols(m);
 
             auto column_perm = decomp_QR.colsPermutation().indices().array();
+
+            assert(column_perm.size() == m);
 
             for (size_t i = 0; i < m; ++i)
             {

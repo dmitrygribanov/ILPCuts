@@ -74,7 +74,12 @@ namespace ILPCuts
 
         void generate_cuts() override
         {
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(LocalInstance.c));
+
             auto mat_pool = cone_coverer_ptr->generate_cuts(LocalInstance.A.transpose());
+
+            cone_coverer_ptr->direction_strategies.pop_back();
+
             append_cuts_from_row_matrices(mat_pool);
         }
 
@@ -86,4 +91,6 @@ namespace ILPCuts
             cone_coverer_ptr->rgen = rgen = a_rgen;
         }
     };
+
+    using CutsGen_CC = ConeCoverCutsGenerator;
 } // namespace ILPCuts

@@ -9,7 +9,7 @@ namespace ILPCuts
 		class CPlexAdapter
 		{
 		public:
-			using generator_base = ConeCoverCutsGenerator;
+			using generator_base = cuts_gen_base;
 
 			enum class IsLazy
 			{
@@ -554,8 +554,6 @@ namespace ILPCuts
 
 		void CPlexAdapter::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
 		{
-			generator_ptr->cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::GreadyDirection>(c));
-
 			Timer timer;
 			timer.start();
 			out() << "cutting plane generation is started..." << endl;
@@ -569,8 +567,6 @@ namespace ILPCuts
 				  << "total time: " << timer.finish_str() << "\n"
 				  << "number of added cuts: " << get_cuts().size() << "\n"
 				  << endl;
-
-			generator_ptr->cone_coverer_ptr->direction_strategies.pop_back();
 		}
 
 		void CPlexAdapter::transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr)

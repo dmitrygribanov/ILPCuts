@@ -128,28 +128,39 @@ namespace ILPCuts
             std::vector<size_t> rows, cols;
             std::tie(rows, cols) = submat_gen(LocalInstance, submat_size_fun);
 
-            is_mat subM = Utility::generate_square_submatrix_byidx(LocalInstance.A, rows, cols);
+            is_mat subA = Utility::generate_square_submatrix_byidx(LocalInstance.A, rows, cols);
+            is_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
 
-            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(subM.cast<rational_type>().transpose());
+            rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.cast<rational_type>().transpose(), LocalInstance.c);
+            rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
+            rs_vec c_proj = rowSubA.cast<rational_type>().transpose() * t_proj;
 
-            if (decomp_LU.info() != ComputationInfo::Success)
-                throw Utility::EigenSolveException(decomp_LU.info());
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(c_proj));
 
-            auto subM_pool = cone_coverer_ptr->generate_cuts(subM.transpose());
+            auto subM_pool = cone_coverer_ptr->generate_cuts(subA.transpose());
 
-            std::vector<is_mat> cuts_pool;
+            cone_coverer_ptr->direction_strategies.pop_back();
+
+            //--------------------------------------------------------------------
+
+            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU_subA(subA.cast<rational_type>().transpose());
+
+            if (decomp_LU_subA.info() != ComputationInfo::Success)
+                throw Utility::EigenSolveException(decomp_LU_subA.info());
+
+            std::vector<is_mat> res_cuts_pool;
             for (size_t i = 0; i < subM_pool.size(); ++i)
             {
                 const is_mat &C = subM_pool[i];
-                rs_mat T = decomp_LU.solve(C.cast<rational_type>()).transpose();
+                rs_mat T = decomp_LU_subA.solve(C.cast<rational_type>()).transpose();
 
-                rs_mat cutsMat_rat = T * Utility::generate_row_submatrix_byidx(LocalInstance.A, rows).cast<rational_type>();
+                rs_mat cutsMat_rat = T * rowSubA.cast<rational_type>();
                 is_mat cutsMat_int = cutsMat_rat.unaryExpr(rat_to_int);
 
-                cuts_pool.push_back(cutsMat_int.transpose());
+                res_cuts_pool.push_back(cutsMat_int.transpose());
             }
 
-            append_cuts_from_row_matrices(cuts_pool);
+            append_cuts_from_row_matrices(res_cuts_pool);
         }
     };
 

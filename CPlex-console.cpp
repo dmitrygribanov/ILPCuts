@@ -205,8 +205,8 @@ void run_cplex_experiment(
 	// createing adapter object
 	CPlexAdapter cuts_gen_adapter;
 
-	cuts_gen_adapter.generator_ptr = std::make_unique<ConeCoverCutsGenerator>(log);
-	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
+	cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
+	auto cuts_gen_ptr = static_cast<CutsGen_CC *>(cuts_gen_adapter.generator_ptr.get());
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")

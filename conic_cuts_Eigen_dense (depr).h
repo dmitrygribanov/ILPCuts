@@ -354,13 +354,13 @@ namespace ILPCuts
 			virtual rat_mat generate_directons() = 0; // { return rat_mat();  };
 		};
 
-		class GreadyDirection : public DirectionsStrategyBase
+		class SpecifiedDirection : public DirectionsStrategyBase
 		{
 		private:
 			const rat_vec &_c;
 
 		public:
-			GreadyDirection(const rat_vec &c)
+			SpecifiedDirection(const rat_vec &c)
 				: _c(c) {}
 
 			rat_mat generate_directons()
@@ -388,7 +388,7 @@ namespace ILPCuts
 		};
 
 		template <typename randGenT>
-		class ConvUniformAndGready : public GreadyDirection
+		class ConvUniformAndGready : public SpecifiedDirection
 		{
 		public:
 			using gen_type = randGenT;
@@ -400,11 +400,11 @@ namespace ILPCuts
 
 		public:
 			ConvUniformAndGready(gen_type &gen, const rat_vec &c, const int_mat &A, size_t rand_dir_num = 3)
-				: GreadyDirection(c), _gen(gen), _A(A), _rand_dir_num(rand_dir_num) {}
+				: SpecifiedDirection(c), _gen(gen), _A(A), _rand_dir_num(rand_dir_num) {}
 
 			rat_mat generate_directons()
 			{
-				rat_mat result_directions = std::move(GreadyDirection::generate_directons());
+				rat_mat result_directions = std::move(SpecifiedDirection::generate_directons());
 				size_t n = _A.cols();
 
 				result_directions.conservative_resize(n, _rand_dir_num + 1);
