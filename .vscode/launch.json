@@ -135,16 +135,16 @@
             ]
         },
         {
-            "name": "(gdb) seymur",
+            "name": "(gdb) seymour",
             "type": "cppdbg",
             "request": "launch",
             // Resolved by CMake Tools:
             "program": "${command:cmake.launchTargetPath}",
             "args": [
                 "-i",
-                "../problems/pure_int_bench/seymur.mps.gz",
+                "../problems/pure_int_bench/seymour.mps.gz",
                 "-o",
-                "seymur_debug_log.txt",
+                "seymour_debug_log.txt",
                 "--wcgn",
                 "1",
                 "--wcpl",
