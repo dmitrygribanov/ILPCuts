@@ -8,6 +8,7 @@ ILOSTLBEGIN
 #include "cone_coverer_Zp.h"
 #include "cone_coverer_Wd.h"
 #include "cplex_adapter.h"
+#include "cuts_gen_window_cone.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 
@@ -135,7 +136,8 @@ void run_cplex_experiment(
 	size_t min_dim,
 	size_t max_dim,
 	double cplex_tl,
-	double cuts_tl)
+	double cuts_tl,
+	size_t cuts_generation_submat_size_limit)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -205,8 +207,8 @@ void run_cplex_experiment(
 	// createing adapter object
 	CPlexAdapter cuts_gen_adapter;
 
-	cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
-	auto cuts_gen_ptr = static_cast<CutsGen_CC *>(cuts_gen_adapter.generator_ptr.get());
+	cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CCRWD>(log);
+	auto cuts_gen_ptr = static_cast<CutsGen_CCRWD *>(cuts_gen_adapter.generator_ptr.get());
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
@@ -223,6 +225,7 @@ void run_cplex_experiment(
 	// initialization of cuts generator and setting parameters
 	std::mt19937 engine;
 	cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
+	cuts_gen_ptr->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
 	if (solver_type == "zp" || solver_type == "wd")
@@ -342,6 +345,11 @@ int main(int argc, char **argv)
 	program.add_argument("-c", "--cone_limit")
 		.default_value(size_t(1))
 		.help("cone limit per direction")
+		.scan<'i', size_t>();
+
+	program.add_argument("--submat_limit")
+		.default_value(size_t(1024))
+		.help("square submatrix size limit")
 		.scan<'i', size_t>();
 
 	program.add_argument("-r", "--rand_strategy")
@@ -486,7 +494,8 @@ int main(int argc, char **argv)
 			program.get<size_t>("--min_dim"),
 			program.get<size_t>("--max_dim"),
 			program.get<double>("--cplex_tl"),
-			program.get<double>("--cuts_tl"));
+			program.get<double>("--cuts_tl"),
+			program.get<size_t>("--submat_limit"));
 	}
 	catch (const FractionalElementException &err)
 	{

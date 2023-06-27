@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuts_gen_cone_coverer.h"
+#include "cuts_gen_base.h"
 #include "cplex_utils.h"
 namespace ILPCuts
 {

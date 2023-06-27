@@ -110,7 +110,47 @@
                 "--wcgn",
                 "1",
                 "--wcpl",
-                "15"
+                "15",
+                "--submat_limit",
+                "1024"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${command:cmake.launchTargetDirectory}",
+            "environment": [
+                {
+                    // add the directory where our target was built to the PATHs
+                    // it gets resolved by CMake Tools:
+                    "name": "PATH",
+                    "value": "$PATH:${command:cmake.launchTargetDirectory}"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
+            "name": "(gdb) seymur",
+            "type": "cppdbg",
+            "request": "launch",
+            // Resolved by CMake Tools:
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [
+                "-i",
+                "../problems/pure_int_bench/seymur.mps.gz",
+                "-o",
+                "seymur_debug_log.txt",
+                "--wcgn",
+                "1",
+                "--wcpl",
+                "15",
+                "--submat_limit",
+                "1024"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",

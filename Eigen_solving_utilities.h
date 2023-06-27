@@ -15,7 +15,7 @@ namespace ILPCuts
             Eigen::ComputationInfo comp_info;
 
             EigenSolveException(Eigen::ComputationInfo a_comp_info)
-                : comp_info(a_comp_info), Exception("ILPCuts lib error: unable to solve/decompose sparse system using Eigen.") {}
+                : comp_info(a_comp_info), Exception("ILPCuts lib error: unable to solve/decompose sparse system using Eigen. \n CompInfo: " + std::to_string(a_comp_info)) {}
 
             EigenSolveException(std::string msg, Eigen::ComputationInfo a_comp_info)
                 : comp_info(a_comp_info), Exception(msg) {}
@@ -165,15 +165,17 @@ namespace ILPCuts
         }
 
         template <typename T>
-        SparseMatrix<T> generate_square_submatrix_byidx(const SparseMatrix<T> &A, const std::vector<size_t> &rows, const std::vector<size_t> &cols)
+        SparseMatrix<T> generate_submatrix_byidx(const SparseMatrix<T> &A, const std::vector<size_t> &rows, const std::vector<size_t> &cols)
         {
-            assert(rows.size() == cols.size());
+            size_t m = rows.size();
+            size_t n = cols.size();
 
-            size_t n = rows.size();
+            assert(n <= A.cols());
+            assert(m <= A.rows());
 
-            SparseMatrix<T> R(n, n);
+            SparseMatrix<T> R(m, n);
 
-            for (size_t i = 0; i < n; ++i)
+            for (size_t i = 0; i < m; ++i)
             {
                 for (size_t j = 0; j < n; ++j)
                 {
@@ -194,7 +196,7 @@ namespace ILPCuts
             std::vector<size_t> cols(A.cols());
             std::iota(cols.begin(), cols.end(), 0);
 
-            return generate_square_submatrix_byidx(A, rows, cols);
+            return generate_submatrix_byidx(A, rows, cols);
         }
 
         template <typename T>
@@ -205,7 +207,7 @@ namespace ILPCuts
             std::vector<size_t> rows(A.rows());
             std::iota(rows.begin(), rows.end(), 0);
 
-            return generate_square_submatrix_byidx(A, rows, cols);
+            return generate_submatrix_byidx(A, rows, cols);
         }
 
         template <typename T>
@@ -233,11 +235,11 @@ namespace ILPCuts
             assert(m <= n);
 
             using rat_type = T;
-            using rat_mat = SparseMatrix<rat_type>;
+            using rs_mat = SparseMatrix<rat_type>;
 
-            is_mat subA = generate_row_submatrix_byidx(A, rows);
+            rs_mat subA = generate_row_submatrix_byidx(A, rows);
 
-            SparseQR<rat_mat, COLAMDOrdering<int>> decomp_QR(subA);
+            SparseQR<rs_mat, COLAMDOrdering<int>> decomp_QR(subA);
 
             if (decomp_QR.info() != ComputationInfo::Success)
                 throw EigenSolveException(decomp_QR.info());
@@ -246,15 +248,25 @@ namespace ILPCuts
 
             auto column_perm = decomp_QR.colsPermutation().indices().array();
 
-            assert(column_perm.size() == m);
+            // size_t col_perm_size = column_perm.size();
+            // size_t a = subA.rows();
+            // size_t aa = subA.cols();
+            // size_t rr = decomp_QR.rank();
+
+            assert(m <= column_perm.size());
 
             for (size_t i = 0; i < m; ++i)
             {
                 cols[i] = column_perm[i];
             }
 
-            // rows.assign(, decomp_LU.rowsPermutation().indices().array().cend());
-            // cols = decomp_LU.colsPermutation().indices();
+            std::sort(cols.begin(), cols.end());
+
+            // auto subsubA = generate_submatrix_byidx(A, rows, cols);
+
+            // decomp_QR.compute(subsubA);
+            // rr = decomp_QR.rank();
+            // size_t rrr = rank(subsubA);
 
             return cols;
         }
