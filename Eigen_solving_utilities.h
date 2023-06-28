@@ -3,6 +3,8 @@
 #include <eigen3/Eigen/SparseLU>
 #include <eigen3/Eigen/SparseQR>
 
+#include <unordered_map>
+
 #include "basic_utils.h"
 
 namespace ILPCuts
@@ -167,21 +169,49 @@ namespace ILPCuts
         template <typename T>
         SparseMatrix<T> generate_submatrix_byidx(const SparseMatrix<T> &A, const std::vector<size_t> &rows, const std::vector<size_t> &cols)
         {
+            using mat_type = SparseMatrix<T>;
+            using triplet = Eigen::Triplet<T>;
+
             size_t m = rows.size();
             size_t n = cols.size();
 
             assert(n <= A.cols());
             assert(m <= A.rows());
 
-            SparseMatrix<T> R(m, n);
+            std::unordered_map<size_t, size_t> rows_hmap(2 * m);
+            std::unordered_map<size_t, size_t> cols_hmap(2 * n);
 
             for (size_t i = 0; i < m; ++i)
             {
-                for (size_t j = 0; j < n; ++j)
-                {
-                    R.insert(i, j) = A.coeff(rows[i], cols[j]);
-                }
+                rows_hmap[rows[i]] = i;
             }
+
+            for (size_t j = 0; j < n; ++j)
+            {
+                cols_hmap[cols[j]] = j;
+            }
+
+            mat_type R(m, n);
+            std::vector<triplet> tripletsR;
+
+            for (int k = 0; k < A.outerSize(); ++k)
+                for (typename mat_type::InnerIterator it(A, k); it; ++it)
+                {
+                    auto row_hash_pos = rows_hmap.find(it.row());
+                    auto col_hash_pos = cols_hmap.find(it.col());
+                    if (row_hash_pos != rows_hmap.end() && col_hash_pos != cols_hmap.end())
+                        tripletsR.push_back(triplet(row_hash_pos->second, col_hash_pos->second, it.value()));
+                }
+
+            R.setFromTriplets(tripletsR.begin(), tripletsR.end());
+
+            // for (size_t i = 0; i < m; ++i)
+            // {
+            //     for (size_t j = 0; j < n; ++j)
+            //     {
+            //         R.insert(i, j) = A.coeff(rows[i], cols[j]);
+            //     }
+            // }
 
             R.makeCompressed();
 

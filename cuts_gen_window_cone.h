@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuts_gen_cone_coverer.h"
+#include "flint_module.h"
 
 namespace ILPCuts
 {
@@ -62,7 +63,7 @@ namespace ILPCuts
             : _cuts_gen_ref(cuts_gen_ref) {}
 
         template <typename submatSizeFunT>
-        std::tuple<std::vector<size_t>, std::vector<size_t>> operator()(submatSizeFunT submat_size_fun) const
+        std::vector<size_t> operator()(submatSizeFunT submat_size_fun) const
         {
             size_t n = inst().get_num_vars();
             size_t submat_n = submat_size_fun(inst());
@@ -74,16 +75,7 @@ namespace ILPCuts
             std::sample(one_to_n_idxs.begin(), one_to_n_idxs.end(), std::back_inserter(rows), submat_n, rgen());
             std::sort(rows.begin(), rows.end());
 
-            std::vector<size_t> cols = Utility::generate_nondegenerate_from_rows(inst().A.cast<rational_type>().eval(), rows);
-
-            // size_t rr = Utility::rank(Utility::generate_submatrix_byidx(inst().A.cast<rational_type>().eval(), rows, cols));
-
-            // auto B = Utility::generate_submatrix_byidx(inst.A, rows, cols);
-
-            // if (Utility::rank(B) == submat_n)
-            //     return std::make_tuple(rows, cols);
-
-            return std::make_tuple(rows, cols);
+            return rows;
         }
     };
     class SomeNondegSubmatGen
@@ -97,7 +89,7 @@ namespace ILPCuts
             : _cuts_gen_ref(cuts_gen_ref) {}
 
         template <typename submatSizeFunT>
-        std::tuple<std::vector<size_t>, std::vector<size_t>> operator()(submatSizeFunT submat_size_fun) const
+        std::vector<size_t> operator()(submatSizeFunT submat_size_fun) const
         {
             size_t n = inst().get_num_vars();
             size_t submat_n = submat_size_fun(inst());
@@ -105,14 +97,12 @@ namespace ILPCuts
             std::vector<size_t> rows(submat_n);
             std::iota(rows.begin(), rows.end(), 0);
 
-            std::vector<size_t> cols = Utility::generate_nondegenerate_from_rows(inst().A, rows);
-
-            return std::make_tuple(rows, cols);
+            return rows;
         }
     };
 
     template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomNondegSubmatGen>
-    class WindowConeCoverCutsGenerator : public ConeCoverCutsGenerator
+    class ___WindowConeCoverCutsGenerator : public ConeCoverCutsGenerator
     {
         using base = ConeCoverCutsGenerator;
 
@@ -120,7 +110,7 @@ namespace ILPCuts
         SubmatSizeFunT submat_size_fun;
         SubmatGenT submat_gen;
 
-        WindowConeCoverCutsGenerator(logger &log)
+        ___WindowConeCoverCutsGenerator(logger &log)
             : ConeCoverCutsGenerator(log), submat_gen(*this)
         {
         }
@@ -163,6 +153,98 @@ namespace ILPCuts
             }
 
             append_cuts_from_row_matrices(res_cuts_pool);
+        }
+    };
+
+    template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomNondegSubmatGen>
+    class WindowConeCoverCutsGenerator : public ConeCoverCutsGenerator
+    {
+        using base = ConeCoverCutsGenerator;
+
+    public:
+        SubmatSizeFunT submat_size_fun;
+        SubmatGenT submat_gen;
+
+        WindowConeCoverCutsGenerator(logger &log)
+            : ConeCoverCutsGenerator(log), submat_gen(*this)
+        {
+        }
+
+        void generate_cuts() override
+        {
+            Timer timer;
+            out() << "Window cutting plane generation is started..." << endl;
+
+            std::vector<size_t> rows;
+            rows = submat_gen(submat_size_fun);
+
+            is_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
+            out() << "Row submatrix generation is finished..." << endl;
+
+            is_mat Q, H;
+
+            timer.start();
+            out() << "HNF computation is started..." << endl;
+            ModuleFlint::compute_HNF<int_type>(rowSubA.transpose(), Q, H);
+            Q = Q.transpose().eval();
+            H = H.transpose().eval();
+            out() << "HNF computation is finished,\n"
+                  << "time: " << timer.finish_str() << endl;
+
+            // is_mat Qi = Utility::compute_inverse(Q.cast<rational_type>().eval()).unaryExpr(rat_to_int);
+
+            std::vector<size_t> cols = Utility::get_indices_of_nonzero_columns(H);
+
+            size_t n = H.cols();
+            size_t m = H.rows();
+            size_t cc = cols.size();
+
+            is_mat subH = Utility::generate_column_submatrix_byidx(H, cols);
+
+            timer.start();
+            out() << "c-vector projecting is satrted..." << endl;
+            rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.cast<rational_type>().transpose(), LocalInstance.c);
+            rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
+            rs_vec c_proj = rowSubA.cast<rational_type>().transpose() * t_proj;
+
+            rs_vec c_trans = Q.cast<rational_type>().transpose() * c_proj;
+            c_trans = Utility::generate_subvector_byidx(c_trans, cols);
+            out() << "c-vector projecting is finished,\n"
+                  << "time: " << timer.finish_str() << endl;
+
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(c_trans));
+
+            auto subM_pool = cone_coverer_ptr->generate_cuts(subH.transpose());
+
+            cone_coverer_ptr->direction_strategies.pop_back();
+
+            //--------------------------------------------------------------------
+
+            timer.start();
+            out() << "Cutting planes extraction is started..." << endl;
+            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU_subA(subH.cast<rational_type>().transpose());
+
+            if (decomp_LU_subA.info() != ComputationInfo::Success)
+                throw Utility::EigenSolveException(decomp_LU_subA.info());
+
+            std::vector<is_mat> res_cuts_pool;
+            for (size_t i = 0; i < subM_pool.size(); ++i)
+            {
+                const is_mat &C = subM_pool[i];
+                rs_mat T = decomp_LU_subA.solve(C.cast<rational_type>()).transpose();
+
+                rs_mat cutsMat_rat = T * rowSubA.cast<rational_type>();
+                is_mat cutsMat_int = cutsMat_rat.unaryExpr(rat_to_int);
+
+                res_cuts_pool.push_back(cutsMat_int.transpose());
+            }
+
+            append_cuts_from_row_matrices(res_cuts_pool);
+
+            out() << "Cutting planes extraction is finished,\n"
+                  << "time: " << timer.finish_str() << endl;
+
+            out() << "Window cutting plane generation is finished..." << endl;
         }
     };
 

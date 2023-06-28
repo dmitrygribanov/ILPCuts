@@ -34,19 +34,73 @@ namespace ILPCuts
             }
 
             template <typename int_type>
-            SparseMatrix<int_type> flint_to_Eigen(size_t n, fmpz_mat_t A_flint)
+            SparseMatrix<int_type> flint_to_Eigen(size_t m, size_t n, fmpz_mat_t A_flint)
             {
-                SparseMatrix<int_type> res(n, n);
+                using Triplet = Eigen::Triplet<int_type>;
 
-                for (size_t i = 0; i < n; ++i)
+                SparseMatrix<int_type> res(m, n);
+
+                std::vector<Triplet> triplets_res;
+
+                for (size_t i = 0; i < m; ++i)
                     for (size_t j = 0; j < n; ++j)
                     {
                         fmpz *flint_entry = fmpz_mat_entry(A_flint, i, j);
                         if (*flint_entry != 0)
-                            res.insert(i, j) = *flint_entry;
+                            triplets_res.push_back(Triplet(i, j, *flint_entry));
                     }
 
+                res.setFromTriplets(triplets_res.begin(), triplets_res.end());
+                res.makeCompressed();
+
                 return res;
+            }
+
+            template <typename int_type>
+            SparseMatrix<int_type> flint_to_Eigen(size_t n, fmpz_mat_t A_flint)
+            {
+                return flint_to_Eigen<int_type>(n, n, A_flint);
+            }
+
+            void
+            fmpz_mat_hnf_transform(fmpz_mat_t H, fmpz_mat_t U, const fmpz_mat_t A)
+            {
+                slong i, j, m, n;
+                fmpz_mat_t A2, H2;
+                flint_rand_t state;
+
+                m = fmpz_mat_nrows(A);
+                n = fmpz_mat_ncols(A);
+
+                fmpz_mat_init(A2, m, n + m);
+                fmpz_mat_init(H2, m, n + m);
+                flint_randinit(state);
+
+                /* append an identity matrix to the right of A */
+                for (i = 0; i < m; i++)
+                {
+                    for (j = 0; j < n; j++)
+                        fmpz_set(fmpz_mat_entry(A2, i, j), fmpz_mat_entry(A, i, j));
+                    fmpz_one(fmpz_mat_entry(A2, i, n + i));
+                }
+
+                // fmpz_mat_hnf(H2, A2);
+                // fmpz_mat_hnf_pernet_stein(H2, A2, state);
+                fmpz_mat_hnf_xgcd(H2, A2);
+                // fmpz_mat_hnf_classical(H2, A2);
+
+                /* recover H and U */
+                for (i = 0; i < m; i++)
+                {
+                    for (j = 0; j < n; j++)
+                        fmpz_set(fmpz_mat_entry(H, i, j), fmpz_mat_entry(H2, i, j));
+                    for (j = n; j < n + m; j++)
+                        fmpz_set(fmpz_mat_entry(U, i, j - n), fmpz_mat_entry(H2, i, j));
+                }
+
+                fmpz_mat_clear(A2);
+                fmpz_mat_clear(H2);
+                flint_randclear(state);
             }
         } // namespace Internal
 
@@ -63,10 +117,12 @@ namespace ILPCuts
         void compute_HNF(const SparseMatrix<int64_t> &A, SparseMatrix<int64_t> &P, SparseMatrix<int64_t> &H)
         {
             size_t n = A.cols();
+            size_t m = A.rows();
+
             fmpz_mat_t A_flint, H_flint, P_flint;
-            fmpz_mat_init(A_flint, n, n);
-            fmpz_mat_init(H_flint, n, n);
-            fmpz_mat_init(P_flint, n, n);
+            fmpz_mat_init(A_flint, m, n);
+            fmpz_mat_init(H_flint, m, n);
+            fmpz_mat_init(P_flint, m, m);
 
             fmpz_mat_zero(A_flint);
             fmpz_mat_zero(H_flint);
@@ -74,10 +130,11 @@ namespace ILPCuts
 
             Internal::fill_mat(A, A_flint);
 
+            // ILPCuts::Internal::fmpz_mat_hnf_transform(H_flint, P_flint, A_flint);
             fmpz_mat_hnf_transform(H_flint, P_flint, A_flint);
 
-            P = Internal::flint_to_Eigen<int64_t>(n, P_flint);
-            H = Internal::flint_to_Eigen<int64_t>(n, H_flint);
+            P = Internal::flint_to_Eigen<int64_t>(m, P_flint);
+            H = Internal::flint_to_Eigen<int64_t>(m, n, H_flint);
 
             fmpz_mat_clear(A_flint);
             fmpz_mat_clear(H_flint);
@@ -87,22 +144,27 @@ namespace ILPCuts
         template <>
         void compute_HNF(const SparseMatrix<int64_t> &A, SparseMatrix<int64_t> &H)
         {
+            size_t m = A.rows();
             size_t n = A.cols();
+
             fmpz_mat_t A_flint, H_flint;
-            fmpz_mat_init(A_flint, n, n);
-            fmpz_mat_init(H_flint, n, n);
+            flint_rand_t state;
+            fmpz_mat_init(A_flint, m, n);
+            fmpz_mat_init(H_flint, m, n);
+            flint_randinit(state);
 
             fmpz_mat_zero(A_flint);
             fmpz_mat_zero(H_flint);
 
             Internal::fill_mat(A, A_flint);
 
-            fmpz_mat_hnf(H_flint, A_flint);
+            fmpz_mat_hnf_pernet_stein(H_flint, A_flint, state);
 
-            H = Internal::flint_to_Eigen<int64_t>(n, H_flint);
+            H = Internal::flint_to_Eigen<int64_t>(m, n, H_flint);
 
             fmpz_mat_clear(A_flint);
             fmpz_mat_clear(H_flint);
+            flint_randclear(state);
         }
 
         template <>

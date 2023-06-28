@@ -339,5 +339,22 @@ namespace ILPCuts
 		{
 			return dense_vec_to_str(conv<SparseVector<valT>, vector<valT>>::make(v));
 		}
+
+		template <typename T>
+		std::vector<size_t> get_indices_of_nonzero_columns(const SparseMatrix<T> &A)
+		{
+			std::vector<size_t> res;
+
+			for (size_t j = 0; j < A.cols(); ++j)
+			{
+				SparseVector<T> col = A.col(j);
+				if (!is_zero(col))
+				{
+					res.push_back(j);
+				}
+			}
+
+			return res;
+		}
 	} // namespace Utility
 } // namespace ILPCuts

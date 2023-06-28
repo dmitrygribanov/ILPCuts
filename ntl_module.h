@@ -386,5 +386,6 @@ namespace ILPCuts
 
             return conv<mat_ZZ, SparseMatrix<int_type>>::make(H_ntl);
         }
+
     } // namespace ModuleNTL
 } // namespace ILPCuts
