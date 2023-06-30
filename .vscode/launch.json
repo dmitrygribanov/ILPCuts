@@ -188,7 +188,7 @@
                 "--wcpl",
                 "15",
                 "--submat_limit",
-                "10"
+                "900"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",

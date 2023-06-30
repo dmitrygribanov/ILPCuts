@@ -155,6 +155,16 @@ namespace ILPCuts
             }
         };
 
+        template <typename ratT>
+        class Ceil_Unary
+        {
+        public:
+            ratT operator()(const ratT &rat_x) const
+            {
+                return ceil(rat_x);
+            }
+        };
+
         template <typename intT, typename ratT>
         class RatToInt_Unary
         {

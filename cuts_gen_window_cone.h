@@ -181,17 +181,21 @@ namespace ILPCuts
             is_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
             out() << "Row submatrix generation is finished..." << endl;
 
-            is_mat Q, H;
+            timer.start();
+            out() << "c-vector projecting is satrted..." << endl;
+            rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.cast<rational_type>().transpose(), LocalInstance.c);
+            is_vec t_proj = Utility::generate_subvector_byidx(t, rows).unaryExpr(Utility::Ceil_Unary<rational_type>()).cast<int_type>();
+            // rs_vec c_proj = rowSubA.cast<rational_type>().transpose() * t_proj;
+            is_vec c_proj = rowSubA.transpose() * t_proj;
+            out() << "c-vector projecting is finished,\n"
+                  << "time: " << timer.finish_str() << endl;
 
             timer.start();
             out() << "HNF computation is started..." << endl;
-            ModuleFlint::compute_HNF<int_type>(rowSubA.transpose(), Q, H);
-            Q = Q.transpose().eval();
+            is_mat H;
+            is_vec c_trans;
+            ModuleFlint::compute_HNF<int_type>(rowSubA.transpose(), c_proj, H, c_trans);
             H = H.transpose().eval();
-            out() << "HNF computation is finished,\n"
-                  << "time: " << timer.finish_str() << endl;
-
-            // is_mat Qi = Utility::compute_inverse(Q.cast<rational_type>().eval()).unaryExpr(rat_to_int);
 
             std::vector<size_t> cols = Utility::get_indices_of_nonzero_columns(H);
 
@@ -200,17 +204,15 @@ namespace ILPCuts
             size_t cc = cols.size();
 
             is_mat subH = Utility::generate_column_submatrix_byidx(H, cols);
-
-            timer.start();
-            out() << "c-vector projecting is satrted..." << endl;
-            rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.cast<rational_type>().transpose(), LocalInstance.c);
-            rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
-            rs_vec c_proj = rowSubA.cast<rational_type>().transpose() * t_proj;
-
-            rs_vec c_trans = Q.cast<rational_type>().transpose() * c_proj;
             c_trans = Utility::generate_subvector_byidx(c_trans, cols);
-            out() << "c-vector projecting is finished,\n"
+
+            // rs_vec c_trans = Q.cast<rational_type>().transpose() * c_proj;
+            // c_trans = Utility::generate_subvector_byidx(c_trans, cols);
+
+            out() << "HNF computation is finished,\n"
                   << "time: " << timer.finish_str() << endl;
+
+            // is_mat Qi = Utility::compute_inverse(Q.cast<rational_type>().eval()).unaryExpr(rat_to_int);
 
             cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(c_trans));
 

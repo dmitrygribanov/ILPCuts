@@ -184,7 +184,8 @@ namespace ILPCuts
 		std::vector<std::vector<is_mat>> result_by_treads(threads);
 
 		size_t directions_pool_size = C->dir_coeffs_pull.size();
-		current_layer.push_back(std::move(C));
+		if (C->det > 1)
+			current_layer.push_back(std::move(C));
 
 		while (!current_layer.empty())
 		{

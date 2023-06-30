@@ -531,25 +531,29 @@ namespace ILPCuts
 		{
 			IloEnv env = cplex.getEnv();
 
-			IloRangeArray ilo_cuts(env);
-
-			transform_cuts_to_ilo_constraints(env, vars, ilo_cuts);
-
-			if (is_lazy == IsLazy::off)
+			if (get_cuts().size() != 0)
 			{
-				cplex.addUserCuts(ilo_cuts);
-			}
-			else if (is_lazy == IsLazy::on)
-			{
-				cplex.addLazyConstraints(ilo_cuts);
-			}
-			else
-			{
-				cplex.addUserCuts(ilo_cuts);
-				cplex.addLazyConstraints(ilo_cuts);
-			}
 
-			ilo_cuts.end();
+				IloRangeArray ilo_cuts(env);
+
+				transform_cuts_to_ilo_constraints(env, vars, ilo_cuts);
+
+				if (is_lazy == IsLazy::off)
+				{
+					cplex.addUserCuts(ilo_cuts);
+				}
+				else if (is_lazy == IsLazy::on)
+				{
+					cplex.addLazyConstraints(ilo_cuts);
+				}
+				else
+				{
+					cplex.addUserCuts(ilo_cuts);
+					cplex.addLazyConstraints(ilo_cuts);
+				}
+
+				ilo_cuts.end();
+			}
 		}
 
 		void CPlexAdapter::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)

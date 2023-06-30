@@ -104,14 +104,17 @@ namespace ILPCuts
             }
         } // namespace Internal
 
-        template <typename int_type>
-        void compute_HNF(const SparseMatrix<int_type> &A, SparseMatrix<int_type> &P, SparseMatrix<int_type> &H);
+        template <typename intT>
+        void compute_HNF(const SparseMatrix<intT> &A, SparseMatrix<intT> &P, SparseMatrix<intT> &H);
 
-        template <typename int_type>
-        void compute_HNF(const SparseMatrix<int_type> &A, SparseMatrix<int_type> &H);
+        template <typename intT>
+        void compute_HNF(const SparseMatrix<intT> &A, const SparseVector<intT> &x, SparseMatrix<intT> &H, SparseVector<intT> &y);
 
-        template <typename int_type>
-        void compute_HNF(const SparseMatrix<int_type> &A, const int_type &det_mul, SparseMatrix<int_type> &H);
+        template <typename intT>
+        void compute_HNF(const SparseMatrix<intT> &A, SparseMatrix<intT> &H);
+
+        template <typename intT>
+        void compute_HNF(const SparseMatrix<intT> &A, const intT &det_mul, SparseMatrix<intT> &H);
 
         template <>
         void compute_HNF(const SparseMatrix<int64_t> &A, SparseMatrix<int64_t> &P, SparseMatrix<int64_t> &H)
@@ -158,13 +161,48 @@ namespace ILPCuts
 
             Internal::fill_mat(A, A_flint);
 
-            fmpz_mat_hnf_pernet_stein(H_flint, A_flint, state);
+            fmpz_mat_hnf(H_flint, A_flint);
+            // fmpz_mat_hnf_pernet_stein(H_flint, A_flint, state);
 
             H = Internal::flint_to_Eigen<int64_t>(m, n, H_flint);
 
             fmpz_mat_clear(A_flint);
             fmpz_mat_clear(H_flint);
             flint_randclear(state);
+        }
+
+        template <>
+        void compute_HNF(const SparseMatrix<int64_t> &A, const SparseVector<int64_t> &x, SparseMatrix<int64_t> &H, SparseVector<int64_t> &y)
+        {
+            using int_vec = SparseMatrix<int64_t>;
+
+            size_t m = A.rows();
+            size_t n = A.cols();
+
+            assert(m == x.size());
+
+            int_vec A_ext = A;
+            A_ext.conservativeResize(m, n + 1);
+
+            // for (typename int_vec::InnerIterator it(x); it; ++it)
+            // {
+            //     A_ext.insert(it.index(), n) = it.value();
+            // }
+
+            A_ext.col(n) = x;
+            A_ext.makeCompressed();
+
+            // std::vector<size_t> cols = Utility::get_indices_of_nonzero_columns<int_type>(A_ext);
+
+            // cols = Utility::get_indices_of_nonzero_columns<int_type>(A_ext);
+
+            int_vec H_ext;
+            compute_HNF(A_ext, H_ext);
+
+            // cols = Utility::get_indices_of_nonzero_columns<int_type>(H_ext);
+
+            H = H_ext.topLeftCorner(m, n);
+            y = H_ext.col(n);
         }
 
         template <>
