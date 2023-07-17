@@ -8,9 +8,10 @@ namespace ILPCuts
 {
     struct cut_info
     {
-        is_vec ray;
-        int_type rhs;
-        rational_type frac_rhs;
+        rs_vec ray;
+        rational_type rhs;
+        rational_type precut_rhs;
+        std::vector<size_t> intComp_idxs;
 
         bool operator<(const cut_info &arg)
         {
@@ -74,7 +75,7 @@ namespace ILPCuts
             {
                 out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
                          << _resulting_cuts[i].rhs << " "
-                         << _resulting_cuts[i].frac_rhs << "\n";
+                         << _resulting_cuts[i].precut_rhs << "\n";
             }
         }
 
@@ -87,21 +88,21 @@ namespace ILPCuts
             while (std::getline(in_file, line))
             {
                 istringstream iss_line(line);
-                vector<int_type> elems;
+                vector<rational_type> elems;
                 while (!iss_line.eof())
                 {
-                    elems.emplace_back(int_type(0));
+                    elems.emplace_back(rational_type(0.0));
                     iss_line >> elems.back();
                 }
 
                 size_t dim = elems.size() - 1;
-                is_vec new_ray(dim);
+                rs_vec new_ray(dim);
                 for (size_t i = 0; i < dim; ++i)
                 {
-                    if (elems[i] != 0)
+                    if (is_zero(elems[i], tolerance))
                         new_ray.insertBack(i) = elems[i];
                 }
-                _resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0});
+                _resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0, std::vector<size_t>()});
             }
         }
 
@@ -148,14 +149,14 @@ namespace ILPCuts
                     }
                 }
 
-                if (abs(cut.ray.cast<rational_type>().dot(LocalInstance.v) - cut.frac_rhs) > err_tolerance)
+                if (abs(cut.ray.cast<rational_type>().dot(LocalInstance.v) - cut.precut_rhs) > err_tolerance)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";
                     throw Exception(msg.str());
                 }
 
-                if (floor(cut.frac_rhs) != cut.rhs)
+                if (floor(cut.precut_rhs) != cut.rhs)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid floor rounding...\n";

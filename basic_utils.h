@@ -356,5 +356,19 @@ namespace ILPCuts
 
 			return res;
 		}
+
+		std::vector<size_t> idxs_set_complement(size_t base, std::vector<size_t> idxs)
+		{
+			std::vector<size_t> universe(base);
+			std::iota(universe.begin(), universe.end(), 0);
+
+			std::vector<size_t> res;
+
+			std::set_difference(universe.begin(), universe.end(),
+								idxs.begin(), idxs.end(),
+								std::back_inserter(res));
+
+			return res;
+		}
 	} // namespace Utility
 } // namespace ILPCuts

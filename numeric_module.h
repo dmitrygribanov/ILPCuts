@@ -261,4 +261,13 @@ namespace ILPCuts
     using lis_vec = SparseVector<lint_type>;
     using lrs_vec = SparseVector<lrational_type>;
 
+    template <typename ratT>
+    bool is_zero(const ratT &val, double tolerance)
+    {
+        if (abs(val) <= tolerance)
+            return true;
+
+        return false;
+    }
+
 } // namespace ILPCuts

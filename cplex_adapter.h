@@ -507,7 +507,7 @@ namespace ILPCuts
 
 				vector<CPXDIM> nonzero_idxs_C;
 				vector<double> nonzero_vals_C;
-				for (typename SparseVector<int_type>::InnerIterator it(cut.ray); it; ++it)
+				for (typename SparseVector<rational_type>::InnerIterator it(cut.ray); it; ++it)
 				{
 					IloInt int_val = to_IloInt(it.value());
 					nonzero_idxs_C.push_back(it.index());
@@ -584,9 +584,9 @@ namespace ILPCuts
 				IloExpr lhs = IloExpr(env);
 				IloNum rhs = 0;
 
-				for (typename is_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
+				for (typename rs_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
 				{
-					lhs += vars[it.index()] * to_IloInt(it.value());
+					lhs += vars[it.index()] * it.value();
 				}
 
 				ilo_constr.add(IloRange(env, lhs, cuts_Eigen[i].rhs));

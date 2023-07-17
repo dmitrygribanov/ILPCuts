@@ -17,7 +17,11 @@ using namespace std;
 int main(int argc, char **argv)
 {
     logger log;
-    CutsGen_CCRWD cuts_gen(log);
+    HermiteCutsGen_RWDS cuts_gen(log);
+
+    DimSizeWindow ds;
+    RandomNondegSubmatGen sg(cuts_gen);
+    sg(ds);
     // logger log;
     //  ConeCoverCutsGenerator g1(log);
     //  ConeCoverer_Zp zp(log);
