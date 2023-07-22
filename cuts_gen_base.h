@@ -75,7 +75,8 @@ namespace ILPCuts
             {
                 out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
                          << _resulting_cuts[i].rhs << " "
-                         << _resulting_cuts[i].precut_rhs << "\n";
+                         << _resulting_cuts[i].precut_rhs << "\n"
+                         << Utility::dense_vec_to_str(_resulting_cuts[i].intComp_idxs) << "\n\n";
             }
         }
 
@@ -126,7 +127,7 @@ namespace ILPCuts
             _resulting_cuts.clear();
         }
 
-        void check_cuts_validity()
+        void check_pure_int_cuts_validity()
         {
             is_mat AT = LocalInstance.A.transpose();
 

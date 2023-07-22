@@ -149,9 +149,9 @@ namespace ILPCuts
 				generator_ptr->import_cuts(in_file);
 			}
 
-			void check_cuts_validity()
+			void check_pure_int_cuts_validity()
 			{
-				generator_ptr->check_cuts_validity();
+				generator_ptr->check_pure_int_cuts_validity();
 			}
 
 			bool set_lazy(string str_par)
