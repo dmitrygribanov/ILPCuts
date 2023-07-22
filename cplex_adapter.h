@@ -81,13 +81,11 @@ namespace ILPCuts
 			}
 			void add_cuts(IloCplex cplex, IloNumVarArray vars);
 			void add_cuts(CPXCENVptr env, void *cbdata, int wherefrom);
-			void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
+			void generate_cuts(local_instance inst);
 
-			std::tuple<is_mat, rs_vec, rs_vec>
-			extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+			local_instance extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
-			std::tuple<is_mat, rs_vec, rs_vec>
-			extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
+			local_instance extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
 
 			void generate_cuts(CPXCENVptr env, CPXCLPptr lp)
 			{
@@ -99,11 +97,11 @@ namespace ILPCuts
 				Timer timer;
 				timer.start();
 
-				tie(A, c, optLP) = extract_problem_info(env, lp);
+				local_instance inst = extract_problem_info(env, lp);
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(move(A), move(c), move(optLP));
+				generate_cuts(inst);
 			}
 			void generate_cuts(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 			{
@@ -115,11 +113,11 @@ namespace ILPCuts
 				Timer timer;
 				timer.start();
 
-				tie(A, c, optLP) = extract_problem_info(cplex, obj, constrs, vars);
+				local_instance inst = extract_problem_info(cplex, obj, constrs, vars);
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(move(A), move(c), move(optLP));
+				generate_cuts(inst);
 			}
 			void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
 
@@ -185,15 +183,31 @@ namespace ILPCuts
 			}
 		};
 
-		std::tuple<is_mat, rs_vec, rs_vec> CPlexAdapter::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+		local_instance CPlexAdapter::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 		{
 			size_t n = vars.getSize();
 
 			is_mat A_basis(n, n);
 			rs_vec optLP(n);
 			rs_vec c(n);
+			std::vector<local_instance::var_ILP_type> var_types(n);
 
 			auto var_index_map = init_var_index_map(vars);
+
+			out() << "reading var.-types..." << endl;
+			for (size_t i = 0; i < vars.getSize(); ++i)
+			{
+				IloNumVar var = vars[i];
+				if (var.getType() == IloNumVar::Float)
+				{
+					var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Rat;
+				}
+				else
+				{
+					var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Int;
+				}
+				// cout << "LB, UB" << var.getLB() << ", " << var.getUB() << endl;
+			}
 
 			out() << "reading objective..." << endl;
 
@@ -302,10 +316,16 @@ namespace ILPCuts
 
 			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
 
-			return std::make_tuple(A_basis, c, optLP);
+			local_instance res;
+			res.A = A_basis;
+			res.c = c;
+			res.v = optLP;
+			res.ILP_var_types = var_types;
+
+			return res;
 		}
 
-		std::tuple<is_mat, rs_vec, rs_vec> CPlexAdapter::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
+		local_instance CPlexAdapter::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
 		{
 			int status = 0;
 
@@ -316,6 +336,33 @@ namespace ILPCuts
 			is_mat A_basis(n, n);
 			rs_vec optLP(n);
 			rs_vec c(n);
+			std::vector<local_instance::var_ILP_type> var_types(n);
+
+			{
+				out() << "reading var.-types..." << endl;
+				std::vector<char> var_types_C(n, 0);
+				int status = CPXXgetctype(env, lp, var_types_C.data(), 0, n);
+				if (status)
+				{
+					throw Exception(create_err_string("ILPCuts lib error: failed to read var.-types using CPXXgetctype...\n",
+													  env, status));
+				}
+				for (size_t i = 0; i < n; ++i)
+				{
+					if (var_types_C[i] == CPX_CONTINUOUS)
+					{
+						var_types[i] = local_instance::var_ILP_type::Rat;
+					}
+					else if (var_types_C[i] == CPX_BINARY || var_types_C[i] == CPX_INTEGER)
+					{
+						var_types[i] = local_instance::var_ILP_type::Int;
+					}
+					else
+					{
+						throw Exception("ILPCuts lib error: the problem contains semi-integer/continuous variables. Can't generate cuts...\n");
+					}
+				}
+			}
 
 			{
 				out() << "reading objective..." << endl;
@@ -489,7 +536,13 @@ namespace ILPCuts
 
 			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
 
-			return std::make_tuple(A_basis, c, optLP);
+			local_instance res;
+			res.A = A_basis;
+			res.c = c;
+			res.v = optLP;
+			res.ILP_var_types = var_types;
+
+			return res;
 		}
 
 		void CPlexAdapter::add_cuts(CPXCENVptr env, void *cbdata, int wherefrom)
@@ -556,15 +609,13 @@ namespace ILPCuts
 			}
 		}
 
-		void CPlexAdapter::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
+		void CPlexAdapter::generate_cuts(local_instance inst)
 		{
 			Timer timer;
 			timer.start();
 			out() << "cutting plane generation is started..." << endl;
 
-			generator_ptr->LocalInstance.A = std::move(A);
-			generator_ptr->LocalInstance.c = std::move(c);
-			generator_ptr->LocalInstance.v = std::move(optLP);
+			generator_ptr->LocalInstance = std::move(inst);
 			generator_ptr->generate_cuts();
 
 			out() << "cutting plane generation is finished,\n"

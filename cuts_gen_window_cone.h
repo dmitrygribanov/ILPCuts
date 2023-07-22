@@ -88,6 +88,61 @@ namespace ILPCuts
         }
     };
 
+    class RandomIntNondegColsGen
+    {
+        cuts_gen_base &_cuts_gen_ref;
+
+    public:
+        size_t trials_num = 1;
+
+        std::mt19937 &rgen() const { return *_cuts_gen_ref.rgen; }
+        const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
+
+        RandomIntNondegColsGen(cuts_gen_base &cuts_gen_ref)
+            : _cuts_gen_ref(cuts_gen_ref) {}
+
+        template <typename submatSizeFunT>
+        std::vector<std::vector<size_t>> operator()(submatSizeFunT submat_size_fun) const
+        {
+            size_t n = inst().get_num_vars();
+            size_t submat_n = submat_size_fun(inst());
+
+            std::vector<std::vector<size_t>> res;
+
+            std::vector<size_t> int_vars_idxs_pool;
+            for (typename rs_vec::InnerIterator it(inst().v); it; ++it)
+            {
+                if (is_fract(it.value(), _cuts_gen_ref.tolerance) &&
+                    inst().ILP_var_types[it.index()] == local_instance::var_ILP_type::Int)
+                {
+                    int_vars_idxs_pool.push_back(it.index());
+                }
+            }
+            if (int_vars_idxs_pool.size() < submat_n)
+            {
+                for (typename rs_vec::InnerIterator it(inst().v); it && int_vars_idxs_pool.size() < submat_n; ++it)
+                {
+                    if (!is_fract(it.value(), _cuts_gen_ref.tolerance) &&
+                        inst().ILP_var_types[it.index()] == local_instance::var_ILP_type::Int)
+                    {
+                        int_vars_idxs_pool.push_back(it.index());
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < trials_num; ++i)
+            {
+                std::vector<size_t> cols;
+                std::sample(int_vars_idxs_pool.begin(), int_vars_idxs_pool.end(), std::back_inserter(cols), submat_n, rgen());
+                std::sort(cols.begin(), cols.end());
+
+                res.push_back(cols);
+            }
+
+            return res;
+        }
+    };
+
     using submat_idxs = std::tuple<std::vector<size_t>, std::vector<size_t>>;
 
     class RandomNondegSubmatGen : public RandomNondegRowsGen
@@ -106,9 +161,8 @@ namespace ILPCuts
             for (size_t i = 0; i < rows_trials.size(); ++i)
             {
                 const std::vector<size_t> &rows = rows_trials[i];
-                is_mat rowSubA = Utility::generate_row_submatrix_byidx(inst().A, rows);
 
-                std::vector<size_t> cols = Utility::generate_nondegenerate_from_rows(inst().A.cast<rational_type>().eval(), rows);
+                std::vector<size_t> cols = Utility::generate_nondegenerate_from_rows<rational_type>(inst().A.cast<rational_type>(), rows);
 
                 res.push_back(std::make_tuple(rows, cols));
             }
@@ -116,31 +170,57 @@ namespace ILPCuts
             return res;
         }
     };
-    class SomeNondegRowsGen
+
+    class RandomIntNondegSubmatGen : public RandomIntNondegColsGen
     {
-        cuts_gen_base &_cuts_gen_ref;
-
     public:
-        const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
-
-        SomeNondegRowsGen(cuts_gen_base &cuts_gen_ref)
-            : _cuts_gen_ref(cuts_gen_ref) {}
+        RandomIntNondegSubmatGen(cuts_gen_base &cuts_gen_ref)
+            : RandomIntNondegColsGen(cuts_gen_ref) {}
 
         template <typename submatSizeFunT>
-        std::vector<std::vector<size_t>> operator()(submatSizeFunT submat_size_fun) const
+        std::vector<submat_idxs> operator()(submatSizeFunT submat_size_fun) const
         {
-            size_t n = inst().get_num_vars();
-            size_t submat_n = submat_size_fun(inst());
+            auto cols_trials = RandomIntNondegColsGen::operator()<submatSizeFunT>(submat_size_fun);
 
-            std::vector<size_t> rows(submat_n);
-            std::iota(rows.begin(), rows.end(), 0);
+            std::vector<submat_idxs> res;
 
-            std::vector<std::vector<size_t>> res;
-            res.push_back(rows);
+            for (size_t i = 0; i < cols_trials.size(); ++i)
+            {
+                const std::vector<size_t> &cols = cols_trials[i];
+
+                std::vector<size_t> rows = Utility::generate_nondegenerate_from_rows<rational_type>(inst().A.cast<rational_type>().transpose(), cols);
+
+                res.push_back(std::make_tuple(rows, cols));
+            }
 
             return res;
         }
     };
+    // class SomeNondegRowsGen
+    // {
+    //     cuts_gen_base &_cuts_gen_ref;
+
+    // public:
+    //     const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
+
+    //     SomeNondegRowsGen(cuts_gen_base &cuts_gen_ref)
+    //         : _cuts_gen_ref(cuts_gen_ref) {}
+
+    //     template <typename submatSizeFunT>
+    //     std::vector<std::vector<size_t>> operator()(submatSizeFunT submat_size_fun) const
+    //     {
+    //         size_t n = inst().get_num_vars();
+    //         size_t submat_n = submat_size_fun(inst());
+
+    //         std::vector<size_t> rows(submat_n);
+    //         std::iota(rows.begin(), rows.end(), 0);
+
+    //         std::vector<std::vector<size_t>> res;
+    //         res.push_back(rows);
+
+    //         return res;
+    //     }
+    // };
 
     namespace Internal
     {
@@ -213,7 +293,7 @@ namespace ILPCuts
         }
     }
 
-    template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomNondegSubmatGen>
+    template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomIntNondegSubmatGen>
     class Split_WindowCCCutsGen : public ConeCoverCutsGenerator
     {
     private:
@@ -400,9 +480,9 @@ namespace ILPCuts
 
     using HermiteCutsGen_RWDS = Hermite_WindowCCCutsGen<DimSizeWindow, RandomNondegRowsGen>;
     using HermiteCutsGen_RWSqS = Hermite_WindowCCCutsGen<SqrtDimSizeWindow, RandomNondegRowsGen>;
-    using HermiteCutsGen_SWDS = Hermite_WindowCCCutsGen<DimSizeWindow, SomeNondegRowsGen>;
-    using HermiteCutsGen_SWSqS = Hermite_WindowCCCutsGen<SqrtDimSizeWindow, SomeNondegRowsGen>;
+    // using HermiteCutsGen_SWDS = Hermite_WindowCCCutsGen<DimSizeWindow, SomeNondegRowsGen>;
+    // using HermiteCutsGen_SWSqS = Hermite_WindowCCCutsGen<SqrtDimSizeWindow, SomeNondegRowsGen>;
 
-    using SplitCutsGen_RWDS = Split_WindowCCCutsGen<DimSizeWindow, RandomNondegSubmatGen>;
+    using SplitCutsGen_RWDS = Split_WindowCCCutsGen<DimSizeWindow, RandomIntNondegSubmatGen>;
 
 } // namespace ILPCuts

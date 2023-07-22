@@ -16,7 +16,7 @@ namespace ILPCuts
         };
 
         is_mat A;
-        is_vec b;
+        // is_vec b;
         rs_vec c;
         rs_vec v;
         std::vector<var_ILP_type> ILP_var_types;

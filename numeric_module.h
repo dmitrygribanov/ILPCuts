@@ -270,4 +270,10 @@ namespace ILPCuts
         return false;
     }
 
+    template <typename ratT>
+    bool is_fract(const ratT &val, double tolerance)
+    {
+        return !is_zero(val - floor(val), tolerance);
+    }
+
 } // namespace ILPCuts
