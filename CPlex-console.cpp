@@ -8,7 +8,7 @@ ILOSTLBEGIN
 #include "cone_coverer_Zp.h"
 #include "cone_coverer_Wd.h"
 #include "cplex_adapter.h"
-#include "cuts_gen_window_cone.h"
+#include "cuts_gen_submat.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 
@@ -27,7 +27,8 @@ void check_input_params(
 	size_t cprime,
 	string cplex_cuts_param,
 	string scaling,
-	string model_cuts_switch)
+	string model_cuts_switch,
+	string cuts_fun_type)
 {
 	if (tolerance <= 0.0)
 	{
@@ -112,6 +113,13 @@ void check_input_params(
 				  << cplex_cuts_param << std::endl;
 		exit(0);
 	}
+
+	if (cuts_fun_type != "split" && cuts_fun_type != "mir" && cuts_fun_type != "hermite" && cuts_fun_type != "pureint")
+	{
+		log.out() << "Wrong value of the CLI parameter --cuts_fun: "
+				  << cuts_fun_type << std::endl;
+		exit(0);
+	}
 }
 
 void run_cplex_experiment(
@@ -137,7 +145,8 @@ void run_cplex_experiment(
 	size_t max_dim,
 	double cplex_tl,
 	double cuts_tl,
-	size_t cuts_generation_submat_size_limit)
+	size_t cuts_generation_submat_size_limit,
+	string cuts_fun_type)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -207,8 +216,25 @@ void run_cplex_experiment(
 	// createing adapter object
 	CPlexAdapter cuts_gen_adapter;
 
-	cuts_gen_adapter.generator_ptr = std::make_unique<SplitCutsGen_RWDS>(log);
-	auto cuts_gen_ptr = static_cast<SplitCutsGen_RWDS *>(cuts_gen_adapter.generator_ptr.get());
+	if (cuts_fun_type == "split")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<SplitCutsGen_RWDS>(log);
+	}
+	else if (cuts_fun_type == "hermite")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<HermiteCutsGen_RWDS>(log);
+	}
+	else if (cuts_fun_type == "pureint")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
+	}
+	else
+	{
+		log.out() << "Wrong value of the CLI parameter --cuts_fun: "
+				  << cuts_fun_type << std::endl;
+		exit(0);
+	}
+	auto cuts_gen_ptr = static_cast<CutsGen_CC *>(cuts_gen_adapter.generator_ptr.get());
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
@@ -225,11 +251,29 @@ void run_cplex_experiment(
 	// initialization of cuts generator and setting parameters
 	std::mt19937 engine;
 	cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
-	cuts_gen_ptr->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+	if (cuts_fun_type == "split")
+	{
+		static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+	}
+	else if (cuts_fun_type == "hermite")
+	{
+		static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+	}
+	// else if(cuts_fun_type == "mir")
+	// {
+	// 	...
+	// }
+
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
-	if (solver_type == "zp" || solver_type == "wd")
+	if (solver_type == "zp")
+	{
 		static_cast<ConeCoverer_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
+	}
+	else if (solver_type == "wd")
+	{
+		static_cast<ConeCoverer_Wd *>(cone_coverer_ptr)->max_conservative_prime = cprime;
+	}
 
 	// set strategies for cutting generation
 	if (rand_directions > 0)
@@ -428,6 +472,10 @@ int main(int argc, char **argv)
 		.help("time limit (sec.) for ILPCuts cuts generation")
 		.scan<'g', double>();
 
+	program.add_argument("--cuts_fun")
+		.default_value(std::string("split"))
+		.help("manages cutting generation function; can be \"split\", \"mir\", \"pureint\" or \"hermite\"");
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -458,7 +506,8 @@ int main(int argc, char **argv)
 			program.get<size_t>("--cprime"),
 			program.get<string>("--cplex_cuts"),
 			program.get<string>("--scaling"),
-			program.get<string>("--model_cuts"));
+			program.get<string>("--model_cuts"),
+			program.get<string>("--cuts_fun"));
 
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -495,7 +544,8 @@ int main(int argc, char **argv)
 			program.get<size_t>("--max_dim"),
 			program.get<double>("--cplex_tl"),
 			program.get<double>("--cuts_tl"),
-			program.get<size_t>("--submat_limit"));
+			program.get<size_t>("--submat_limit"),
+			program.get<string>("--cuts_fun"));
 	}
 	catch (const FractionalElementException &err)
 	{

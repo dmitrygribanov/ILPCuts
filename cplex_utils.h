@@ -100,10 +100,29 @@ namespace ILPCuts
         {
         public:
             FractionalElementException()
-                : Exception("ILPCuts lib error: fractional element in A-matrix has been found") {}
+                : Exception("ILPCuts lib error: fractional element in A-matrix has been found.") {}
 
-            FractionalElementException(std::string msg)
-                : Exception(msg) {}
+            FractionalElementException(size_t base_row_idx, size_t col_idx, double val)
+                : Exception(std::string("ILPCuts lib error: fracttional elemen in A has located;\n") +
+                            "ConstrNum = " + std::to_string(base_row_idx) + "\n" +
+                            "VarNum = " + std::to_string(col_idx) + "\n" +
+                            "value = " + std::to_string(val))
+            {
+            }
+        };
+
+        class SemiVariableException : public Exception
+        {
+        public:
+            SemiVariableException()
+                : Exception("ILPCuts lib error: the problem contains semi-integer/continuous variables.")
+            {
+            }
+
+            SemiVariableException(size_t varID, char type)
+                : Exception("ILPCuts lib error: the problem contains semi-integer/continuous variables, varID = " + std::to_string(varID) + ", type = " + type)
+            {
+            }
         };
 
         IloNumVarArray extract_vars(IloEnv env, IloModel model)

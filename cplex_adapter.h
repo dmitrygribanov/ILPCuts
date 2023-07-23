@@ -55,14 +55,7 @@ namespace ILPCuts
 					}
 					catch (ToleranceErrorException)
 					{
-						stringstream msg;
-
-						msg << "ILPCuts lib error: fracttional elemen in A has located;\n"
-							<< "ConstrID = " << constr.getId() << "\n"
-							<< "VarID = " << ilo_iter->getVar().getId() << "\n"
-							<< "value = " << coeff;
-
-						throw FractionalElementException(msg.str());
+						throw FractionalElementException(constr.getId(), ilo_iter->getVar().getId(), coeff);
 					}
 
 					triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
@@ -359,7 +352,7 @@ namespace ILPCuts
 					}
 					else
 					{
-						throw Exception("ILPCuts lib error: the problem contains semi-integer/continuous variables. Can't generate cuts...\n");
+						throw SemiVariableException(i, var_types_C[i]);
 					}
 				}
 			}
@@ -475,14 +468,7 @@ namespace ILPCuts
 								}
 								catch (ToleranceErrorException)
 								{
-									stringstream msg;
-
-									msg << "ILPCuts lib error: fracttional elemen in A has located;\n"
-										<< "ConstrNum = " << base_row_idx << "\n"
-										<< "VarNum = " << col_idx << "\n"
-										<< "value = " << val;
-
-									throw FractionalElementException(msg.str());
+									throw FractionalElementException(base_row_idx, col_idx, val);
 								}
 
 								triplets.emplace_back(Trilpl(basis_i, col_idx, val_int));

@@ -5,7 +5,7 @@
 
 namespace ILPCuts
 {
-    class ConstantSizeWindow
+    class ConstantSizeGen
     {
     public:
         size_t wSize = 0;
@@ -13,7 +13,7 @@ namespace ILPCuts
         size_t operator()(const local_instance &) const { return wSize; }
     };
 
-    class DimSizeWindow
+    class DimSizeGen
     {
     public:
         size_t maxSize = 0;
@@ -29,7 +29,7 @@ namespace ILPCuts
         }
     };
 
-    class SqrtDimSizeWindow
+    class SqrtDimSizeGen
     {
     public:
         size_t maxSize = 0;
@@ -88,7 +88,7 @@ namespace ILPCuts
         }
     };
 
-    class RandomIntNondegColsGen
+    class RandomIntVarsColsGen
     {
         cuts_gen_base &_cuts_gen_ref;
 
@@ -98,7 +98,7 @@ namespace ILPCuts
         std::mt19937 &rgen() const { return *_cuts_gen_ref.rgen; }
         const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
 
-        RandomIntNondegColsGen(cuts_gen_base &cuts_gen_ref)
+        RandomIntVarsColsGen(cuts_gen_base &cuts_gen_ref)
             : _cuts_gen_ref(cuts_gen_ref) {}
 
         template <typename submatSizeFunT>
@@ -171,16 +171,16 @@ namespace ILPCuts
         }
     };
 
-    class RandomIntNondegSubmatGen : public RandomIntNondegColsGen
+    class RandomIntVarsSubmatGen : public RandomIntVarsColsGen
     {
     public:
-        RandomIntNondegSubmatGen(cuts_gen_base &cuts_gen_ref)
-            : RandomIntNondegColsGen(cuts_gen_ref) {}
+        RandomIntVarsSubmatGen(cuts_gen_base &cuts_gen_ref)
+            : RandomIntVarsColsGen(cuts_gen_ref) {}
 
         template <typename submatSizeFunT>
         std::vector<submat_idxs> operator()(submatSizeFunT submat_size_fun) const
         {
-            auto cols_trials = RandomIntNondegColsGen::operator()<submatSizeFunT>(submat_size_fun);
+            auto cols_trials = RandomIntVarsColsGen::operator()<submatSizeFunT>(submat_size_fun);
 
             std::vector<submat_idxs> res;
 
@@ -196,31 +196,6 @@ namespace ILPCuts
             return res;
         }
     };
-    // class SomeNondegRowsGen
-    // {
-    //     cuts_gen_base &_cuts_gen_ref;
-
-    // public:
-    //     const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
-
-    //     SomeNondegRowsGen(cuts_gen_base &cuts_gen_ref)
-    //         : _cuts_gen_ref(cuts_gen_ref) {}
-
-    //     template <typename submatSizeFunT>
-    //     std::vector<std::vector<size_t>> operator()(submatSizeFunT submat_size_fun) const
-    //     {
-    //         size_t n = inst().get_num_vars();
-    //         size_t submat_n = submat_size_fun(inst());
-
-    //         std::vector<size_t> rows(submat_n);
-    //         std::iota(rows.begin(), rows.end(), 0);
-
-    //         std::vector<std::vector<size_t>> res;
-    //         res.push_back(rows);
-
-    //         return res;
-    //     }
-    // };
 
     namespace Internal
     {
@@ -293,8 +268,8 @@ namespace ILPCuts
         }
     }
 
-    template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomIntNondegSubmatGen>
-    class Split_WindowCCCutsGen : public ConeCoverCutsGenerator
+    template <typename SubmatSizeFunT = DimSizeGen, typename SubmatGenT = RandomIntVarsSubmatGen>
+    class Split_SubmatCutsGen : public ConeCoverCutsGenerator
     {
     private:
         using base = ConeCoverCutsGenerator;
@@ -325,7 +300,7 @@ namespace ILPCuts
         SubmatSizeFunT submat_size_fun;
         SubmatGenT submat_gen;
 
-        Split_WindowCCCutsGen(logger &log)
+        Split_SubmatCutsGen(logger &log)
             : ConeCoverCutsGenerator(log), submat_gen(*this)
         {
         }
@@ -381,8 +356,8 @@ namespace ILPCuts
         }
     };
 
-    template <typename SubmatSizeFunT = DimSizeWindow, typename SubmatGenT = RandomNondegRowsGen>
-    class Hermite_WindowCCCutsGen : public ConeCoverCutsGenerator
+    template <typename SubmatSizeFunT = DimSizeGen, typename SubmatGenT = RandomNondegRowsGen>
+    class Hermite_SubmatCutsGen : public ConeCoverCutsGenerator
     {
         using base = ConeCoverCutsGenerator;
 
@@ -390,7 +365,7 @@ namespace ILPCuts
         SubmatSizeFunT submat_size_fun;
         SubmatGenT submat_gen;
 
-        Hermite_WindowCCCutsGen(logger &log)
+        Hermite_SubmatCutsGen(logger &log)
             : ConeCoverCutsGenerator(log), submat_gen(*this)
         {
         }
@@ -478,11 +453,9 @@ namespace ILPCuts
         }
     };
 
-    using HermiteCutsGen_RWDS = Hermite_WindowCCCutsGen<DimSizeWindow, RandomNondegRowsGen>;
-    using HermiteCutsGen_RWSqS = Hermite_WindowCCCutsGen<SqrtDimSizeWindow, RandomNondegRowsGen>;
-    // using HermiteCutsGen_SWDS = Hermite_WindowCCCutsGen<DimSizeWindow, SomeNondegRowsGen>;
-    // using HermiteCutsGen_SWSqS = Hermite_WindowCCCutsGen<SqrtDimSizeWindow, SomeNondegRowsGen>;
+    using HermiteCutsGen_RWDS = Hermite_SubmatCutsGen<DimSizeGen, RandomNondegRowsGen>;
+    using HermiteCutsGen_RWSqS = Hermite_SubmatCutsGen<SqrtDimSizeGen, RandomNondegRowsGen>;
 
-    using SplitCutsGen_RWDS = Split_WindowCCCutsGen<DimSizeWindow, RandomIntNondegSubmatGen>;
+    using SplitCutsGen_RWDS = Split_SubmatCutsGen<DimSizeGen, RandomIntVarsSubmatGen>;
 
 } // namespace ILPCuts
