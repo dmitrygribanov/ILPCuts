@@ -254,6 +254,10 @@ void run_cplex_experiment(
     {
         cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
     }
+    else if (cuts_fun_type == "mir")
+    {
+        cuts_gen_adapter.generator_ptr = std::make_unique<MIRCutsGen_RWDS>(log);
+    }
     else
     {
         log.out() << "Wrong value of the CLI parameter --cuts_fun: "
@@ -277,10 +281,10 @@ void run_cplex_experiment(
     {
         static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
     }
-    // else if(cuts_fun_type == "mir")
-    // {
-    // 	...
-    // }
+    else if (cuts_fun_type == "mir")
+    {
+        static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+    }
     cuts_gen_adapter.set_lazy(is_lazy_param);
     static_cast<ConeCoverer_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 

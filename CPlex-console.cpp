@@ -228,6 +228,10 @@ void run_cplex_experiment(
 	{
 		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
 	}
+	else if (cuts_fun_type == "mir")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<MIRCutsGen_RWDS>(log);
+	}
 	else
 	{
 		log.out() << "Wrong value of the CLI parameter --cuts_fun: "
@@ -259,10 +263,10 @@ void run_cplex_experiment(
 	{
 		static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
 	}
-	// else if(cuts_fun_type == "mir")
-	// {
-	// 	...
-	// }
+	else if (cuts_fun_type == "mir")
+	{
+		static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+	}
 
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
@@ -473,7 +477,7 @@ int main(int argc, char **argv)
 		.scan<'g', double>();
 
 	program.add_argument("--cuts_fun")
-		.default_value(std::string("split"))
+		.default_value(std::string("mir"))
 		.help("manages cutting generation function; can be \"split\", \"mir\", \"pureint\" or \"hermite\"");
 
 	try

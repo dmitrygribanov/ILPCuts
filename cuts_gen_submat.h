@@ -3,6 +3,8 @@
 #include "cuts_gen_cone_coverer.h"
 #include "flint_module.h"
 
+#include <unordered_set>
+
 namespace ILPCuts
 {
     class ConstantSizeGen
@@ -197,6 +199,15 @@ namespace ILPCuts
         }
     };
 
+    class NegativeVariableMIRException : public Exception
+    {
+    public:
+        NegativeVariableMIRException(size_t var_index)
+            : Exception(std::string("ILPCuts lib error: negative variable is detected while performing MIR-cut, var.-index = ") + std::to_string(var_index))
+        {
+        }
+    };
+
     namespace Internal
     {
         std::vector<cut_info> generate_split_cuts_from_base_ineq(const local_instance &inst, const is_mat &base_ineq_cols,
@@ -266,6 +277,83 @@ namespace ILPCuts
 
             return res_cuts;
         }
+
+        std::vector<cut_info> generate_MIR_cuts_from_base_ineq(const local_instance &inst, const rs_mat &base_ineq_rows, const std::vector<size_t> &active_int_vars_idxs,
+                                                               double tolerance, double err_tolerance)
+        {
+            size_t n = inst.get_num_vars();
+            RatToInt_Unary rat_to_int(err_tolerance);
+
+            assert(n == base_ineq_rows.cols());
+
+            std::vector<cut_info> res_cuts;
+            std::unordered_set<size_t> active_int_vars_set(active_int_vars_idxs.begin(), active_int_vars_idxs.end());
+
+            for (typename rs_vec::InnerIterator it(inst.varsLB); it; ++it)
+            {
+                if (!is_zero(it.value(), tolerance) &&
+                    it.value() < 0.0 &&
+                    !active_int_vars_set.contains(it.index()))
+                {
+                    throw NegativeVariableMIRException(it.index());
+                }
+            }
+
+            rs_vec b = base_ineq_rows * inst.v;
+            is_vec rounded_b = b.unaryExpr(Utility::Round_Unary<rational_type>()).unaryExpr(rat_to_int);
+            is_vec floor_b = b.unaryExpr(Utility::Floor_Unary<rational_type>()).unaryExpr(rat_to_int);
+            // rs_vec ceil_b = rat_b.unaryExpr(Utility::Ceil_Unary<rational_type>());
+
+            rs_vec diff_b = (b - rounded_b.cast<rational_type>()).cwiseAbs();
+            rs_vec fract_part_b = b - floor_b.cast<rational_type>();
+
+            typename rs_vec::InnerIterator diff_it(diff_b);
+            while (diff_it)
+            {
+                if (!is_zero(diff_it.value(), tolerance))
+                {
+                    rational_type f0 = fract_part_b.coeff(diff_it.index());
+                    rs_vec cut = base_ineq_rows.row(diff_it.index());
+                    rational_type cut_rhs = floor_b.coeff(diff_it.index());
+
+                    for (rs_vec::InnerIterator it(cut); it; ++it)
+                    {
+                        if (!active_int_vars_set.contains(it.index()))
+                        {
+                            if (inst.ILP_var_types[it.index()] == local_instance::var_ILP_type::Int)
+                            {
+                                rational_type val_floor = floor(it.value());
+                                rational_type fj = it.value() - val_floor;
+                                it.valueRef() = val_floor;
+
+                                if (fj > f0)
+                                {
+                                    it.valueRef() += (fj - f0) / (1 - f0);
+                                }
+                            }
+                            else
+                            {
+                                if (!is_zero(it.value(), tolerance) && it.value() < 0.0)
+                                {
+                                    it.valueRef() /= (1 - f0);
+                                }
+                                else
+                                {
+                                    it.valueRef() = 0.0;
+                                }
+                            }
+                        }
+                    }
+
+                    cut.prune(0.0, tolerance);
+
+                    res_cuts.emplace_back(cut_info{cut, cut_rhs, cut_rhs, active_int_vars_idxs});
+                }
+                ++diff_it;
+            }
+
+            return res_cuts;
+        }
     }
 
     template <typename SubmatSizeFunT = DimSizeGen, typename SubmatGenT = RandomIntVarsSubmatGen>
@@ -301,7 +389,7 @@ namespace ILPCuts
         SubmatGenT submat_gen;
 
         Split_SubmatCutsGen(logger &log)
-            : ConeCoverCutsGenerator(log), submat_gen(*this)
+            : base(log), submat_gen(*this)
         {
         }
 
@@ -330,7 +418,61 @@ namespace ILPCuts
 
                 //--------------------------------------------------------------------
 
-                SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU_subA(subA.cast<rational_type>().transpose());
+                std::vector<rs_mat> res_cuts_pool;
+                for (size_t i = 0; i < subM_pool.size(); ++i)
+                {
+                    is_mat cutsBaseMat = complete_by_zeros(subM_pool[i], cols);
+
+                    append_cuts(Internal::generate_split_cuts_from_base_ineq(LocalInstance, cutsBaseMat,
+                                                                             tolerance, err_tolerance));
+                }
+            }
+
+            make_cuts_unique();
+        }
+    };
+
+    template <typename SubmatSizeFunT = DimSizeGen, typename SubmatGenT = RandomIntVarsSubmatGen>
+    class MIR_SubmatCutsGen : public ConeCoverCutsGenerator
+    {
+    private:
+        using base = ConeCoverCutsGenerator;
+
+    public:
+        SubmatSizeFunT submat_size_fun;
+        SubmatGenT submat_gen;
+
+        MIR_SubmatCutsGen(logger &log)
+            : base(log), submat_gen(*this)
+        {
+        }
+
+        void generate_cuts() override
+        {
+            size_t n = LocalInstance.get_num_vars();
+            std::vector<submat_idxs> submat_trials = submat_gen(submat_size_fun);
+
+            for (size_t trial_i = 0; trial_i < submat_trials.size(); ++trial_i)
+            {
+                std::vector<size_t> rows, cols;
+                std::tie(rows, cols) = submat_trials[trial_i];
+
+                rs_mat subA = Utility::generate_submatrix_byidx(LocalInstance.A, rows, cols);
+                rs_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
+
+                rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
+                rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
+                rs_vec c_proj = subA.cast<rational_type>().transpose() * t_proj;
+
+                cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(c_proj));
+
+                auto subM_pool = cone_coverer_ptr->generate_cuts(subA.transpose().unaryExpr(rat_to_int));
+
+                cone_coverer_ptr->direction_strategies.pop_back();
+
+                //--------------------------------------------------------------------
+
+                SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU_subA(subA.transpose());
 
                 if (decomp_LU_subA.info() != ComputationInfo::Success)
                     throw Utility::EigenSolveException(decomp_LU_subA.info());
@@ -338,17 +480,13 @@ namespace ILPCuts
                 std::vector<rs_mat> res_cuts_pool;
                 for (size_t i = 0; i < subM_pool.size(); ++i)
                 {
-                    // const is_mat &C = subM_pool[i];
-                    // rs_mat T = decomp_LU_subA.solve(C.cast<rational_type>()).transpose();
+                    const is_mat &C = subM_pool[i];
+                    rs_mat T = decomp_LU_subA.solve(C.cast<rational_type>()).transpose();
 
-                    // is_mat cutsMat = T * subA.cast<rational_type>();
+                    rs_mat cutsBaseMat = T * rowSubA;
 
-                    is_mat cutsBaseMat = complete_by_zeros(subM_pool[i], cols);
-
-                    append_cuts(Internal::generate_split_cuts_from_base_ineq(LocalInstance, cutsBaseMat,
-                                                                             tolerance, err_tolerance));
-
-                    // res_cuts_pool.push_back(cutsMat_rat.transpose());
+                    append_cuts(Internal::generate_MIR_cuts_from_base_ineq(LocalInstance, cutsBaseMat, cols,
+                                                                           tolerance, err_tolerance));
                 }
             }
 
@@ -457,5 +595,7 @@ namespace ILPCuts
     using HermiteCutsGen_RWSqS = Hermite_SubmatCutsGen<SqrtDimSizeGen, RandomNondegRowsGen>;
 
     using SplitCutsGen_RWDS = Split_SubmatCutsGen<DimSizeGen, RandomIntVarsSubmatGen>;
+
+    using MIRCutsGen_RWDS = MIR_SubmatCutsGen<DimSizeGen, RandomIntVarsSubmatGen>;
 
 } // namespace ILPCuts
