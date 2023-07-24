@@ -40,25 +40,35 @@ namespace ILPCuts
 				return res;
 			}
 
-			using Trilpl = Triplet<int_type>;
-			void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
+			using Trilpl = Triplet<rational_type>;
+			void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, rational_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
 			{
 				while (ilo_iter->ok())
 				{
 					rational_type coeff = from_IloNum_to_rat(ilo_iter->getCoef());
 
-					int_type coeff_int = 0;
-
-					try
+					if (ilo_iter->getVar().getType() != IloNumVar::Float)
 					{
-						coeff_int = generator_ptr->rat_to_int(coeff);
-					}
-					catch (ToleranceErrorException)
-					{
-						throw FractionalElementException(constr.getId(), ilo_iter->getVar().getId(), coeff);
+						if (is_fract(coeff, generator_ptr->err_tolerance))
+						{
+							throw FractionalElementException(constr.getId(), ilo_iter->getVar().getId(), coeff);
+						}
 					}
 
-					triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
+					triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), coeff * sign));
+
+					// int_type coeff_int = 0;
+
+					// try
+					// {
+					// 	coeff_int = generator_ptr->rat_to_int(coeff);
+					// }
+					// catch (ToleranceErrorException)
+					// {
+					// 	throw FractionalElementException(constr.getId(), ilo_iter->getVar().getId(), coeff);
+					// }
+
+					// triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
 
 					++(*ilo_iter);
 				}
@@ -180,7 +190,7 @@ namespace ILPCuts
 		{
 			size_t n = vars.getSize();
 
-			is_mat A_basis(n, n);
+			rs_mat A_basis(n, n);
 			rs_vec optLP(n);
 			rs_vec c(n);
 			std::vector<local_instance::var_ILP_type> var_types(n);
@@ -243,12 +253,12 @@ namespace ILPCuts
 					if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper ||
 						constrs_basis[i] == IloCplex::BasisStatus::AtLower && constr.getLB() == -numeric_limits<IloNum>::infinity())
 					{
-						_fill_triplets_IloRow(&triplets, &iter, 1, basis_i, var_index_map, constr);
+						_fill_triplets_IloRow(&triplets, &iter, 1.0, basis_i, var_index_map, constr);
 						++basis_i;
 					}
 					else if (constrs_basis[i] == IloCplex::BasisStatus::AtLower)
 					{
-						_fill_triplets_IloRow(&triplets, &iter, -1, basis_i, var_index_map, constr);
+						_fill_triplets_IloRow(&triplets, &iter, -1.0, basis_i, var_index_map, constr);
 						++basis_i;
 					}
 				}
@@ -262,14 +272,14 @@ namespace ILPCuts
 					if (vars_basis[i] == IloCplex::BasisStatus::AtUpper)
 					{
 						// cout << "AtUpper Var" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
+						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1.0));
 						// A_basis(basis_i, var_index_map[var.getId()]) = 1;
 						++basis_i;
 					}
 					else if (vars_basis[i] == IloCplex::BasisStatus::AtLower)
 					{
 						// cout << "AtLower Var" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
+						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1.0));
 						// A_basis(basis_i, var_index_map[var.getId()]) = -1;
 						++basis_i;
 					}
@@ -326,7 +336,7 @@ namespace ILPCuts
 			n = CPXXgetnumcols(env, lp);
 			m = CPXXgetnumrows(env, lp);
 
-			is_mat A_basis(n, n);
+			rs_mat A_basis(n, n);
 			rs_vec optLP(n);
 			rs_vec c(n);
 			std::vector<local_instance::var_ILP_type> var_types(n);
@@ -441,11 +451,11 @@ namespace ILPCuts
 
 					for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
 					{
-						int mult = 0;
+						double mult = 0;
 						if (rows_status[base_row_idx] == CPX_AT_UPPER)
-							mult = 1;
+							mult = 1.0;
 						else if (rows_status[base_row_idx] == CPX_AT_LOWER)
-							mult = -1;
+							mult = -1.0;
 
 						if (mult != 0)
 						{
@@ -460,18 +470,27 @@ namespace ILPCuts
 							{
 								CPXDIM col_idx = mat_idxcs_C[nonzeros_idx];
 								double val = mult * mat_vals_C[nonzeros_idx];
-								int_type val_int = 0;
 
-								try
+								if (var_types[col_idx] == local_instance::var_ILP_type::Int)
 								{
-									val_int = generator_ptr->rat_to_int(val);
-								}
-								catch (ToleranceErrorException)
-								{
-									throw FractionalElementException(base_row_idx, col_idx, val);
+									if (is_fract(val, generator_ptr->err_tolerance))
+									{
+										throw FractionalElementException(base_row_idx, col_idx, val);
+									}
 								}
 
-								triplets.emplace_back(Trilpl(basis_i, col_idx, val_int));
+								// int_type val_int = 0;
+
+								// try
+								// {
+								// 	val_int = generator_ptr->rat_to_int(val);
+								// }
+								// catch (ToleranceErrorException)
+								// {
+								// 	throw FractionalElementException(base_row_idx, col_idx, val);
+								// }
+
+								triplets.emplace_back(Trilpl(basis_i, col_idx, val));
 							}
 
 							++basis_i;
@@ -483,13 +502,13 @@ namespace ILPCuts
 
 				for (size_t base_var_idx = 0; base_var_idx < cols_status.size(); ++base_var_idx)
 				{
-					int sign = 0;
+					rational_type sign = 0.0;
 					if (cols_status[base_var_idx] == CPX_AT_UPPER)
-						sign = 1;
+						sign = 1.0;
 					else if (cols_status[base_var_idx] == CPX_AT_LOWER)
-						sign = -1;
+						sign = -1.0;
 
-					if (sign != 0)
+					if (sign != 0.0)
 					{
 						triplets.push_back(Trilpl(basis_i, base_var_idx, sign));
 						++basis_i;

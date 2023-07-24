@@ -15,7 +15,7 @@ namespace ILPCuts
             Rat
         };
 
-        is_mat A;
+        rs_mat A;
         // is_vec b;
         rs_vec c;
         rs_vec v;

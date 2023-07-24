@@ -96,7 +96,7 @@ namespace ILPCuts
         {
             cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(LocalInstance.c));
 
-            auto mat_pool = cone_coverer_ptr->generate_cuts(LocalInstance.A.transpose());
+            auto mat_pool = cone_coverer_ptr->generate_cuts(LocalInstance.A.transpose().unaryExpr(rat_to_int));
 
             cone_coverer_ptr->direction_strategies.pop_back();
 

@@ -50,8 +50,6 @@ namespace ILPCuts
             return log.out();
         }
 
-        // void set_instance(local_instance ins) { LocalInstance = std::move(ins); }
-
         virtual void generate_cuts() = 0;
 
         const std::vector<cut_info> &get_cuts() const { return _resulting_cuts; }
@@ -107,19 +105,19 @@ namespace ILPCuts
             }
         }
 
-        is_mat adjust_normal_cone(is_mat A, const rs_vec &c)
+        rs_mat adjust_normal_cone(rs_mat A, const rs_vec &c)
         {
-            rs_vec t = Utility::system_solve(A.cast<rational_type>().eval(), c);
+            rs_vec t = Utility::system_solve(A, c);
 
             for (typename rs_vec::InnerIterator it(t); it; ++it)
             {
-                if (it.value() < 0 && abs(it.value()) > tolerance)
+                if (it.value() < 0 && !is_zero(it.value(), tolerance))
                 {
                     A.col(it.index()) = -A.col(it.index());
                 }
             }
 
-            return std::move(A);
+            return A;
         }
 
         void clear_cuts()
@@ -129,7 +127,7 @@ namespace ILPCuts
 
         void check_pure_int_cuts_validity()
         {
-            is_mat AT = LocalInstance.A.transpose();
+            is_mat AT = LocalInstance.A.transpose().unaryExpr(rat_to_int);
 
             size_t n = AT.cols();
             assert(n > 0);
