@@ -189,11 +189,7 @@ namespace ILPCuts
 		local_instance CPlexAdapter::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 		{
 			size_t n = vars.getSize();
-
-			rs_mat A_basis(n, n);
-			rs_vec optLP(n);
-			rs_vec c(n);
-			std::vector<local_instance::var_ILP_type> var_types(n);
+			local_instance resInst(n);
 
 			auto var_index_map = init_var_index_map(vars);
 
@@ -201,13 +197,14 @@ namespace ILPCuts
 			for (size_t i = 0; i < vars.getSize(); ++i)
 			{
 				IloNumVar var = vars[i];
+
 				if (var.getType() == IloNumVar::Float)
 				{
-					var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Rat;
+					resInst.ILP_var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Rat;
 				}
 				else
 				{
-					var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Int;
+					resInst.ILP_var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Int;
 				}
 				// cout << "LB, UB" << var.getLB() << ", " << var.getUB() << endl;
 			}
@@ -220,7 +217,7 @@ namespace ILPCuts
 				{
 					while (iter.ok())
 					{
-						c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(iter.getCoef());
+						resInst.c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(iter.getCoef());
 						++iter;
 					}
 				}
@@ -228,7 +225,7 @@ namespace ILPCuts
 				{
 					while (iter.ok())
 					{
-						c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(-iter.getCoef());
+						resInst.c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(-iter.getCoef());
 						++iter;
 					}
 				}
@@ -294,7 +291,7 @@ namespace ILPCuts
 					throw(Exception(msg.str()));
 				}
 
-				A_basis.setFromTriplets(triplets.begin(), triplets.end());
+				resInst.A.setFromTriplets(triplets.begin(), triplets.end());
 
 				vars_basis.end();
 				constrs_basis.end();
@@ -309,23 +306,31 @@ namespace ILPCuts
 				for (size_t i = 0; i < n; ++i)
 				{
 					if (cplex_optLP[i] != 0)
-						optLP.insertBack(i) = cplex_optLP[i];
+						resInst.v.insertBack(i) = cplex_optLP[i];
 				}
 
 				cplex_optLP.end();
 			}
 
+			{
+				out() << "reading LB and UB for variables..." << endl;
+
+				out() << "reading var.-types..." << endl;
+				for (size_t i = 0; i < vars.getSize(); ++i)
+				{
+					IloNumVar var = vars[i];
+
+					size_t var_idxs = var_index_map[var.getId()];
+					resInst.varsLB.insertBack(var_idxs) = from_IloNum_to_rat(var.getLb());
+					resInst.varsUB.insertBack(var_idxs) = from_IloNum_to_rat(var.getUb());
+				}
+			}
+
 			out() << "normal cone adjusting..." << endl;
 
-			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
+			resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
 
-			local_instance res;
-			res.A = A_basis;
-			res.c = c;
-			res.v = optLP;
-			res.ILP_var_types = var_types;
-
-			return res;
+			return resInst;
 		}
 
 		local_instance CPlexAdapter::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
@@ -336,10 +341,7 @@ namespace ILPCuts
 			n = CPXXgetnumcols(env, lp);
 			m = CPXXgetnumrows(env, lp);
 
-			rs_mat A_basis(n, n);
-			rs_vec optLP(n);
-			rs_vec c(n);
-			std::vector<local_instance::var_ILP_type> var_types(n);
+			local_instance resInst(n);
 
 			{
 				out() << "reading var.-types..." << endl;
@@ -354,16 +356,42 @@ namespace ILPCuts
 				{
 					if (var_types_C[i] == CPX_CONTINUOUS)
 					{
-						var_types[i] = local_instance::var_ILP_type::Rat;
+						resInst.ILP_var_types[i] = local_instance::var_ILP_type::Rat;
 					}
 					else if (var_types_C[i] == CPX_BINARY || var_types_C[i] == CPX_INTEGER)
 					{
-						var_types[i] = local_instance::var_ILP_type::Int;
+						resInst.ILP_var_types[i] = local_instance::var_ILP_type::Int;
 					}
 					else
 					{
 						throw SemiVariableException(i, var_types_C[i]);
 					}
+				}
+			}
+
+			{
+				out() << "reading LB and UB for variables..." << endl;
+
+				std::vector<double> LBses_C(n), UBses_C(n);
+
+				int status = CPXXgetlb(env, lp, LBses_C.data(), 0, n);
+				if (status)
+				{
+					throw Exception(create_err_string("ILPCuts lib error: failed to read var's LB'es using CPXXgetlb...\n",
+													  env, status));
+				}
+
+				status = CPXXgetub(env, lp, UBses_C.data(), 0, n);
+				if (status)
+				{
+					throw Exception(create_err_string("ILPCuts lib error: failed to read var's UB'es using CPXXgetub...\n",
+													  env, status));
+				}
+
+				for (size_t i = 0; i < n; ++i)
+				{
+					resInst.varsLB.insertBack(i) = from_IloNum_to_rat(LBses_C[i]);
+					resInst.varsUB.insertBack(i) = from_IloNum_to_rat(UBses_C[i]);
 				}
 			}
 
@@ -390,7 +418,7 @@ namespace ILPCuts
 				{
 					if (abs(C_obj[i]) > numeric_limits<double>::epsilon())
 					{
-						c.insertBack(i) = from_IloNum_to_rat(sence * C_obj[i]);
+						resInst.c.insertBack(i) = from_IloNum_to_rat(sence * C_obj[i]);
 					}
 				}
 			}
@@ -471,7 +499,7 @@ namespace ILPCuts
 								CPXDIM col_idx = mat_idxcs_C[nonzeros_idx];
 								double val = mult * mat_vals_C[nonzeros_idx];
 
-								if (var_types[col_idx] == local_instance::var_ILP_type::Int)
+								if (resInst.ILP_var_types[col_idx] == local_instance::var_ILP_type::Int)
 								{
 									if (is_fract(val, generator_ptr->err_tolerance))
 									{
@@ -515,7 +543,7 @@ namespace ILPCuts
 					}
 				}
 
-				A_basis.setFromTriplets(triplets.begin(), triplets.end());
+				resInst.A.setFromTriplets(triplets.begin(), triplets.end());
 			}
 
 			{
@@ -532,22 +560,16 @@ namespace ILPCuts
 				{
 					if (abs(x_C[i]) > numeric_limits<double>::epsilon())
 					{
-						optLP.insertBack(i) = from_IloNum_to_rat(x_C[i]);
+						resInst.v.insertBack(i) = from_IloNum_to_rat(x_C[i]);
 					}
 				}
 			}
 
 			out() << "normal cone adjusting..." << endl;
 
-			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
+			resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
 
-			local_instance res;
-			res.A = A_basis;
-			res.c = c;
-			res.v = optLP;
-			res.ILP_var_types = var_types;
-
-			return res;
+			return resInst;
 		}
 
 		void CPlexAdapter::add_cuts(CPXCENVptr env, void *cbdata, int wherefrom)
