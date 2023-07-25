@@ -328,7 +328,8 @@ namespace ILPCuts
 
 			out() << "normal cone adjusting..." << endl;
 
-			resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
+			resInst.adjust_normal_cone(get_logger(), generator_ptr->tolerance);
+			// resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
 
 			return resInst;
 		}
@@ -567,7 +568,8 @@ namespace ILPCuts
 
 			out() << "normal cone adjusting..." << endl;
 
-			resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
+			resInst.adjust_normal_cone(get_logger(), generator_ptr->tolerance);
+			// resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
 
 			return resInst;
 		}

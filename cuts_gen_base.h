@@ -105,20 +105,20 @@ namespace ILPCuts
             }
         }
 
-        rs_mat adjust_normal_cone(rs_mat A, const rs_vec &c)
-        {
-            rs_vec t = Utility::system_solve(A, c);
+        // rs_mat adjust_normal_cone(rs_mat A, const rs_vec &c)
+        // {
+        //     rs_vec t = Utility::system_solve(A, c);
 
-            for (typename rs_vec::InnerIterator it(t); it; ++it)
-            {
-                if (it.value() < 0 && !is_zero(it.value(), tolerance))
-                {
-                    A.col(it.index()) = -A.col(it.index());
-                }
-            }
+        //     for (typename rs_vec::InnerIterator it(t); it; ++it)
+        //     {
+        //         if (it.value() < 0 && !is_zero(it.value(), tolerance))
+        //         {
+        //             A.col(it.index()) = -A.col(it.index());
+        //         }
+        //     }
 
-            return A;
-        }
+        //     return A;
+        // }
 
         void clear_cuts()
         {

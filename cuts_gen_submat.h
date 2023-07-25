@@ -210,7 +210,7 @@ namespace ILPCuts
 
     namespace Internal
     {
-        std::vector<cut_info> generate_split_cuts_from_base_ineq(const local_instance &inst, const is_mat &base_ineq_cols,
+        std::vector<cut_info> generate_split_cuts_from_base_ineq(logger &log, local_instance &inst, const is_mat &base_ineq_cols,
                                                                  double tolerance, double err_tolerance)
         {
             std::vector<cut_info> res_cuts;
@@ -230,11 +230,12 @@ namespace ILPCuts
             rs_vec diff_b = (rat_b - rounded_b.cast<rational_type>()).cwiseAbs();
             rs_vec fract_part_b = rat_b - floor_b.cast<rational_type>();
 
-            SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(-inst.A.transpose());
-            if (decomp_LU.info() != ComputationInfo::Success)
-                throw Utility::EigenSolveException(decomp_LU.info());
+            // SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(-inst.A.transpose());
+            // if (decomp_LU.info() != ComputationInfo::Success)
+            //     throw Utility::EigenSolveException(decomp_LU.info());
 
-            rs_mat cone_ray_intersections = decomp_LU.solve(base_ineq_cols.cast<rational_type>());
+            rs_mat cone_ray_intersections = -inst.solve_ATX_eq_B(log, base_ineq_cols.cast<rational_type>());
+            // rs_mat cone_ray_intersections = decomp_LU.solve(base_ineq_cols.cast<rational_type>());
 
             typename rs_vec::InnerIterator diff_it(diff_b);
             while (diff_it)
@@ -406,7 +407,8 @@ namespace ILPCuts
                 rs_mat subA = Utility::generate_submatrix_byidx(LocalInstance.A, rows, cols);
                 // is_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
 
-                rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
+                rs_vec t = LocalInstance.solve_ATX_eq_b(log, LocalInstance.c);
+                // rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
                 rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
                 rs_vec c_proj = subA.cast<rational_type>().transpose() * t_proj;
 
@@ -423,7 +425,7 @@ namespace ILPCuts
                 {
                     is_mat cutsBaseMat = complete_by_zeros(subM_pool[i], cols);
 
-                    append_cuts(Internal::generate_split_cuts_from_base_ineq(LocalInstance, cutsBaseMat,
+                    append_cuts(Internal::generate_split_cuts_from_base_ineq(log, LocalInstance, cutsBaseMat,
                                                                              tolerance, err_tolerance));
                 }
             }
@@ -460,7 +462,8 @@ namespace ILPCuts
                 rs_mat subA = Utility::generate_submatrix_byidx(LocalInstance.A, rows, cols);
                 rs_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
 
-                rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
+                rs_vec t = LocalInstance.solve_ATX_eq_b(log, LocalInstance.c);
+                // rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
                 rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
                 rs_vec c_proj = subA.cast<rational_type>().transpose() * t_proj;
 

@@ -70,52 +70,96 @@ namespace ILPCuts
 
         const lint_type &get_det(logger &log, double err_tolerance)
         {
-            LRatToLInt_Unary lrat_to_lint(err_tolerance);
-
-            Timer timer;
-            timer.start();
-
             if (!det)
             {
-                if (!decomp_LU)
-                {
-                    decomp_LU = std::make_unique<decomp_type>(A);
-                }
+                LRatToLInt_Unary lrat_to_lint(err_tolerance);
+                // check_decomposition(log);
 
-                det = std::make_unique<lint_type>(lrat_to_lint(decomp_LU->absDeterminant()));
+                log.out() << "ILPCuts-LocalInstance: determinant computation is started ..." << endl;
+                Timer timer;
+                timer.start();
+
+                // det = std::make_unique<lint_type>(lrat_to_lint(decomp_LU->absDeterminant()));
+                //  lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.cast<lrational_type>().eval()));
+                det = std::make_unique<lint_type>(ModuleNTL::det(A.cast<lint_type>().eval()));
+                // lint_type det;
+                // ModuleFlint::compute_det(A.cast<lint_type>().eval(), det);
+                // //  lint_type det = Utility::LinBox::compute_det(A.cast<lint_type>().eval());
+
+                log.out() << "determinant computation time: " << timer.finish_str()
+                          << "determinant is: " << *det << endl;
             }
 
             return *det;
-            // out() << "Determinant computation is started ..." << endl;
+        }
 
-            // lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.cast<lrational_type>().eval()));
-            // lint_type det = ModuleNTL::det(A.cast<lint_type>().eval());
-            // lint_type det;
-            // ModuleFlint::compute_det(A.cast<lint_type>().eval(), det);
-            // //  lint_type det = Utility::LinBox::compute_det(A.cast<lint_type>().eval());
-            // out() << "determinant computation time: " << timer.finish_str()
-            //       << "determinant is: " << det << endl;
+        void check_decomposition(logger &log)
+        {
+            if (!decomp_LU)
+            {
+                Timer timer;
+                timer.start();
+                log.out() << "ILPCuts-LocalInstance: LU decomposition computation is started..." << endl;
+
+                decomp_LU = std::make_unique<decomp_type>(A);
+
+                if (decomp_LU->info() != ComputationInfo::Success)
+                    throw Utility::EigenSolveException(decomp_LU->info());
+
+                log.out() << "LU decomposition computation time: " << timer.finish_str();
+            }
         }
 
         rs_mat solve_AX_eq_B(logger &log, const rs_mat &B)
         {
-            if (!decomp_LU)
-            {
-                decomp_LU = std::make_unique<decomp_type>(A);
-            }
+            check_decomposition(log);
 
             return decomp_LU->solve(B);
         }
 
-        // rs_mat solve_ATX_eq_B(logger &log, const rs_mat &B)
-        // {
-        //     if (!decomp_LU)
-        //     {
-        //         decomp_LU = std::make_unique<decomp_type>(A);
-        //     }
+        rs_mat solve_ATX_eq_B(logger &log, const rs_mat &B)
+        {
+            check_decomposition(log);
 
-        //     return decomp_LU->transpose()->solve(B);
-        // }
+            return decomp_LU->transpose().solve(B);
+        }
+
+        rs_vec solve_AX_eq_b(logger &log, const rs_vec &b)
+        {
+            check_decomposition(log);
+
+            return decomp_LU->solve(b);
+        }
+
+        rs_vec solve_ATX_eq_b(logger &log, const rs_vec &b)
+        {
+            check_decomposition(log);
+
+            return decomp_LU->transpose().solve(b);
+        }
+
+        void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
+        {
+            rs_vec t = solve_ATX_eq_b(log, c);
+
+            bool is_updated = false;
+
+            for (typename rs_vec::InnerIterator it(t); it; ++it)
+            {
+                if (it.value() < 0 && !is_zero(it.value(), tolerance))
+                {
+                    A.col(it.index()) = -A.col(it.index());
+                }
+            }
+
+            if (is_updated)
+                decomp_LU.release();
+        }
+
+        void adjust_normal_cone(logger &log, double tolerance)
+        {
+            adjust_normal_cone(log, c, tolerance);
+        }
 
         // size_t get_num_constr() const { return A.rows(); }
     };
