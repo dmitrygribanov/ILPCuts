@@ -146,7 +146,8 @@ void run_cplex_experiment(
 	double cplex_tl,
 	double cuts_tl,
 	size_t cuts_generation_submat_size_limit,
-	string cuts_fun_type)
+	string cuts_fun_type,
+	size_t row_trials_num)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -258,14 +259,17 @@ void run_cplex_experiment(
 	if (cuts_fun_type == "split")
 	{
 		static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+		static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
 	}
 	else if (cuts_fun_type == "hermite")
 	{
 		static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+		static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
 	}
 	else if (cuts_fun_type == "mir")
 	{
 		static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+		static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
 	}
 
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
@@ -480,6 +484,11 @@ int main(int argc, char **argv)
 		.default_value(std::string("mir"))
 		.help("manages cutting generation function; can be \"split\", \"mir\", \"pureint\" or \"hermite\"");
 
+	program.add_argument("--trials_num")
+		.default_value(size_t(5))
+		.help("number of trials to choose rows for cut generation")
+		.scan<'i', size_t>();
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -549,7 +558,8 @@ int main(int argc, char **argv)
 			program.get<double>("--cplex_tl"),
 			program.get<double>("--cuts_tl"),
 			program.get<size_t>("--submat_limit"),
-			program.get<string>("--cuts_fun"));
+			program.get<string>("--cuts_fun"),
+			program.get<size_t>("--trials_num"));
 	}
 	catch (const FractionalElementException &err)
 	{
