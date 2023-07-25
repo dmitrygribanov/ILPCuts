@@ -10,8 +10,7 @@
 #include <NTL/mat_ZZ.h>
 #include <NTL/HNF.h>
 
-#include <eigen3/Eigen/Core>
-
+#include "dependencies/Eigen/Core"
 namespace Eigen
 {
     template <>

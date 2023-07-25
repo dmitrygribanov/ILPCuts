@@ -1,7 +1,7 @@
 #pragma once
 
-#include <eigen3/Eigen/SparseLU>
-#include <eigen3/Eigen/SparseQR>
+#include "dependencies/Eigen/SparseLU"
+#include "dependencies/Eigen/SparseQR"
 
 #include <unordered_map>
 

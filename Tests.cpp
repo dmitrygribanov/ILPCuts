@@ -1,6 +1,6 @@
 ﻿#include "wiedemann_alg.h"
 
-#include <eigen3/Eigen/LU>
+#include "dependencies/Eigen/LU"
 
 using namespace ILPCuts;
 using namespace std;

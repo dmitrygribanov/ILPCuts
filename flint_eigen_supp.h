@@ -3,7 +3,7 @@
 #include <flint/fmpzxx.h>
 #include <flint/fmpqxx.h>
 
-#include <eigen3/Eigen/Core>
+#include "dependencies/Eigen/Core"
 
 namespace Eigen
 {

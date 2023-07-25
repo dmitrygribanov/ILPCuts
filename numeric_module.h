@@ -1,6 +1,6 @@
 #pragma once
 
-#include <eigen3/Eigen/SparseCore>
+#include "dependencies/Eigen/SparseCore"
 
 #include "gmp_supp.h"
 
