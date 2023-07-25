@@ -104,7 +104,7 @@ namespace ILPCuts
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(inst);
+				generate_cuts(std::move(inst));
 			}
 			void generate_cuts(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 			{
@@ -120,7 +120,7 @@ namespace ILPCuts
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(inst);
+				generate_cuts(std::move(inst));
 			}
 			void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
 
