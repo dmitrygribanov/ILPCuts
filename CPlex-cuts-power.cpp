@@ -243,63 +243,8 @@ void run_cplex_experiment(
 
     // createing adapter object
     CPlexAdapter cuts_gen_adapter;
-    if (cuts_fun_type == "split")
-    {
-        cuts_gen_adapter.generator_ptr = std::make_unique<SplitCutsGen_RWDS>(log);
-    }
-    else if (cuts_fun_type == "hermite")
-    {
-        cuts_gen_adapter.generator_ptr = std::make_unique<HermiteCutsGen_RWDS>(log);
-    }
-    else if (cuts_fun_type == "pureint")
-    {
-        cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
-    }
-    else if (cuts_fun_type == "mir")
-    {
-        cuts_gen_adapter.generator_ptr = std::make_unique<MIRCutsGen_RWDS>(log);
-    }
-    else
-    {
-        log.out() << "Wrong value of the CLI parameter --cuts_fun: "
-                  << cuts_fun_type << std::endl;
-        exit(0);
-    }
-    auto cuts_gen_ptr = static_cast<CutsGen_CC *>(cuts_gen_adapter.generator_ptr.get());
-
-    cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_Zp>(log);
-    auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer_ptr.get();
-
-    // initialization of cuts generator and setting parameters
     std::mt19937 engine;
-    cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
-    cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
-    if (cuts_fun_type == "split")
-    {
-        static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
-        static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
-    }
-    else if (cuts_fun_type == "hermite")
-    {
-        static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
-        static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
-    }
-    else if (cuts_fun_type == "mir")
-    {
-        static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
-        static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
-    }
     cuts_gen_adapter.set_lazy(is_lazy_param);
-    static_cast<ConeCoverer_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
-
-    // set strategies for cutting generation
-    if (rand_directions > 0)
-    {
-        using RandStrategy = typename DirectionStrategies::ConvUniform<std::mt19937>;
-        cone_coverer_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
-    }
-    if (some_direction)
-        cone_coverer_ptr->direction_strategies.push_back(std::make_unique<DirectionStrategies::SomeDirection>());
 
     // setting parameters for solving in integer variables
     cplex_master.setParam(IloCplex::Param::Threads, threads_cplex);
@@ -352,12 +297,65 @@ void run_cplex_experiment(
         solution_info.bestLPObjVal = cplex_master.getBestObjValue();
     }
 
-    // construct lyambda function to add hybrid solutions to the "solutions_map"
-    // cplex_param -- stores cplex cut type (+ "all" or "none")
-    // solution_name -- stores hybrid configuration name
-    auto add_hybrid_solution = [&](string solution_name, string cplex_param)
+    // configures adapter using "conf_name" parameter
+    auto adapter_configure = [&](std::string conf_name)
     {
-        cuts_gen_adapter.clear_cuts();
+        // initialization of cuts generator and setting parameters
+
+        std::unique_ptr<CutsGen_CC> cuts_gen_base;
+
+        if (conf_name == "my(split)")
+        {
+            std::unique_ptr<SplitCutsGen_RWDS> split_cuts_gen = std::make_unique<SplitCutsGen_RWDS>(log);
+            split_cuts_gen->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+            split_cuts_gen->submat_gen.trials_num = row_trials_num;
+
+            cuts_gen_base = std::move(split_cuts_gen);
+        }
+        else if (conf_name == "my(mir)")
+        {
+            std::unique_ptr<MIRCutsGen_RWDS> mir_cuts_gen = std::make_unique<MIRCutsGen_RWDS>(log);
+            mir_cuts_gen->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+            mir_cuts_gen->submat_gen.trials_num = row_trials_num;
+
+            cuts_gen_base = std::move(mir_cuts_gen);
+        }
+        // else if (conf_name == "hermite")
+        // {
+        //     cuts_gen_adapter.generator_ptr = std::make_unique<HermiteCutsGen_RWDS>(log);
+        // }
+        // else if (conf_name == "pureint")
+        // {
+        //     cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
+        // }
+
+        std::unique_ptr<ConeCoverer_Zp> cone_coverer_ptr = std::make_unique<ConeCoverer_Zp>(log);
+        cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
+        cone_coverer_ptr->max_conservative_prime = cprime;
+
+        // set strategies for cutting generation
+        if (rand_directions > 0)
+        {
+            using RandStrategy = typename DirectionStrategies::ConvUniform<std::mt19937>;
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<RandStrategy>(engine, rand_directions));
+        }
+        if (some_direction)
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<DirectionStrategies::SomeDirection>());
+
+        cuts_gen_base->cone_coverer_ptr = std::move(cone_coverer_ptr);
+        cuts_gen_base->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
+
+        cuts_gen_adapter.generator_ptr = std::move(cuts_gen_base);
+    };
+
+    // construct lyambda function to add hybrid solutions to the "solutions_map"
+    // cplex_param -- stores cplex cut type ("all" or "none")
+    // my_conf_name -- configuration for cuts generator ("my(split)" or "my(mir)")
+    // full_conf_name - name of a configuration to display
+    auto add_hybrid_solution = [&](string my_conf_name, string full_conf_name, string cplex_param)
+    {
+        // configuring CPlex adapter
+        adapter_configure(my_conf_name);
 
         // solving the problem in the root node with ILPCuts cutting planes
         root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
@@ -365,29 +363,31 @@ void run_cplex_experiment(
                                               cuts_gen_adapter,
                                               cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
-        solutions_map[solution_name];
+        solutions_map[full_conf_name];
 
         cplex_cut_types.set_param(cplex_master, cplex_param);
 
         if (cplex_master.solve())
         {
-            solutions_map[solution_name].is_incumbent_found = true;
-            solutions_map[solution_name].bestMILPObjVal = cplex_master.getObjValue();
-            solutions_map[solution_name].cutoff = cplex_master.getCutoff();
+            solutions_map[full_conf_name].is_incumbent_found = true;
+            solutions_map[full_conf_name].bestMILPObjVal = cplex_master.getObjValue();
+            solutions_map[full_conf_name].cutoff = cplex_master.getCutoff();
         }
         else
         {
-            solutions_map[solution_name].is_incumbent_found = false;
+            solutions_map[full_conf_name].is_incumbent_found = false;
         }
-        solutions_map[solution_name].bestLPObjVal = cplex_master.getBestObjValue();
+        solutions_map[full_conf_name].bestLPObjVal = cplex_master.getBestObjValue();
 
         cplex_master.clearModel();
         cplex_relaxed.clearModel();
     };
 
     // adding some hybrid solutions-configurations
-    add_hybrid_solution("my", "none");
-    add_hybrid_solution("my+all", "all");
+    add_hybrid_solution("my(split)", "my(split)", "none");
+    add_hybrid_solution("my(mir)", "my(mir)", "none");
+    add_hybrid_solution("my(split)", "my(split)+all", "all");
+    add_hybrid_solution("my(mir)", "my(mir)+all", "all");
 
     // printing the result into comparison_results
     env.out() << "\n";
