@@ -210,7 +210,10 @@ namespace ILPCuts
 					{
 						out() << "Determinant is cutted on the value of " << determinant_cut_limit(n) << ",\n"
 							  << "Total Gomory's cuts procedure is started..." << endl;
+						Timer timer;
+						timer.start();
 						result_by_treads[tid].push_back(_Hilbert_base_alg.compute(next_node->A, next_node->det));
+						out() << "Total Gomory's cuts procedure is finished..., time = " << timer.finish_str("'s") << endl;
 					}
 					else
 						next_layers_by_treads[tid].push_back(std::move(next_node));

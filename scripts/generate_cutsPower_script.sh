@@ -34,9 +34,10 @@ do
     CUTS_TL=${4:-0.0} #cuts gen time limit in minutes
     CPLEX_TL=${5:-0.0} #cplex time limit in minutes
     SUBMAT_SIZE_LIM=${6:-0.0} #maximal size of square submat to generate conic cover cuts
-    CUTS_GEN_ROUNDS=${7:-1} #number of cuts generation iterations
-    MODEL_CUTS_SWITCH=${8:-on} #switch for model cuts option
-    NODE_LIM=${9:-1} #node limit for CPlex
+    ROW_TRIALS_NUM=${7:-1} #number of row trials to generate cuts
+    CUTS_GEN_ROUNDS=${8:-1} #number of cuts generation iterations
+    MODEL_CUTS_SWITCH=${9:-on} #switch for model cuts option
+    NODE_LIM=${10:-1} #node limit for CPlex
     CUTS_TL=`echo "$CUTS_TL * 60" | bc` #transforming into TL in seconds
     CPLEX_TL=`echo "$CPLEX_TL * 60" | bc` #transforming into TL in seconds
     LOGF=${FNAME}_log.txt #out log file name
@@ -46,7 +47,7 @@ do
     echo "#$FNAME" >> $OUTPUT_SCRIPT
     echo "#-------------------------------------------------------" >> $OUTPUT_SCRIPT
     echo ../CPlexCutsPower -i ../$PROB_PATH -o $LOGF --cuts_output $CUTSF --comp_result $RESF \
-    --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS --node_lim $NODE_LIM --model_cuts $MODEL_CUTS_SWITCH \
+    --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS --node_lim $NODE_LIM --model_cuts $MODEL_CUTS_SWITCH --trials_num $ROW_TRIALS_NUM \
     --cplex_tl $CPLEX_TL --cuts_tl $CUTS_TL --min_dim $MIN_DIM --max_dim $MAX_DIM --submat_limit $SUBMAT_SIZE_LIM >> $OUTPUT_SCRIPT
     #echo >> $OUTPUT_SCRIPT
 done

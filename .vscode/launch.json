@@ -190,7 +190,9 @@
                 "--wcpl",
                 "15",
                 "--submat_limit",
-                "900"
+                "200",
+                "--trials_num",
+                "7"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",

@@ -21,8 +21,7 @@ void check_input_params(
     int node_lim,
     size_t cprime,
     string scaling,
-    string model_cuts_switch,
-    string cuts_fun_type)
+    string model_cuts_switch)
 {
     if (tolerance <= 0.0)
     {
@@ -101,12 +100,12 @@ void check_input_params(
         exit(0);
     }
 
-    if (cuts_fun_type != "split" && cuts_fun_type != "mir" && cuts_fun_type != "hermite" && cuts_fun_type != "pureint")
-    {
-        log.out() << "Wrong value of the CLI parameter --cuts_fun: "
-                  << cuts_fun_type << std::endl;
-        exit(0);
-    }
+    // if (cuts_fun_type != "split" && cuts_fun_type != "mir" && cuts_fun_type != "hermite" && cuts_fun_type != "pureint")
+    // {
+    //     log.out() << "Wrong value of the CLI parameter --cuts_fun: "
+    //               << cuts_fun_type << std::endl;
+    //     exit(0);
+    // }
 
     // if (cplex_cut_types.check_name(cplex_cuts_param))
     // {
@@ -162,7 +161,6 @@ void run_cplex_experiment(
     double cplex_tl,
     double cuts_tl,
     size_t cuts_generation_submat_size_limit,
-    string cuts_fun_type,
     size_t row_trials_num)
 {
     // create CPLEX envirement
@@ -549,10 +547,6 @@ int main(int argc, char **argv)
         .help("time limit (sec.) for ILPCuts cuts generation")
         .scan<'g', double>();
 
-    program.add_argument("--cuts_fun")
-        .default_value(std::string("split"))
-        .help("manages cutting generation function; can be \"split\", \"mir\", \"pureint\" or \"hermite\"");
-
     program.add_argument("--trials_num")
         .default_value(size_t(5))
         .help("number of trials to choose rows for cut generation")
@@ -586,8 +580,7 @@ int main(int argc, char **argv)
             program.get<int>("--node_lim"),
             program.get<size_t>("--cprime"),
             program.get<string>("--scaling"),
-            program.get<string>("--model_cuts"),
-            program.get<string>("--cuts_fun"));
+            program.get<string>("--model_cuts"));
 
         size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
         size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -620,7 +613,6 @@ int main(int argc, char **argv)
             program.get<double>("--cplex_tl"),
             program.get<double>("--cuts_tl"),
             program.get<size_t>("--submat_limit"),
-            program.get<string>("--cuts_fun"),
             program.get<size_t>("--trials_num"));
     }
     catch (const FractionalElementException &err)
