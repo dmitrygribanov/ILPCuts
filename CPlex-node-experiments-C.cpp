@@ -535,6 +535,10 @@ int main(int argc, char **argv)
         .help("number of directions in random cone strategy")
         .scan<'i', size_t>();
 
+    program.add_argument("--lazy")
+        .default_value(string("off"))
+        .help("manages CPlex lazy constraints; can be \"on\", \"off\" or \"hybrid\"");
+
     program.add_argument("--sum_strat")
         .default_value(false)
         .help("add \"sum\" cone strategy")
@@ -601,6 +605,25 @@ int main(int argc, char **argv)
         .default_value(0.0)
         .help("time limit for cplex MIP solving procedures")
         .scan<'g', double>();
+
+    program.add_argument("--cuts_fun")
+        .default_value(std::string("mir"))
+        .help("manages cutting generation function; can be \"split\", \"mir\", \"pureint\" or \"hermite\"");
+
+    program.add_argument("--trials_num")
+        .default_value(size_t(5))
+        .help("number of trials to choose rows for cut generation")
+        .scan<'i', size_t>();
+
+    program.add_argument("-c", "--cone_limit")
+        .default_value(size_t(1))
+        .help("cone limit per direction")
+        .scan<'i', size_t>();
+
+    program.add_argument("--submat_limit")
+        .default_value(size_t(1024))
+        .help("square submatrix size limit")
+        .scan<'i', size_t>();
 
     try
     {
