@@ -134,6 +134,7 @@ map<string, SolutionInfo> init_solutions_map()
     }
     res["none"];
     res["all"];
+    res["all(force)"];
 
     return res;
 }
