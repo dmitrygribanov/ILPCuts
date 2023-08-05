@@ -384,8 +384,8 @@ void run_cplex_experiment(
     // adding some hybrid solutions-configurations
     add_hybrid_solution("my(split)", "my(split)", "none");
     add_hybrid_solution("my(mir)", "my(mir)", "none");
-    add_hybrid_solution("my(split)", "my(split)+all", "all");
-    add_hybrid_solution("my(mir)", "my(mir)+all", "all");
+    add_hybrid_solution("my(split)", "my(split)+all", "all(force)");
+    add_hybrid_solution("my(mir)", "my(mir)+all", "all(force)");
 
     // printing the result into comparison_results
     env.out() << "\n";

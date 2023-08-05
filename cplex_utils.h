@@ -57,7 +57,7 @@ namespace ILPCuts
 
             bool check_name(string name) const
             {
-                return name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
+                return name != "all(force)" && name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
             }
 
             void restore_params(IloCplex cplex) const
@@ -80,7 +80,12 @@ namespace ILPCuts
                         for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
                             cplex.setParam(types_iter->second, -1);
                     }
-                    // if type != none, we turn off all cuts except (cplex_cuts_param)-variable
+                    else if (name == "all(force)")
+                    {
+                        for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
+                            cplex.setParam(types_iter->second, 2);
+                    }
+                    // if type != none and all(force), we turn off all cuts except (cplex_cuts_param)-variable
                     // the last is set to agressive(=2) switch
                     else
                     {
