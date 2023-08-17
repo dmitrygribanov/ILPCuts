@@ -356,27 +356,35 @@ void run_cplex_experiment(
         // configuring CPlex adapter
         adapter_configure(my_conf_name);
 
-        // solving the problem in the root node with ILPCuts cutting planes
-        root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
-                                              obj, rngs, vars,
-                                              cuts_gen_adapter,
-                                              cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
-
-        solutions_map[full_conf_name];
-
-        cplex_cut_types.set_param(cplex_master, cplex_param);
-
-        if (cplex_master.solve())
+        try
         {
-            solutions_map[full_conf_name].is_incumbent_found = true;
-            solutions_map[full_conf_name].bestMILPObjVal = cplex_master.getObjValue();
-            solutions_map[full_conf_name].cutoff = cplex_master.getCutoff();
+            // solving the problem in the root node with ILPCuts cutting planes
+            root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
+                                                  obj, rngs, vars,
+                                                  cuts_gen_adapter,
+                                                  cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
+
+            solutions_map[full_conf_name];
+
+            cplex_cut_types.set_param(cplex_master, cplex_param);
+
+            if (cplex_master.solve())
+            {
+                solutions_map[full_conf_name].is_incumbent_found = true;
+                solutions_map[full_conf_name].bestMILPObjVal = cplex_master.getObjValue();
+                solutions_map[full_conf_name].cutoff = cplex_master.getCutoff();
+            }
+            else
+            {
+                solutions_map[full_conf_name].is_incumbent_found = false;
+            }
+            solutions_map[full_conf_name].bestLPObjVal = cplex_master.getBestObjValue();
         }
-        else
+        catch (const ILPCuts::Exception &exc)
         {
-            solutions_map[full_conf_name].is_incumbent_found = false;
+            log.out() << "ILPCuts exception has been occured in cuts-configuration: (" << my_conf_name << ", " << full_conf_name << ", " << cplex_param << ");\n";
+            log.out() << exc.what() << std::endl;
         }
-        solutions_map[full_conf_name].bestLPObjVal = cplex_master.getBestObjValue();
 
         cplex_master.clearModel();
         cplex_relaxed.clearModel();
@@ -616,24 +624,15 @@ int main(int argc, char **argv)
             program.get<size_t>("--submat_limit"),
             program.get<size_t>("--trials_num"));
     }
-    catch (const FractionalElementException &err)
+    catch (const IloException &err)
     {
-        // it is not error, just can not optimize
-        log.out() << err.what() << endl;
-        log.out() << "ILPCuts Console: failed to optimize." << endl;
+        log.out() << err << std::endl;
         // log.out() << program << endl;
-        //  it is not error, just can not optimize
-        exit(0);
+        std::exit(1);
     }
     catch (const std::exception &err)
     {
         log.out() << err.what() << endl;
-        // log.out() << program << endl;
-        std::exit(1);
-    }
-    catch (const IloException &err)
-    {
-        log.out() << err << std::endl;
         // log.out() << program << endl;
         std::exit(1);
     }
