@@ -391,8 +391,8 @@ void run_cplex_experiment(
         }
         catch (const ILPCuts::Exception &exc)
         {
-            log.out() << "ILPCuts exception has been occured in cuts-configuration: (" << my_conf_name << ", " << full_conf_name << ", " << cplex_param << ");\n";
-            log.out() << exc.what() << std::endl;
+            env.out() << "ILPCuts exception has been occured in cuts-configuration: (" << my_conf_name << ", " << full_conf_name << ", " << cplex_param << ");\n";
+            env.out() << exc.what() << std::endl;
         }
 
         cplex_master.clearModel();

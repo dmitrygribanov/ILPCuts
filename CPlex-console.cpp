@@ -590,7 +590,7 @@ int main(int argc, char **argv)
 			program.get<size_t>("--trials_num"),
 			program.get<string>("--split_mode"));
 	}
-	catch (const FractionalElementException &err)
+	catch (const ILPCuts::Exception &err)
 	{
 		// it is not error, just can not optimize
 		log.out() << err.what() << endl;

@@ -152,7 +152,11 @@
                 "--wcpl",
                 "15",
                 "--submat_limit",
-                "1024"
+                "1024",
+                "--cuts_fun",
+                "pureint",
+                "--trials_num",
+                "1"
             ],
             "stopAtEntry": false,
             "cwd": "${command:cmake.launchTargetDirectory}",
