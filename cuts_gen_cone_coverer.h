@@ -81,7 +81,7 @@ namespace ILPCuts
 
             for (const auto &mat : mat_pool)
             {
-                append_cuts(Internal::generate_cuts_from_row_matrix__pure_int(mat.transpose(), LocalInstance,
+                append_cuts(Internal::generate_cuts_from_row_matrix__pure_int(mat.transpose(), inst(),
                                                                               tolerance, err_tolerance));
             }
 
@@ -94,9 +94,9 @@ namespace ILPCuts
 
         void generate_cuts() override
         {
-            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(LocalInstance.c));
+            cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(inst().c));
 
-            auto mat_pool = cone_coverer_ptr->generate_cuts(LocalInstance.A.transpose().unaryExpr(rat_to_int));
+            auto mat_pool = cone_coverer_ptr->generate_cuts(inst().A.transpose().unaryExpr(rat_to_int));
 
             cone_coverer_ptr->direction_strategies.pop_back();
 

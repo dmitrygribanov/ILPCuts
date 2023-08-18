@@ -20,6 +20,8 @@ namespace ILPCuts
 
 			IsLazy is_lazy = IsLazy::off;
 
+			local_instance LocalInstance;
+
 			std::unique_ptr<generator_base> generator_ptr;
 
 		private:
@@ -84,7 +86,7 @@ namespace ILPCuts
 			}
 			void add_cuts(IloCplex cplex, IloNumVarArray vars);
 			void add_cuts(CPXCENVptr env, void *cbdata, int wherefrom);
-			void generate_cuts(local_instance inst);
+			void generate_cuts();
 
 			local_instance extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
@@ -100,11 +102,11 @@ namespace ILPCuts
 				Timer timer;
 				timer.start();
 
-				local_instance inst = extract_problem_info(env, lp);
+				LocalInstance = extract_problem_info(env, lp);
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(std::move(inst));
+				generate_cuts();
 			}
 			void generate_cuts(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 			{
@@ -116,11 +118,11 @@ namespace ILPCuts
 				Timer timer;
 				timer.start();
 
-				local_instance inst = extract_problem_info(cplex, obj, constrs, vars);
+				LocalInstance = extract_problem_info(cplex, obj, constrs, vars);
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(std::move(inst));
+				generate_cuts();
 			}
 			void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
 
@@ -638,13 +640,13 @@ namespace ILPCuts
 			}
 		}
 
-		void CPlexAdapter::generate_cuts(local_instance inst)
+		void CPlexAdapter::generate_cuts()
 		{
 			Timer timer;
 			timer.start();
 			out() << "cutting plane generation is started..." << endl;
 
-			generator_ptr->LocalInstance = std::move(inst);
+			generator_ptr->LocalInstance = &LocalInstance;
 			generator_ptr->generate_cuts();
 
 			out() << "cutting plane generation is finished,\n"

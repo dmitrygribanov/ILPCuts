@@ -36,12 +36,14 @@ namespace ILPCuts
     class cuts_gen_base : public base_alg
     {
     public:
-        local_instance LocalInstance;
+        local_instance *LocalInstance;
 
     protected:
         std::vector<cut_info> _resulting_cuts;
 
     public:
+        local_instance &inst() { return *LocalInstance; }
+
         cuts_gen_base(logger &a_log) : base_alg(a_log) {}
 
         logger::stream &out()
@@ -127,7 +129,7 @@ namespace ILPCuts
 
         void check_pure_int_cuts_validity()
         {
-            is_mat AT = LocalInstance.A.transpose().unaryExpr(rat_to_int);
+            is_mat AT = inst().A.transpose().unaryExpr(rat_to_int);
 
             size_t n = AT.cols();
             assert(n > 0);
@@ -148,7 +150,7 @@ namespace ILPCuts
                     }
                 }
 
-                if (abs(cut.ray.cast<rational_type>().dot(LocalInstance.v) - cut.precut_rhs) > err_tolerance)
+                if (abs(cut.ray.cast<rational_type>().dot(inst().v) - cut.precut_rhs) > err_tolerance)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";

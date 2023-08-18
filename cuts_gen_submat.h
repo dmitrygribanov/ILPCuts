@@ -61,7 +61,7 @@ namespace ILPCuts
         size_t trials_num = 1;
 
         std::mt19937 &rgen() const { return *_cuts_gen_ref.rgen; }
-        const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
+        const local_instance &inst() const { return _cuts_gen_ref.inst(); }
 
         RandomNondegRowsGen(cuts_gen_base &cuts_gen_ref)
             : _cuts_gen_ref(cuts_gen_ref) {}
@@ -98,7 +98,7 @@ namespace ILPCuts
         size_t trials_num = 1;
 
         std::mt19937 &rgen() const { return *_cuts_gen_ref.rgen; }
-        const local_instance &inst() const { return _cuts_gen_ref.LocalInstance; }
+        const local_instance &inst() const { return _cuts_gen_ref.inst(); }
 
         RandomIntVarsColsGen(cuts_gen_base &cuts_gen_ref)
             : _cuts_gen_ref(cuts_gen_ref) {}
@@ -365,7 +365,7 @@ namespace ILPCuts
 
         is_mat complete_by_zeros(const is_mat &base_mat, const std::vector<size_t> &var_idxs)
         {
-            size_t n = LocalInstance.get_num_vars();
+            size_t n = inst().get_num_vars();
 
             is_mat res(n, base_mat.cols());
 
@@ -396,7 +396,7 @@ namespace ILPCuts
 
         void generate_cuts() override
         {
-            size_t n = LocalInstance.get_num_vars();
+            size_t n = inst().get_num_vars();
             std::vector<submat_idxs> submat_trials = submat_gen(submat_size_fun);
 
             for (size_t trial_i = 0; trial_i < submat_trials.size(); ++trial_i)
@@ -404,11 +404,11 @@ namespace ILPCuts
                 std::vector<size_t> rows, cols;
                 std::tie(rows, cols) = submat_trials[trial_i];
 
-                rs_mat subA = Utility::generate_submatrix_byidx(LocalInstance.A, rows, cols);
-                // is_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
+                rs_mat subA = Utility::generate_submatrix_byidx(inst().A, rows, cols);
+                // is_mat rowSubA = Utility::generate_row_submatrix_byidx(inst().A, rows);
 
-                rs_vec t = LocalInstance.solve_ATX_eq_b(log, LocalInstance.c);
-                // rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
+                rs_vec t = inst().solve_ATX_eq_b(log, inst().c);
+                // rs_vec t = Utility::system_solve<rational_type>(inst().A.transpose(), inst().c);
                 rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
                 rs_vec c_proj = subA.cast<rational_type>().transpose() * t_proj;
 
@@ -425,7 +425,7 @@ namespace ILPCuts
                 {
                     is_mat cutsBaseMat = complete_by_zeros(subM_pool[i], cols);
 
-                    append_cuts(Internal::generate_split_cuts_from_base_ineq(log, LocalInstance, cutsBaseMat,
+                    append_cuts(Internal::generate_split_cuts_from_base_ineq(log, inst(), cutsBaseMat,
                                                                              tolerance, err_tolerance));
                 }
             }
@@ -451,7 +451,7 @@ namespace ILPCuts
 
         void generate_cuts() override
         {
-            size_t n = LocalInstance.get_num_vars();
+            size_t n = inst().get_num_vars();
             std::vector<submat_idxs> submat_trials = submat_gen(submat_size_fun);
 
             for (size_t trial_i = 0; trial_i < submat_trials.size(); ++trial_i)
@@ -459,11 +459,11 @@ namespace ILPCuts
                 std::vector<size_t> rows, cols;
                 std::tie(rows, cols) = submat_trials[trial_i];
 
-                rs_mat subA = Utility::generate_submatrix_byidx(LocalInstance.A, rows, cols);
-                rs_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows);
+                rs_mat subA = Utility::generate_submatrix_byidx(inst().A, rows, cols);
+                rs_mat rowSubA = Utility::generate_row_submatrix_byidx(inst().A, rows);
 
-                rs_vec t = LocalInstance.solve_ATX_eq_b(log, LocalInstance.c);
-                // rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
+                rs_vec t = inst().solve_ATX_eq_b(log, inst().c);
+                // rs_vec t = Utility::system_solve<rational_type>(inst().A.transpose(), inst().c);
                 rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
                 rs_vec c_proj = subA.cast<rational_type>().transpose() * t_proj;
 
@@ -488,7 +488,7 @@ namespace ILPCuts
 
                     rs_mat cutsBaseMat = T * rowSubA;
 
-                    append_cuts(Internal::generate_MIR_cuts_from_base_ineq(LocalInstance, cutsBaseMat, cols,
+                    append_cuts(Internal::generate_MIR_cuts_from_base_ineq(inst(), cutsBaseMat, cols,
                                                                            tolerance, err_tolerance));
                 }
             }
@@ -524,12 +524,12 @@ namespace ILPCuts
                 const auto &rows = rows_trials[trial_i];
                 out() << "Trial index: " << trial_i << endl;
 
-                is_mat rowSubA = Utility::generate_row_submatrix_byidx(LocalInstance.A, rows).unaryExpr(rat_to_int);
+                is_mat rowSubA = Utility::generate_row_submatrix_byidx(inst().A, rows).unaryExpr(rat_to_int);
                 out() << "Row submatrix generation is finished..." << endl;
 
                 timer.start();
                 out() << "c-vector projecting is satrted..." << endl;
-                rs_vec t = Utility::system_solve<rational_type>(LocalInstance.A.transpose(), LocalInstance.c);
+                rs_vec t = Utility::system_solve<rational_type>(inst().A.transpose(), inst().c);
                 is_vec t_proj = Utility::generate_subvector_byidx(t, rows).unaryExpr(Utility::Ceil_Unary<rational_type>()).cast<int_type>();
                 // rs_vec c_proj = rowSubA.cast<rational_type>().transpose() * t_proj;
                 is_vec c_proj = rowSubA.transpose() * t_proj;
