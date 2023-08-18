@@ -140,20 +140,16 @@ namespace ILPCuts
 
         void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
         {
-            rs_vec t = solve_ATX_eq_b(log, c);
+            check_decomposition(log);
 
             bool is_updated = false;
 
-            for (typename rs_vec::InnerIterator it(t); it; ++it)
-            {
-                if (it.value() < 0 && !is_zero(it.value(), tolerance))
-                {
-                    A.col(it.index()) = -A.col(it.index());
-                }
-            }
+            std::tie(is_updated, A) = Utility::adjust_normal_cone(std::move(A), c, tolerance, *decomp_LU);
 
             if (is_updated)
+            {
                 decomp_LU.release();
+            }
         }
 
         void adjust_normal_cone(logger &log, double tolerance)

@@ -300,6 +300,64 @@ namespace ILPCuts
 
             return cols;
         }
+
+        // void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
+        // {
+        //     rs_vec t = solve_ATX_eq_b(log, c);
+
+        //     bool is_updated = false;
+
+        //     for (typename rs_vec::InnerIterator it(t); it; ++it)
+        //     {
+        //         if (it.value() < 0 && !is_zero(it.value(), tolerance))
+        //         {
+        //             A.col(it.index()) = -A.col(it.index());
+        //         }
+        //     }
+
+        //     if (is_updated)
+        //         decomp_LU.release();
+        // }
+
+        // void adjust_normal_cone(logger &log, double tolerance)
+        // {
+        //     adjust_normal_cone(log, c, tolerance);
+        // }
+
+        template <typename T, typename solverT>
+        std::tuple<bool, SparseMatrix<T>> adjust_normal_cone(SparseMatrix<T> A, const SparseVector<T> &c, double tolerance, solverT &solver)
+        {
+            using rational_type = T;
+            using rs_mat = SparseMatrix<T>;
+            using rs_vec = SparseVector<T>;
+
+            rs_vec t = solver.solve(c);
+            bool is_updated = false;
+
+            for (typename rs_vec::InnerIterator it(t); it; ++it)
+            {
+                if (it.value() < 0 && !ILPCuts::is_zero(it.value(), tolerance))
+                {
+                    A.col(it.index()) = -A.col(it.index());
+                    is_updated = true;
+                }
+            }
+
+            return std::make_tuple(is_updated, std::move(A));
+        }
+
+        template <typename T>
+        std::tuple<bool, SparseMatrix<T>> adjust_normal_cone(SparseMatrix<T> A, const SparseVector<T> &c, double tolerance)
+        {
+            using rational_type = T;
+            using rs_mat = SparseMatrix<T>;
+            using solver_type = SparseLU<rs_mat, COLAMDOrdering<int>>;
+
+            solver_type solver(A);
+
+            return std::move(adjust_normal_cone<T, solver_type>(A, c, tolerance, solver));
+        }
+
     } // namespace Utility
 
 } // namespace ILPCuts
