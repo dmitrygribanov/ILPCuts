@@ -360,6 +360,13 @@ namespace ILPCuts
     template <typename SubmatSizeFunT = DimSizeGen, typename SubmatGenT = RandomIntVarsSubmatGen>
     class Split_SubmatCutsGen : public ConeCoverCutsGenerator
     {
+    public:
+        enum class Mode
+        {
+            Gready,
+            Fractional
+        } mode = Mode::Gready;
+
     private:
         using base = ConeCoverCutsGenerator;
 
@@ -385,6 +392,40 @@ namespace ILPCuts
             return res;
         }
 
+        std::vector<is_mat> generate_cone_cover_pool(const std::vector<size_t> rows, const std::vector<size_t> cols)
+        {
+            rs_mat subA = Utility::generate_submatrix_byidx(inst().A, rows, cols);
+            // is_mat rowSubA = Utility::generate_row_submatrix_byidx(inst().A, rows);
+
+            if (mode == Mode::Gready)
+            {
+                rs_vec t = inst().solve_ATX_eq_b(log, inst().c);
+                // rs_vec t = Utility::system_solve<rational_type>(inst().A.transpose(), inst().c);
+                rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
+                rs_vec c_proj = subA * t_proj;
+
+                cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(c_proj));
+            }
+            else // mode == Mode::Fractional
+            {
+                size_t index_of_most_frac_comp = inst().get_index_of_most_fractional_vcomp(cols, tolerance);
+                rs_vec ei_vec(cols.size());
+                ei_vec.insert(index_of_most_frac_comp) = 1.0;
+
+                cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(ei_vec));
+
+                bool is_changed = false;
+                std::tie(is_changed, subA) = Utility::adjust_normal_cone<rational_type>(subA.transpose(), ei_vec, tolerance);
+                subA = subA.transpose().eval();
+            }
+
+            auto res_pool = cone_coverer_ptr->generate_cuts(subA.transpose().unaryExpr(rat_to_int));
+
+            cone_coverer_ptr->direction_strategies.pop_back();
+
+            return res_pool;
+        }
+
     public:
         SubmatSizeFunT submat_size_fun;
         SubmatGenT submat_gen;
@@ -404,19 +445,7 @@ namespace ILPCuts
                 std::vector<size_t> rows, cols;
                 std::tie(rows, cols) = submat_trials[trial_i];
 
-                rs_mat subA = Utility::generate_submatrix_byidx(inst().A, rows, cols);
-                // is_mat rowSubA = Utility::generate_row_submatrix_byidx(inst().A, rows);
-
-                rs_vec t = inst().solve_ATX_eq_b(log, inst().c);
-                // rs_vec t = Utility::system_solve<rational_type>(inst().A.transpose(), inst().c);
-                rs_vec t_proj = Utility::generate_subvector_byidx(t, rows);
-                rs_vec c_proj = subA.cast<rational_type>().transpose() * t_proj;
-
-                cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::SpecifiedDirection>(c_proj));
-
-                auto subM_pool = cone_coverer_ptr->generate_cuts(subA.transpose().unaryExpr(rat_to_int));
-
-                cone_coverer_ptr->direction_strategies.pop_back();
+                auto subM_pool = generate_cone_cover_pool(rows, cols);
 
                 //--------------------------------------------------------------------
 

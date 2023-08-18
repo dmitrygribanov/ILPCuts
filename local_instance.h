@@ -60,6 +60,34 @@ namespace ILPCuts
         rs_vec varsLB;
         rs_vec varsUB;
 
+        size_t get_index_of_most_fractional_vcomp(const vector<size_t> &idxs, double tolerance) const
+        {
+            rs_vec sub_v = Utility::generate_subvector_byidx(v, idxs);
+            rs_vec floor_sub_v = sub_v.unaryExpr(Utility::Floor_Unary<rational_type>());
+            rs_vec frac_sub_v = sub_v - floor_sub_v;
+
+            assert(idxs.size() > 0);
+
+            size_t res_index = 0;
+            rational_type max_frac_part = 0.0;
+
+            for (typename rs_vec::InnerIterator it(frac_sub_v); it; ++it)
+            {
+                if (!is_zero(it.value(), tolerance))
+                {
+                    if (it.value() > max_frac_part)
+                    {
+                        max_frac_part = it.value();
+                        res_index = it.index();
+                    }
+                }
+            }
+
+            assert(max_frac_part > 0.0);
+
+            return res_index;
+        }
+
         size_t get_num_vars() const { return A.cols(); }
 
         // logger::stream &out()
