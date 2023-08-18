@@ -28,7 +28,8 @@ void check_input_params(
 	string cplex_cuts_param,
 	string scaling,
 	string model_cuts_switch,
-	string cuts_fun_type)
+	string cuts_fun_type,
+	string split_mode)
 {
 	if (tolerance <= 0.0)
 	{
@@ -120,6 +121,13 @@ void check_input_params(
 				  << cuts_fun_type << std::endl;
 		exit(0);
 	}
+
+	if (split_mode != "gready" && split_mode != "fract")
+	{
+		log.out() << "Wrong value of the CLI parameter --split_mode: "
+				  << split_mode << std::endl;
+		exit(0);
+	}
 }
 
 void run_cplex_experiment(
@@ -147,7 +155,8 @@ void run_cplex_experiment(
 	double cuts_tl,
 	size_t cuts_generation_submat_size_limit,
 	string cuts_fun_type,
-	size_t row_trials_num)
+	size_t row_trials_num,
+	string split_mode)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -220,6 +229,20 @@ void run_cplex_experiment(
 	if (cuts_fun_type == "split")
 	{
 		cuts_gen_adapter.generator_ptr = std::make_unique<SplitCutsGen_RWDS>(log);
+		if (split_mode == "gready")
+		{
+			static_cast<SplitCutsGen_RWDS *>(cuts_gen_adapter.generator_ptr.get())->mode = SplitCutsGen_RWDS::Mode::Gready;
+		}
+		else if (split_mode == "fract")
+		{
+			static_cast<SplitCutsGen_RWDS *>(cuts_gen_adapter.generator_ptr.get())->mode = SplitCutsGen_RWDS::Mode::Fractional;
+		}
+		else
+		{
+			log.out() << "Wrong value of the CLI parameter --split_mode: "
+					  << split_mode << std::endl;
+			exit(0);
+		}
 	}
 	else if (cuts_fun_type == "hermite")
 	{
@@ -489,6 +512,10 @@ int main(int argc, char **argv)
 		.help("number of trials to choose rows for cut generation")
 		.scan<'i', size_t>();
 
+	program.add_argument("--split_mode")
+		.default_value(std::string("gready"))
+		.help("Mode of split-cut generation; can be \"gready\" or \"fract\"");
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -520,7 +547,8 @@ int main(int argc, char **argv)
 			program.get<string>("--cplex_cuts"),
 			program.get<string>("--scaling"),
 			program.get<string>("--model_cuts"),
-			program.get<string>("--cuts_fun"));
+			program.get<string>("--cuts_fun"),
+			program.get<string>("--split_mode"));
 
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -559,7 +587,8 @@ int main(int argc, char **argv)
 			program.get<double>("--cuts_tl"),
 			program.get<size_t>("--submat_limit"),
 			program.get<string>("--cuts_fun"),
-			program.get<size_t>("--trials_num"));
+			program.get<size_t>("--trials_num"),
+			program.get<string>("--split_mode"));
 	}
 	catch (const FractionalElementException &err)
 	{

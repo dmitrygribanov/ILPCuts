@@ -133,8 +133,8 @@ map<string, SolutionInfo> init_solutions_map()
         res[item.first];
     }
     res["none"];
+    res["defaoult"];
     res["all"];
-    res["all(force)"];
 
     return res;
 }
@@ -303,11 +303,20 @@ void run_cplex_experiment(
 
         std::unique_ptr<CutsGen_CC> cuts_gen_base;
 
-        if (conf_name == "my(split)")
+        if (conf_name == "my(splitg)" || conf_name == "my(splitf)")
         {
             std::unique_ptr<SplitCutsGen_RWDS> split_cuts_gen = std::make_unique<SplitCutsGen_RWDS>(log);
             split_cuts_gen->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
             split_cuts_gen->submat_gen.trials_num = row_trials_num;
+
+            if (conf_name == "my(splitg)")
+            {
+                split_cuts_gen->mode = SplitCutsGen_RWDS::Mode::Gready;
+            }
+            else // conf_name == "my(splitf)"
+            {
+                split_cuts_gen->mode = SplitCutsGen_RWDS::Mode::Fractional;
+            }
 
             cuts_gen_base = std::move(split_cuts_gen);
         }
@@ -391,10 +400,14 @@ void run_cplex_experiment(
     };
 
     // adding some hybrid solutions-configurations
-    add_hybrid_solution("my(split)", "my(split)", "none");
+    add_hybrid_solution("my(splitg)", "my(splitg)", "none");
+    add_hybrid_solution("my(splitg)", "my(splitg)+all", "all");
+
+    add_hybrid_solution("my(splitf)", "my(splitf)", "none");
+    add_hybrid_solution("my(splitf)", "my(splitf)+all", "all");
+
     add_hybrid_solution("my(mir)", "my(mir)", "none");
-    add_hybrid_solution("my(split)", "my(split)+all", "all(force)");
-    add_hybrid_solution("my(mir)", "my(mir)+all", "all(force)");
+    add_hybrid_solution("my(mir)", "my(mir)+all", "all");
 
     // printing the result into comparison_results
     env.out() << "\n";

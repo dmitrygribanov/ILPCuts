@@ -57,7 +57,7 @@ namespace ILPCuts
 
             bool check_name(string name) const
             {
-                return name != "all(force)" && name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
+                return name != "defaoult" && name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
             }
 
             void restore_params(IloCplex cplex) const
@@ -71,8 +71,8 @@ namespace ILPCuts
                 // restore params to default if they were changed before
                 restore_params(cplex);
 
-                // if all-type is used, we run defoult cplex solver
-                if (name != "all")
+                // if defaoult-type is used, we run defoult cplex solver
+                if (name != "defaoult")
                 {
                     // in the opposite case, if type == none, we turn off all cplex cuts
                     if (name == "none")
@@ -80,12 +80,12 @@ namespace ILPCuts
                         for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
                             cplex.setParam(types_iter->second, -1);
                     }
-                    else if (name == "all(force)")
+                    else if (name == "all")
                     {
                         for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
                             cplex.setParam(types_iter->second, 2);
                     }
-                    // if type != none and all(force), we turn off all cuts except (cplex_cuts_param)-variable
+                    // if type != none and all, we turn off all cuts except (cplex_cuts_param)-variable
                     // the last is set to agressive(=2) switch
                     else
                     {
