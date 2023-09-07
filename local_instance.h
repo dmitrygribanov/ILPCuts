@@ -172,7 +172,9 @@ namespace ILPCuts
 
             bool is_updated = false;
 
-            std::tie(is_updated, A) = Utility::adjust_normal_cone(std::move(A), c, tolerance, *decomp_LU);
+            std::tie(is_updated, A) = Utility::adjust_normal_cone(std::move(A.transpose()), c, tolerance, decomp_LU->transpose());
+
+            A = A.transpose().eval();
 
             if (is_updated)
             {
@@ -184,6 +186,35 @@ namespace ILPCuts
         {
             adjust_normal_cone(log, c, tolerance);
         }
+
+        // void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
+        // {
+        //     rs_vec t = solve_ATX_eq_b(log, c);
+
+        //     bool is_updated = false;
+
+        //     A = A.transpose().eval();
+
+        //     for (typename rs_vec::InnerIterator it(t); it; ++it)
+        //     {
+        //         if (it.value() < 0 && !is_zero(it.value(), tolerance))
+        //         {
+        //             A.col(it.index()) = -A.col(it.index());
+
+        //             is_updated = true;
+        //         }
+        //     }
+
+        //     A = A.transpose().eval();
+
+        //     if (is_updated)
+        //         decomp_LU.release();
+        // }
+
+        // void adjust_normal_cone(logger &log, double tolerance)
+        // {
+        //     adjust_normal_cone(log, c, tolerance);
+        // }
 
         // size_t get_num_constr() const { return A.rows(); }
     };
