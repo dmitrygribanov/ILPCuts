@@ -57,7 +57,7 @@ namespace ILPCuts
 
             bool check_name(string name) const
             {
-                return name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
+                return name != "defaoult" && name != "all" && name != "none" && _names_map.find(name) == _names_map.end();
             }
 
             void restore_params(IloCplex cplex) const
@@ -71,8 +71,8 @@ namespace ILPCuts
                 // restore params to default if they were changed before
                 restore_params(cplex);
 
-                // if all-type is used, we run defoult cplex solver
-                if (name != "all")
+                // if defaoult-type is used, we run defoult cplex solver
+                if (name != "defaoult")
                 {
                     // in the opposite case, if type == none, we turn off all cplex cuts
                     if (name == "none")
@@ -80,7 +80,12 @@ namespace ILPCuts
                         for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
                             cplex.setParam(types_iter->second, -1);
                     }
-                    // if type != none, we turn off all cuts except (cplex_cuts_param)-variable
+                    else if (name == "all")
+                    {
+                        for (auto types_iter = _names_map.begin(); types_iter != _names_map.end(); ++types_iter)
+                            cplex.setParam(types_iter->second, 2);
+                    }
+                    // if type != none and all, we turn off all cuts except (cplex_cuts_param)-variable
                     // the last is set to agressive(=2) switch
                     else
                     {
@@ -100,10 +105,29 @@ namespace ILPCuts
         {
         public:
             FractionalElementException()
-                : Exception("ILPCuts lib error: fractional element in A-matrix has been found") {}
+                : Exception("ILPCuts lib error: fractional element in A-matrix has been found.") {}
 
-            FractionalElementException(std::string msg)
-                : Exception(msg) {}
+            FractionalElementException(size_t base_row_idx, size_t col_idx, double val)
+                : Exception(std::string("ILPCuts lib error: fracttional elemen in A has located;\n") +
+                            "ConstrNum = " + std::to_string(base_row_idx) + "\n" +
+                            "VarNum = " + std::to_string(col_idx) + "\n" +
+                            "value = " + std::to_string(val))
+            {
+            }
+        };
+
+        class SemiVariableException : public Exception
+        {
+        public:
+            SemiVariableException()
+                : Exception("ILPCuts lib error: the problem contains semi-integer/continuous variables.")
+            {
+            }
+
+            SemiVariableException(size_t varID, char type)
+                : Exception("ILPCuts lib error: the problem contains semi-integer/continuous variables, varID = " + std::to_string(varID) + ", type = " + type)
+            {
+            }
         };
 
         IloNumVarArray extract_vars(IloEnv env, IloModel model)

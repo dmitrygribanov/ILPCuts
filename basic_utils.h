@@ -7,6 +7,7 @@
 #include <sstream>
 #include <future>
 #include <thread>
+#include <cassert>
 #include <functional>
 
 #include "numeric_module.h"
@@ -337,6 +338,37 @@ namespace ILPCuts
 		string sparse_vec_to_str(const SparseVector<valT> &v)
 		{
 			return dense_vec_to_str(conv<SparseVector<valT>, vector<valT>>::make(v));
+		}
+
+		template <typename T>
+		std::vector<size_t> get_indices_of_nonzero_columns(const SparseMatrix<T> &A)
+		{
+			std::vector<size_t> res;
+
+			for (size_t j = 0; j < A.cols(); ++j)
+			{
+				SparseVector<T> col = A.col(j);
+				if (!is_zero(col))
+				{
+					res.push_back(j);
+				}
+			}
+
+			return res;
+		}
+
+		std::vector<size_t> idxs_set_complement(size_t base, std::vector<size_t> idxs)
+		{
+			std::vector<size_t> universe(base);
+			std::iota(universe.begin(), universe.end(), 0);
+
+			std::vector<size_t> res;
+
+			std::set_difference(universe.begin(), universe.end(),
+								idxs.begin(), idxs.end(),
+								std::back_inserter(res));
+
+			return res;
 		}
 	} // namespace Utility
 } // namespace ILPCuts

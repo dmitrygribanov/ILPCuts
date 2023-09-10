@@ -10,8 +10,7 @@
 #include <NTL/mat_ZZ.h>
 #include <NTL/HNF.h>
 
-#include <eigen3/Eigen/Core>
-
+#include "dependencies/Eigen/Core"
 namespace Eigen
 {
     template <>
@@ -386,5 +385,6 @@ namespace ILPCuts
 
             return conv<mat_ZZ, SparseMatrix<int_type>>::make(H_ntl);
         }
+
     } // namespace ModuleNTL
 } // namespace ILPCuts

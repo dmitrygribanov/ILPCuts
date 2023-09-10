@@ -2,7 +2,9 @@
 
 #include <vector>
 
-#include "numeric_module.h"
+// #include "numeric_module.h"
+#include "Eigen_solving_utilities.h"
+#include "ntl_module.h"
 
 namespace ILPCuts
 {
@@ -15,13 +17,205 @@ namespace ILPCuts
             Rat
         };
 
-        is_mat A;
-        is_vec b;
+        using decomp_type = SparseLU<rs_mat, COLAMDOrdering<int>>;
+
+        std::unique_ptr<lint_type> det;
+        std::unique_ptr<decomp_type> decomp_LU;
+        // logger *log;
+
+        local_instance(/*logger *alog = nullptr*/) /*: log(alog)*/ {}
+
+        local_instance(/*logger *alog,*/ size_t n)
+            : /*log(alog),*/ A(n, n), c(n), v(n), varsLB(n), varsUB(n), ILP_var_types(n)
+        {
+        }
+
+        local_instance(local_instance &&u)
+            : /*log(alog),*/ A(std::move(u.A)), c(std::move(u.c)), v(std::move(u.v)),
+              ILP_var_types(std::move(u.ILP_var_types)), varsLB(std::move(u.varsLB)), varsUB(std::move(u.varsUB)),
+              det(std::move(u.det)), decomp_LU(std::move(u.decomp_LU))
+        {
+        }
+
+        local_instance &operator=(local_instance &&u)
+        {
+            // log = u.log;
+            A = std::move(u.A);
+            c = std::move(u.c);
+            v = std::move(u.v);
+            ILP_var_types = std::move(u.ILP_var_types);
+            varsLB = std::move(u.varsLB);
+            varsUB = std::move(u.varsUB);
+            det = std::move(u.det);
+            decomp_LU = std::move(u.decomp_LU);
+
+            return *this;
+        }
+
+        rs_mat A;
+        // is_vec b;
         rs_vec c;
         rs_vec v;
         std::vector<var_ILP_type> ILP_var_types;
+        rs_vec varsLB;
+        rs_vec varsUB;
+
+        size_t get_index_of_most_fractional_vcomp(const vector<size_t> &idxs, double tolerance) const
+        {
+            rs_vec sub_v = Utility::generate_subvector_byidx(v, idxs);
+            rs_vec floor_sub_v = sub_v.unaryExpr(Utility::Floor_Unary<rational_type>());
+            rs_vec frac_sub_v = sub_v - floor_sub_v;
+
+            assert(idxs.size() > 0);
+
+            size_t res_index = 0;
+            rational_type max_frac_part = 0.0;
+
+            for (typename rs_vec::InnerIterator it(frac_sub_v); it; ++it)
+            {
+                if (!is_zero(it.value(), tolerance))
+                {
+                    if (it.value() > max_frac_part)
+                    {
+                        max_frac_part = it.value();
+                        res_index = it.index();
+                    }
+                }
+            }
+
+            assert(max_frac_part > 0.0);
+
+            return res_index;
+        }
 
         size_t get_num_vars() const { return A.cols(); }
-        size_t get_num_constr() const { return A.rows(); }
+
+        // logger::stream &out()
+        // {
+        //     log->out() << "ILPCuts-LocalInstance: ";
+        //     return log->out();
+        // }
+
+        const lint_type &get_det(logger &log, double err_tolerance)
+        {
+            if (!det)
+            {
+                LRatToLInt_Unary lrat_to_lint(err_tolerance);
+                // check_decomposition(log);
+
+                log.out() << "ILPCuts-LocalInstance: determinant computation is started ..." << endl;
+                Timer timer;
+                timer.start();
+
+                // det = std::make_unique<lint_type>(lrat_to_lint(decomp_LU->absDeterminant()));
+                //  lint_type det = _lrat_to_lint(Utility::compute_abs_det(A.cast<lrational_type>().eval()));
+                det = std::make_unique<lint_type>(ModuleNTL::det(A.cast<lint_type>().eval()));
+                // lint_type det;
+                // ModuleFlint::compute_det(A.cast<lint_type>().eval(), det);
+                // //  lint_type det = Utility::LinBox::compute_det(A.cast<lint_type>().eval());
+
+                log.out() << "determinant computation time: " << timer.finish_str()
+                          << "determinant is: " << *det << endl;
+            }
+
+            return *det;
+        }
+
+        void check_decomposition(logger &log)
+        {
+            if (!decomp_LU)
+            {
+                Timer timer;
+                timer.start();
+                log.out() << "ILPCuts-LocalInstance: LU decomposition computation is started..." << endl;
+
+                decomp_LU = std::make_unique<decomp_type>(A);
+
+                if (decomp_LU->info() != ComputationInfo::Success)
+                    throw Utility::EigenSolveException(decomp_LU->info());
+
+                log.out() << "LU decomposition computation time: " << timer.finish_str();
+            }
+        }
+
+        rs_mat solve_AX_eq_B(logger &log, const rs_mat &B)
+        {
+            check_decomposition(log);
+
+            return decomp_LU->solve(B);
+        }
+
+        rs_mat solve_ATX_eq_B(logger &log, const rs_mat &B)
+        {
+            check_decomposition(log);
+
+            return decomp_LU->transpose().solve(B);
+        }
+
+        rs_vec solve_AX_eq_b(logger &log, const rs_vec &b)
+        {
+            check_decomposition(log);
+
+            return decomp_LU->solve(b);
+        }
+
+        rs_vec solve_ATX_eq_b(logger &log, const rs_vec &b)
+        {
+            check_decomposition(log);
+
+            return decomp_LU->transpose().solve(b);
+        }
+
+        void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
+        {
+            check_decomposition(log);
+
+            bool is_updated = false;
+
+            std::tie(is_updated, A) = Utility::adjust_normal_cone(std::move(A.transpose()), c, tolerance, decomp_LU->transpose());
+
+            A = A.transpose().eval();
+
+            if (is_updated)
+            {
+                decomp_LU.release();
+            }
+        }
+
+        void adjust_normal_cone(logger &log, double tolerance)
+        {
+            adjust_normal_cone(log, c, tolerance);
+        }
+
+        // void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
+        // {
+        //     rs_vec t = solve_ATX_eq_b(log, c);
+
+        //     bool is_updated = false;
+
+        //     A = A.transpose().eval();
+
+        //     for (typename rs_vec::InnerIterator it(t); it; ++it)
+        //     {
+        //         if (it.value() < 0 && !is_zero(it.value(), tolerance))
+        //         {
+        //             A.col(it.index()) = -A.col(it.index());
+
+        //             is_updated = true;
+        //         }
+        //     }
+
+        //     A = A.transpose().eval();
+
+        //     if (is_updated)
+        //         decomp_LU.release();
+        // }
+
+        // void adjust_normal_cone(logger &log, double tolerance)
+        // {
+        //     adjust_normal_cone(log, c, tolerance);
+        // }
+
+        // size_t get_num_constr() const { return A.rows(); }
     };
 }

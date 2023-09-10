@@ -97,8 +97,8 @@ namespace ILPCuts
                 }
 
                 // checking cuts validity
-                env.out() << "initial validity checking of the generated cuts ..." << endl;
-                cuts_gen_adapter.check_cuts_validity();
+                // env.out() << "initial validity checking of the generated cuts ..." << endl;
+                // cuts_gen_adapter.check_pure_int_cuts_validity();
 
                 // adding cuts to the relaxed model as constraints
                 env.out() << "adding constraints to the relaxed model ..." << endl;

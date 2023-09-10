@@ -73,6 +73,9 @@
         "typeindex": "cpp",
         "*.ipp": "cpp",
         "orderingmethods": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "sparseqr": "cpp",
+        "hash_map": "cpp",
+        "cfenv": "cpp"
     }
 }

@@ -33,7 +33,9 @@ do
     MAX_DIM=${3:-0} #maximal problem dim
     CUTS_TL=${4:-0.0} #cuts gen time limit in minutes
     CPLEX_TL=${5:-0.0} #cplex time limit in minutes
-    CUTS_GEN_ROUNDS=${6:-1} #number of cuts generation iterations
+    SUBMAT_SIZE_LIM=${6:-0.0} #maximal size of square submat to generate conic cover cuts
+    ROW_TRIALS_NUM=${7:-1} #number of row trials to generate cuts
+    CUTS_GEN_ROUNDS=${8:-1} #number of cuts generation iterations
     CUTS_TL=`echo "$CUTS_TL * 60" | bc` #transforming into TL in seconds
     CPLEX_TL=`echo "$CPLEX_TL * 60" | bc` #transforming into TL in seconds
     LOGF=${FNAME}_log.txt #out log file name
@@ -42,8 +44,8 @@ do
     echo "#-------------------------------------------------------" >> $OUTPUT_SCRIPT
     echo "#$FNAME" >> $OUTPUT_SCRIPT
     echo "#-------------------------------------------------------" >> $OUTPUT_SCRIPT
-    echo ../CPlexConsole -i ../$PROB_PATH -o $LOGF --cuts_output $CUTSF --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS \
-    --cplex_tl $CPLEX_TL --cuts_tl $CUTS_TL --min_dim $MIN_DIM --max_dim $MAX_DIM >> $OUTPUT_SCRIPT
+    echo ../CPlexConsole -i ../$PROB_PATH -o $LOGF --cuts_output $CUTSF --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS --trials_num $ROW_TRIALS_NUM \
+    --cplex_tl $CPLEX_TL --cuts_tl $CUTS_TL --min_dim $MIN_DIM --max_dim $MAX_DIM --submat_limit $SUBMAT_SIZE_LIM >> $OUTPUT_SCRIPT
     echo >> $OUTPUT_SCRIPT
     echo ../CPlexConsole -i ../$PROB_PATH -o $LOGBF -b --wcpl $CPLEX_WS \
     --cplex_tl $CPLEX_TL --min_dim $MIN_DIM --max_dim $MAX_DIM >> $OUTPUT_SCRIPT

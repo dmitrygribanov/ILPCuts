@@ -27,6 +27,23 @@ namespace ILPCuts
         {
         }
 
+        // logger(logger &&u)
+        //     : _log_file_name(std::move(u._log_file_name)), _file(std::move(u._file)), _tee_dev(std::move(u._tee_dev)),
+        //       _stream(u._stream), _empty_stream(u._empty_stream)
+        // {
+        // }
+
+        // logger &operator=(logger &&u)
+        // {
+        //     _log_file_name = std::move(u._log_file_name);
+        //     _file = std::move(u._file);
+        //     _tee_dev.= u._tee_dev;
+        //     _stream = u._stream;
+        //     _empty_stream = u._empty_stream;
+
+        //     return *this;
+        // }
+
         string get_log_file_name() const { return _log_file_name; }
 
         void reset_output_file(string log_file_name)

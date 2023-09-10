@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cuts_gen_cone_coverer.h"
+#include "cuts_gen_base.h"
 #include "cplex_utils.h"
 namespace ILPCuts
 {
@@ -9,7 +9,7 @@ namespace ILPCuts
 		class CPlexAdapter
 		{
 		public:
-			using generator_base = ConeCoverCutsGenerator;
+			using generator_base = cuts_gen_base;
 
 			enum class IsLazy
 			{
@@ -19,6 +19,8 @@ namespace ILPCuts
 			};
 
 			IsLazy is_lazy = IsLazy::off;
+
+			local_instance LocalInstance;
 
 			std::unique_ptr<generator_base> generator_ptr;
 
@@ -40,32 +42,35 @@ namespace ILPCuts
 				return res;
 			}
 
-			using Trilpl = Triplet<int_type>;
-			void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, int_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
+			using Trilpl = Triplet<rational_type>;
+			void _fill_triplets_IloRow(vector<Trilpl> *triplets, IloExpr::LinearIterator *ilo_iter, rational_type sign, size_t basis_i, const map<IloInt, size_t> &var_index_map, const IloRange &constr)
 			{
 				while (ilo_iter->ok())
 				{
 					rational_type coeff = from_IloNum_to_rat(ilo_iter->getCoef());
 
-					int_type coeff_int = 0;
-
-					try
+					if (ilo_iter->getVar().getType() != IloNumVar::Float)
 					{
-						coeff_int = generator_ptr->rat_to_int(coeff);
-					}
-					catch (ToleranceErrorException)
-					{
-						stringstream msg;
-
-						msg << "ILPCuts lib error: fracttional elemen in A has located;\n"
-							<< "ConstrID = " << constr.getId() << "\n"
-							<< "VarID = " << ilo_iter->getVar().getId() << "\n"
-							<< "value = " << coeff;
-
-						throw FractionalElementException(msg.str());
+						if (is_fract(coeff, generator_ptr->err_tolerance))
+						{
+							throw FractionalElementException(constr.getId(), ilo_iter->getVar().getId(), coeff);
+						}
 					}
 
-					triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
+					triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), coeff * sign));
+
+					// int_type coeff_int = 0;
+
+					// try
+					// {
+					// 	coeff_int = generator_ptr->rat_to_int(coeff);
+					// }
+					// catch (ToleranceErrorException)
+					// {
+					// 	throw FractionalElementException(constr.getId(), ilo_iter->getVar().getId(), coeff);
+					// }
+
+					// triplets->push_back(Trilpl(basis_i, var_index_map.at(ilo_iter->getVar().getId()), sign * coeff_int));
 
 					++(*ilo_iter);
 				}
@@ -81,13 +86,11 @@ namespace ILPCuts
 			}
 			void add_cuts(IloCplex cplex, IloNumVarArray vars);
 			void add_cuts(CPXCENVptr env, void *cbdata, int wherefrom);
-			void generate_cuts(is_mat A, rs_vec c, rs_vec optLP);
+			void generate_cuts();
 
-			std::tuple<is_mat, rs_vec, rs_vec>
-			extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
+			local_instance extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars);
 
-			std::tuple<is_mat, rs_vec, rs_vec>
-			extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
+			local_instance extract_problem_info(CPXCENVptr env, CPXCLPptr lp);
 
 			void generate_cuts(CPXCENVptr env, CPXCLPptr lp)
 			{
@@ -99,11 +102,11 @@ namespace ILPCuts
 				Timer timer;
 				timer.start();
 
-				tie(A, c, optLP) = extract_problem_info(env, lp);
+				LocalInstance = extract_problem_info(env, lp);
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(move(A), move(c), move(optLP));
+				generate_cuts();
 			}
 			void generate_cuts(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 			{
@@ -115,11 +118,11 @@ namespace ILPCuts
 				Timer timer;
 				timer.start();
 
-				tie(A, c, optLP) = extract_problem_info(cplex, obj, constrs, vars);
+				LocalInstance = extract_problem_info(cplex, obj, constrs, vars);
 
 				out() << "transformation time: " << timer.finish_str();
 
-				generate_cuts(move(A), move(c), move(optLP));
+				generate_cuts();
 			}
 			void transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr);
 
@@ -149,9 +152,9 @@ namespace ILPCuts
 				generator_ptr->import_cuts(in_file);
 			}
 
-			void check_cuts_validity()
+			void check_pure_int_cuts_validity()
 			{
-				generator_ptr->check_cuts_validity();
+				generator_ptr->check_pure_int_cuts_validity();
 			}
 
 			bool set_lazy(string str_par)
@@ -185,15 +188,28 @@ namespace ILPCuts
 			}
 		};
 
-		std::tuple<is_mat, rs_vec, rs_vec> CPlexAdapter::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
+		local_instance CPlexAdapter::extract_problem_info(IloCplex cplex, IloObjective obj, IloRangeArray constrs, IloNumVarArray vars)
 		{
 			size_t n = vars.getSize();
-
-			is_mat A_basis(n, n);
-			rs_vec optLP(n);
-			rs_vec c(n);
+			local_instance resInst(n);
 
 			auto var_index_map = init_var_index_map(vars);
+
+			out() << "reading var.-types..." << endl;
+			for (size_t i = 0; i < vars.getSize(); ++i)
+			{
+				IloNumVar var = vars[i];
+
+				if (var.getType() == IloNumVar::Float)
+				{
+					resInst.ILP_var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Rat;
+				}
+				else
+				{
+					resInst.ILP_var_types[var_index_map[var.getId()]] = local_instance::var_ILP_type::Int;
+				}
+				// cout << "LB, UB" << var.getLB() << ", " << var.getUB() << endl;
+			}
 
 			out() << "reading objective..." << endl;
 
@@ -203,7 +219,7 @@ namespace ILPCuts
 				{
 					while (iter.ok())
 					{
-						c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(iter.getCoef());
+						resInst.c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(iter.getCoef());
 						++iter;
 					}
 				}
@@ -211,7 +227,7 @@ namespace ILPCuts
 				{
 					while (iter.ok())
 					{
-						c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(-iter.getCoef());
+						resInst.c.insertBack(var_index_map[iter.getVar().getId()]) = from_IloNum_to_rat(-iter.getCoef());
 						++iter;
 					}
 				}
@@ -236,12 +252,12 @@ namespace ILPCuts
 					if (constrs_basis[i] == IloCplex::BasisStatus::AtUpper ||
 						constrs_basis[i] == IloCplex::BasisStatus::AtLower && constr.getLB() == -numeric_limits<IloNum>::infinity())
 					{
-						_fill_triplets_IloRow(&triplets, &iter, 1, basis_i, var_index_map, constr);
+						_fill_triplets_IloRow(&triplets, &iter, 1.0, basis_i, var_index_map, constr);
 						++basis_i;
 					}
 					else if (constrs_basis[i] == IloCplex::BasisStatus::AtLower)
 					{
-						_fill_triplets_IloRow(&triplets, &iter, -1, basis_i, var_index_map, constr);
+						_fill_triplets_IloRow(&triplets, &iter, -1.0, basis_i, var_index_map, constr);
 						++basis_i;
 					}
 				}
@@ -255,14 +271,14 @@ namespace ILPCuts
 					if (vars_basis[i] == IloCplex::BasisStatus::AtUpper)
 					{
 						// cout << "AtUpper Var" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1));
+						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], 1.0));
 						// A_basis(basis_i, var_index_map[var.getId()]) = 1;
 						++basis_i;
 					}
 					else if (vars_basis[i] == IloCplex::BasisStatus::AtLower)
 					{
 						// cout << "AtLower Var" << endl;
-						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1));
+						triplets.push_back(Trilpl(basis_i, var_index_map[var.getId()], -1.0));
 						// A_basis(basis_i, var_index_map[var.getId()]) = -1;
 						++basis_i;
 					}
@@ -277,7 +293,7 @@ namespace ILPCuts
 					throw(Exception(msg.str()));
 				}
 
-				A_basis.setFromTriplets(triplets.begin(), triplets.end());
+				resInst.A.setFromTriplets(triplets.begin(), triplets.end());
 
 				vars_basis.end();
 				constrs_basis.end();
@@ -292,20 +308,35 @@ namespace ILPCuts
 				for (size_t i = 0; i < n; ++i)
 				{
 					if (cplex_optLP[i] != 0)
-						optLP.insertBack(i) = cplex_optLP[i];
+						resInst.v.insertBack(i) = cplex_optLP[i];
 				}
 
 				cplex_optLP.end();
 			}
 
+			{
+				out() << "reading LB and UB for variables..." << endl;
+
+				out() << "reading var.-types..." << endl;
+				for (size_t i = 0; i < vars.getSize(); ++i)
+				{
+					IloNumVar var = vars[i];
+
+					size_t var_idxs = var_index_map[var.getId()];
+					resInst.varsLB.insertBack(var_idxs) = from_IloNum_to_rat(var.getLb());
+					resInst.varsUB.insertBack(var_idxs) = from_IloNum_to_rat(var.getUb());
+				}
+			}
+
 			out() << "normal cone adjusting..." << endl;
 
-			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
+			resInst.adjust_normal_cone(get_logger(), generator_ptr->tolerance);
+			// resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
 
-			return std::make_tuple(A_basis, c, optLP);
+			return resInst;
 		}
 
-		std::tuple<is_mat, rs_vec, rs_vec> CPlexAdapter::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
+		local_instance CPlexAdapter::extract_problem_info(CPXCENVptr env, CPXCLPptr lp)
 		{
 			int status = 0;
 
@@ -313,9 +344,59 @@ namespace ILPCuts
 			n = CPXXgetnumcols(env, lp);
 			m = CPXXgetnumrows(env, lp);
 
-			is_mat A_basis(n, n);
-			rs_vec optLP(n);
-			rs_vec c(n);
+			local_instance resInst(n);
+
+			{
+				out() << "reading var.-types..." << endl;
+				std::vector<char> var_types_C(n, 0);
+				int status = CPXXgetctype(env, lp, var_types_C.data(), 0, n);
+				if (status)
+				{
+					throw Exception(create_err_string("ILPCuts lib error: failed to read var.-types using CPXXgetctype...\n",
+													  env, status));
+				}
+				for (size_t i = 0; i < n; ++i)
+				{
+					if (var_types_C[i] == CPX_CONTINUOUS)
+					{
+						resInst.ILP_var_types[i] = local_instance::var_ILP_type::Rat;
+					}
+					else if (var_types_C[i] == CPX_BINARY || var_types_C[i] == CPX_INTEGER)
+					{
+						resInst.ILP_var_types[i] = local_instance::var_ILP_type::Int;
+					}
+					else
+					{
+						throw SemiVariableException(i, var_types_C[i]);
+					}
+				}
+			}
+
+			{
+				out() << "reading LB and UB for variables..." << endl;
+
+				std::vector<double> LBses_C(n), UBses_C(n);
+
+				int status = CPXXgetlb(env, lp, LBses_C.data(), 0, n);
+				if (status)
+				{
+					throw Exception(create_err_string("ILPCuts lib error: failed to read var's LB'es using CPXXgetlb...\n",
+													  env, status));
+				}
+
+				status = CPXXgetub(env, lp, UBses_C.data(), 0, n);
+				if (status)
+				{
+					throw Exception(create_err_string("ILPCuts lib error: failed to read var's UB'es using CPXXgetub...\n",
+													  env, status));
+				}
+
+				for (size_t i = 0; i < n; ++i)
+				{
+					resInst.varsLB.insertBack(i) = from_IloNum_to_rat(LBses_C[i]);
+					resInst.varsUB.insertBack(i) = from_IloNum_to_rat(UBses_C[i]);
+				}
+			}
 
 			{
 				out() << "reading objective..." << endl;
@@ -340,7 +421,7 @@ namespace ILPCuts
 				{
 					if (abs(C_obj[i]) > numeric_limits<double>::epsilon())
 					{
-						c.insertBack(i) = from_IloNum_to_rat(sence * C_obj[i]);
+						resInst.c.insertBack(i) = from_IloNum_to_rat(sence * C_obj[i]);
 					}
 				}
 			}
@@ -401,11 +482,11 @@ namespace ILPCuts
 
 					for (size_t base_row_idx = 0; base_row_idx < rows_status.size(); ++base_row_idx)
 					{
-						int mult = 0;
+						double mult = 0;
 						if (rows_status[base_row_idx] == CPX_AT_UPPER)
-							mult = 1;
+							mult = 1.0;
 						else if (rows_status[base_row_idx] == CPX_AT_LOWER)
-							mult = -1;
+							mult = -1.0;
 
 						if (mult != 0)
 						{
@@ -420,25 +501,27 @@ namespace ILPCuts
 							{
 								CPXDIM col_idx = mat_idxcs_C[nonzeros_idx];
 								double val = mult * mat_vals_C[nonzeros_idx];
-								int_type val_int = 0;
 
-								try
+								if (resInst.ILP_var_types[col_idx] == local_instance::var_ILP_type::Int)
 								{
-									val_int = generator_ptr->rat_to_int(val);
-								}
-								catch (ToleranceErrorException)
-								{
-									stringstream msg;
-
-									msg << "ILPCuts lib error: fracttional elemen in A has located;\n"
-										<< "ConstrNum = " << base_row_idx << "\n"
-										<< "VarNum = " << col_idx << "\n"
-										<< "value = " << val;
-
-									throw FractionalElementException(msg.str());
+									if (is_fract(val, generator_ptr->err_tolerance))
+									{
+										throw FractionalElementException(base_row_idx, col_idx, val);
+									}
 								}
 
-								triplets.emplace_back(Trilpl(basis_i, col_idx, val_int));
+								// int_type val_int = 0;
+
+								// try
+								// {
+								// 	val_int = generator_ptr->rat_to_int(val);
+								// }
+								// catch (ToleranceErrorException)
+								// {
+								// 	throw FractionalElementException(base_row_idx, col_idx, val);
+								// }
+
+								triplets.emplace_back(Trilpl(basis_i, col_idx, val));
 							}
 
 							++basis_i;
@@ -450,20 +533,20 @@ namespace ILPCuts
 
 				for (size_t base_var_idx = 0; base_var_idx < cols_status.size(); ++base_var_idx)
 				{
-					int sign = 0;
+					rational_type sign = 0.0;
 					if (cols_status[base_var_idx] == CPX_AT_UPPER)
-						sign = 1;
+						sign = 1.0;
 					else if (cols_status[base_var_idx] == CPX_AT_LOWER)
-						sign = -1;
+						sign = -1.0;
 
-					if (sign != 0)
+					if (sign != 0.0)
 					{
 						triplets.push_back(Trilpl(basis_i, base_var_idx, sign));
 						++basis_i;
 					}
 				}
 
-				A_basis.setFromTriplets(triplets.begin(), triplets.end());
+				resInst.A.setFromTriplets(triplets.begin(), triplets.end());
 			}
 
 			{
@@ -480,16 +563,17 @@ namespace ILPCuts
 				{
 					if (abs(x_C[i]) > numeric_limits<double>::epsilon())
 					{
-						optLP.insertBack(i) = from_IloNum_to_rat(x_C[i]);
+						resInst.v.insertBack(i) = from_IloNum_to_rat(x_C[i]);
 					}
 				}
 			}
 
 			out() << "normal cone adjusting..." << endl;
 
-			A_basis = generator_ptr->adjust_normal_cone(std::move(A_basis.transpose()), c).transpose().eval();
+			resInst.adjust_normal_cone(get_logger(), generator_ptr->tolerance);
+			// resInst.A = generator_ptr->adjust_normal_cone(std::move(resInst.A.transpose()), resInst.c).transpose().eval();
 
-			return std::make_tuple(A_basis, c, optLP);
+			return resInst;
 		}
 
 		void CPlexAdapter::add_cuts(CPXCENVptr env, void *cbdata, int wherefrom)
@@ -507,7 +591,7 @@ namespace ILPCuts
 
 				vector<CPXDIM> nonzero_idxs_C;
 				vector<double> nonzero_vals_C;
-				for (typename SparseVector<int_type>::InnerIterator it(cut.ray); it; ++it)
+				for (typename SparseVector<rational_type>::InnerIterator it(cut.ray); it; ++it)
 				{
 					IloInt int_val = to_IloInt(it.value());
 					nonzero_idxs_C.push_back(it.index());
@@ -531,46 +615,44 @@ namespace ILPCuts
 		{
 			IloEnv env = cplex.getEnv();
 
-			IloRangeArray ilo_cuts(env);
-
-			transform_cuts_to_ilo_constraints(env, vars, ilo_cuts);
-
-			if (is_lazy == IsLazy::off)
+			if (get_cuts().size() != 0)
 			{
-				cplex.addUserCuts(ilo_cuts);
-			}
-			else if (is_lazy == IsLazy::on)
-			{
-				cplex.addLazyConstraints(ilo_cuts);
-			}
-			else
-			{
-				cplex.addUserCuts(ilo_cuts);
-				cplex.addLazyConstraints(ilo_cuts);
-			}
 
-			ilo_cuts.end();
+				IloRangeArray ilo_cuts(env);
+
+				transform_cuts_to_ilo_constraints(env, vars, ilo_cuts);
+
+				if (is_lazy == IsLazy::off)
+				{
+					cplex.addUserCuts(ilo_cuts);
+				}
+				else if (is_lazy == IsLazy::on)
+				{
+					cplex.addLazyConstraints(ilo_cuts);
+				}
+				else
+				{
+					cplex.addUserCuts(ilo_cuts);
+					cplex.addLazyConstraints(ilo_cuts);
+				}
+
+				ilo_cuts.end();
+			}
 		}
 
-		void CPlexAdapter::generate_cuts(is_mat A, rs_vec c, rs_vec optLP)
+		void CPlexAdapter::generate_cuts()
 		{
-			generator_ptr->cone_coverer_ptr->direction_strategies.push_back(std::make_unique<typename DirectionStrategies::GreadyDirection>(c));
-
 			Timer timer;
 			timer.start();
 			out() << "cutting plane generation is started..." << endl;
 
-			generator_ptr->LocalInstance.A = std::move(A);
-			generator_ptr->LocalInstance.c = std::move(c);
-			generator_ptr->LocalInstance.v = std::move(optLP);
+			generator_ptr->LocalInstance = &LocalInstance;
 			generator_ptr->generate_cuts();
 
 			out() << "cutting plane generation is finished,\n"
 				  << "total time: " << timer.finish_str() << "\n"
 				  << "number of added cuts: " << get_cuts().size() << "\n"
 				  << endl;
-
-			generator_ptr->cone_coverer_ptr->direction_strategies.pop_back();
 		}
 
 		void CPlexAdapter::transform_cuts_to_ilo_constraints(IloEnv env, IloNumVarArray vars, IloRangeArray ilo_constr)
@@ -584,9 +666,9 @@ namespace ILPCuts
 				IloExpr lhs = IloExpr(env);
 				IloNum rhs = 0;
 
-				for (typename is_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
+				for (typename rs_vec::InnerIterator it(cuts_Eigen[i].ray); it; ++it)
 				{
-					lhs += vars[it.index()] * to_IloInt(it.value());
+					lhs += vars[it.index()] * it.value();
 				}
 
 				ilo_constr.add(IloRange(env, lhs, cuts_Eigen[i].rhs));

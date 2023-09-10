@@ -8,6 +8,7 @@ ILOSTLBEGIN
 #include "cone_coverer_Zp.h"
 #include "cone_coverer_Wd.h"
 #include "cplex_adapter.h"
+#include "cuts_gen_submat.h"
 #include "dependencies/argparse/argparse.hpp"
 #include "ILPCuts_console_utils.h"
 
@@ -26,7 +27,9 @@ void check_input_params(
 	size_t cprime,
 	string cplex_cuts_param,
 	string scaling,
-	string model_cuts_switch)
+	string model_cuts_switch,
+	string cuts_fun_type,
+	string split_mode)
 {
 	if (tolerance <= 0.0)
 	{
@@ -111,6 +114,20 @@ void check_input_params(
 				  << cplex_cuts_param << std::endl;
 		exit(0);
 	}
+
+	if (cuts_fun_type != "split" && cuts_fun_type != "mir" && cuts_fun_type != "hermite" && cuts_fun_type != "pureint")
+	{
+		log.out() << "Wrong value of the CLI parameter --cuts_fun: "
+				  << cuts_fun_type << std::endl;
+		exit(0);
+	}
+
+	if (split_mode != "gready" && split_mode != "fract")
+	{
+		log.out() << "Wrong value of the CLI parameter --split_mode: "
+				  << split_mode << std::endl;
+		exit(0);
+	}
 }
 
 void run_cplex_experiment(
@@ -135,7 +152,11 @@ void run_cplex_experiment(
 	size_t min_dim,
 	size_t max_dim,
 	double cplex_tl,
-	double cuts_tl)
+	double cuts_tl,
+	size_t cuts_generation_submat_size_limit,
+	string cuts_fun_type,
+	size_t row_trials_num,
+	string split_mode)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -205,8 +226,43 @@ void run_cplex_experiment(
 	// createing adapter object
 	CPlexAdapter cuts_gen_adapter;
 
-	cuts_gen_adapter.generator_ptr = std::make_unique<ConeCoverCutsGenerator>(log);
-	auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
+	if (cuts_fun_type == "split")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<SplitCutsGen_RWDS>(log);
+		if (split_mode == "gready")
+		{
+			static_cast<SplitCutsGen_RWDS *>(cuts_gen_adapter.generator_ptr.get())->mode = SplitCutsGen_RWDS::Mode::Gready;
+		}
+		else if (split_mode == "fract")
+		{
+			static_cast<SplitCutsGen_RWDS *>(cuts_gen_adapter.generator_ptr.get())->mode = SplitCutsGen_RWDS::Mode::Fractional;
+		}
+		else
+		{
+			log.out() << "Wrong value of the CLI parameter --split_mode: "
+					  << split_mode << std::endl;
+			exit(0);
+		}
+	}
+	else if (cuts_fun_type == "hermite")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<HermiteCutsGen_RWDS>(log);
+	}
+	else if (cuts_fun_type == "pureint")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
+	}
+	else if (cuts_fun_type == "mir")
+	{
+		cuts_gen_adapter.generator_ptr = std::make_unique<MIRCutsGen_RWDS>(log);
+	}
+	else
+	{
+		log.out() << "Wrong value of the CLI parameter --cuts_fun: "
+				  << cuts_fun_type << std::endl;
+		exit(0);
+	}
+	auto cuts_gen_ptr = static_cast<CutsGen_CC *>(cuts_gen_adapter.generator_ptr.get());
 
 	// creating and wrapping of a cuts generator object
 	if (solver_type == "adj")
@@ -223,10 +279,32 @@ void run_cplex_experiment(
 	// initialization of cuts generator and setting parameters
 	std::mt19937 engine;
 	cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
+	if (cuts_fun_type == "split")
+	{
+		static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+		static_cast<SplitCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
+	}
+	else if (cuts_fun_type == "hermite")
+	{
+		static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+		static_cast<HermiteCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
+	}
+	else if (cuts_fun_type == "mir")
+	{
+		static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_size_fun.maxSize = cuts_generation_submat_size_limit;
+		static_cast<MIRCutsGen_RWDS *>(cuts_gen_ptr)->submat_gen.trials_num = row_trials_num;
+	}
+
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
 	cuts_gen_adapter.set_lazy(is_lazy_param);
-	if (solver_type == "zp" || solver_type == "wd")
+	if (solver_type == "zp")
+	{
 		static_cast<ConeCoverer_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
+	}
+	else if (solver_type == "wd")
+	{
+		static_cast<ConeCoverer_Wd *>(cone_coverer_ptr)->max_conservative_prime = cprime;
+	}
 
 	// set strategies for cutting generation
 	if (rand_directions > 0)
@@ -344,6 +422,11 @@ int main(int argc, char **argv)
 		.help("cone limit per direction")
 		.scan<'i', size_t>();
 
+	program.add_argument("--submat_limit")
+		.default_value(size_t(1024))
+		.help("square submatrix size limit")
+		.scan<'i', size_t>();
+
 	program.add_argument("-r", "--rand_strategy")
 		.default_value(size_t(0))
 		.help("number of directions in random cone strategy")
@@ -420,6 +503,19 @@ int main(int argc, char **argv)
 		.help("time limit (sec.) for ILPCuts cuts generation")
 		.scan<'g', double>();
 
+	program.add_argument("--cuts_fun")
+		.default_value(std::string("mir"))
+		.help("manages cutting generation function; can be \"split\", \"mir\", \"pureint\" or \"hermite\"");
+
+	program.add_argument("--trials_num")
+		.default_value(size_t(5))
+		.help("number of trials to choose rows for cut generation")
+		.scan<'i', size_t>();
+
+	program.add_argument("--split_mode")
+		.default_value(std::string("gready"))
+		.help("Mode of split-cut generation; can be \"gready\" or \"fract\"");
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -450,7 +546,9 @@ int main(int argc, char **argv)
 			program.get<size_t>("--cprime"),
 			program.get<string>("--cplex_cuts"),
 			program.get<string>("--scaling"),
-			program.get<string>("--model_cuts"));
+			program.get<string>("--model_cuts"),
+			program.get<string>("--cuts_fun"),
+			program.get<string>("--split_mode"));
 
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -486,9 +584,13 @@ int main(int argc, char **argv)
 			program.get<size_t>("--min_dim"),
 			program.get<size_t>("--max_dim"),
 			program.get<double>("--cplex_tl"),
-			program.get<double>("--cuts_tl"));
+			program.get<double>("--cuts_tl"),
+			program.get<size_t>("--submat_limit"),
+			program.get<string>("--cuts_fun"),
+			program.get<size_t>("--trials_num"),
+			program.get<string>("--split_mode"));
 	}
-	catch (const FractionalElementException &err)
+	catch (const ILPCuts::Exception &err)
 	{
 		// it is not error, just can not optimize
 		log.out() << err.what() << endl;

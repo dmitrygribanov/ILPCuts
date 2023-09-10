@@ -9,11 +9,19 @@
 #include "cone_coverer_Wd.h"
 #include "ILPCuts_console_utils.h"
 
+#include "cuts_gen_submat.h"
+
 using namespace ILPCuts;
 using namespace std;
 
 int main(int argc, char **argv)
 {
+    logger log;
+    HermiteCutsGen_RWDS cuts_gen(log);
+
+    DimSizeGen ds;
+    RandomNondegSubmatGen sg(cuts_gen);
+    sg(ds);
     // logger log;
     //  ConeCoverCutsGenerator g1(log);
     //  ConeCoverer_Zp zp(log);

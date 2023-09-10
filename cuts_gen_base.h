@@ -8,9 +8,10 @@ namespace ILPCuts
 {
     struct cut_info
     {
-        is_vec ray;
-        int_type rhs;
-        rational_type frac_rhs;
+        rs_vec ray;
+        rational_type rhs;
+        rational_type precut_rhs;
+        std::vector<size_t> intComp_idxs;
 
         bool operator<(const cut_info &arg)
         {
@@ -35,12 +36,14 @@ namespace ILPCuts
     class cuts_gen_base : public base_alg
     {
     public:
-        local_instance LocalInstance;
+        local_instance *LocalInstance;
 
     protected:
         std::vector<cut_info> _resulting_cuts;
 
     public:
+        local_instance &inst() { return *LocalInstance; }
+
         cuts_gen_base(logger &a_log) : base_alg(a_log) {}
 
         logger::stream &out()
@@ -48,8 +51,6 @@ namespace ILPCuts
             log.out() << "ILPCuts-CutsGenerator: ";
             return log.out();
         }
-
-        // void set_instance(local_instance ins) { LocalInstance = std::move(ins); }
 
         virtual void generate_cuts() = 0;
 
@@ -74,7 +75,8 @@ namespace ILPCuts
             {
                 out_file << Utility::sparse_vec_to_str(_resulting_cuts[i].ray) << " "
                          << _resulting_cuts[i].rhs << " "
-                         << _resulting_cuts[i].frac_rhs << "\n";
+                         << _resulting_cuts[i].precut_rhs << "\n"
+                         << Utility::dense_vec_to_str(_resulting_cuts[i].intComp_idxs) << "\n\n";
             }
         }
 
@@ -87,47 +89,47 @@ namespace ILPCuts
             while (std::getline(in_file, line))
             {
                 istringstream iss_line(line);
-                vector<int_type> elems;
+                vector<rational_type> elems;
                 while (!iss_line.eof())
                 {
-                    elems.emplace_back(int_type(0));
+                    elems.emplace_back(rational_type(0.0));
                     iss_line >> elems.back();
                 }
 
                 size_t dim = elems.size() - 1;
-                is_vec new_ray(dim);
+                rs_vec new_ray(dim);
                 for (size_t i = 0; i < dim; ++i)
                 {
-                    if (elems[i] != 0)
+                    if (is_zero(elems[i], tolerance))
                         new_ray.insertBack(i) = elems[i];
                 }
-                _resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0});
+                _resulting_cuts.emplace_back(cut_info{new_ray, elems.back(), 0.0, std::vector<size_t>()});
             }
         }
 
-        is_mat adjust_normal_cone(is_mat A, const rs_vec &c)
-        {
-            rs_vec t = Utility::system_solve(A.cast<rational_type>().eval(), c);
+        // rs_mat adjust_normal_cone(rs_mat A, const rs_vec &c)
+        // {
+        //     rs_vec t = Utility::system_solve(A, c);
 
-            for (typename rs_vec::InnerIterator it(t); it; ++it)
-            {
-                if (it.value() < 0 && abs(it.value()) > tolerance)
-                {
-                    A.col(it.index()) = -A.col(it.index());
-                }
-            }
+        //     for (typename rs_vec::InnerIterator it(t); it; ++it)
+        //     {
+        //         if (it.value() < 0 && !is_zero(it.value(), tolerance))
+        //         {
+        //             A.col(it.index()) = -A.col(it.index());
+        //         }
+        //     }
 
-            return std::move(A);
-        }
+        //     return A;
+        // }
 
         void clear_cuts()
         {
             _resulting_cuts.clear();
         }
 
-        void check_cuts_validity()
+        void check_pure_int_cuts_validity()
         {
-            is_mat AT = LocalInstance.A.transpose();
+            is_mat AT = inst().A.transpose().unaryExpr(rat_to_int);
 
             size_t n = AT.cols();
             assert(n > 0);
@@ -148,14 +150,14 @@ namespace ILPCuts
                     }
                 }
 
-                if (abs(cut.ray.cast<rational_type>().dot(LocalInstance.v) - cut.frac_rhs) > err_tolerance)
+                if (abs(cut.ray.cast<rational_type>().dot(inst().v) - cut.precut_rhs) > err_tolerance)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid fractional rhs...\n";
                     throw Exception(msg.str());
                 }
 
-                if (floor(cut.frac_rhs) != cut.rhs)
+                if (floor(cut.precut_rhs) != cut.rhs)
                 {
                     stringstream msg;
                     msg << "ILPCuts error: cut(" << i << ") is invalid: invalid floor rounding...\n";

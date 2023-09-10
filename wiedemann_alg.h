@@ -202,7 +202,7 @@ namespace ILPCuts
             {
                 size_t n = O.dim();
                 long p = zz_p::modulus();
-                assert(n == b.size());
+                assert(n == b.length());
 
                 zz_pX mX(INIT_MONO, 0, 1);
 

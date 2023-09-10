@@ -12,13 +12,13 @@ namespace ILPCuts
             virtual std::vector<rs_vec> generate_directons(const is_mat &A) = 0;
         };
 
-        class GreadyDirection : public DirectionsStrategyBase
+        class SpecifiedDirection : public DirectionsStrategyBase
         {
         private:
             rs_vec _c;
 
         public:
-            GreadyDirection(const rs_vec &c)
+            SpecifiedDirection(const rs_vec &c)
                 : _c(c) {}
 
             std::vector<rs_vec> generate_directons(const is_mat &A) override

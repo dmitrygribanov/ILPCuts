@@ -184,7 +184,8 @@ namespace ILPCuts
 		std::vector<std::vector<is_mat>> result_by_treads(threads);
 
 		size_t directions_pool_size = C->dir_coeffs_pull.size();
-		current_layer.push_back(std::move(C));
+		if (C->det > 1)
+			current_layer.push_back(std::move(C));
 
 		while (!current_layer.empty())
 		{
@@ -209,7 +210,10 @@ namespace ILPCuts
 					{
 						out() << "Determinant is cutted on the value of " << determinant_cut_limit(n) << ",\n"
 							  << "Total Gomory's cuts procedure is started..." << endl;
+						Timer timer;
+						timer.start();
 						result_by_treads[tid].push_back(_Hilbert_base_alg.compute(next_node->A, next_node->det));
+						out() << "Total Gomory's cuts procedure is finished..., time = " << timer.finish_str("'s") << endl;
 					}
 					else
 						next_layers_by_treads[tid].push_back(std::move(next_node));

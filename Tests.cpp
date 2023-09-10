@@ -1,6 +1,6 @@
 ﻿#include "wiedemann_alg.h"
 
-#include <eigen3/Eigen/LU>
+#include "dependencies/Eigen/LU"
 
 using namespace ILPCuts;
 using namespace std;
@@ -173,7 +173,7 @@ namespace ILPCuts
 //     CutsGen::int_mat        A(4,4);
 //     CutsGen::rat_vec      optLP(4);
 //     CutsGen::rat_vec          c(4);
-//     CutsGen::GreadyDirection gd(c);
+//     CutsGen::SpecifiedDirection gd(c);
 //
 //     A << 1,   0,   0, 0,
 //          1,   1,   0, 0,
@@ -204,7 +204,7 @@ namespace ILPCuts
 //     std::vector<CutsGen::int_vec> true_cuts;
 //     CutsGen::rat_vec optLP(3);
 //     CutsGen::rat_vec c(3);
-//     CutsGen::GreadyDirection gd(c);
+//     CutsGen::SpecifiedDirection gd(c);
 //
 //     A << 1, 0, 0,
 //          1, 1, 0,
@@ -235,7 +235,7 @@ namespace ILPCuts
 //     std::vector<CutsGen::int_vec> true_cuts;
 //     CutsGen::rat_vec optLP(3);
 //     CutsGen::rat_vec c(3);
-//     CutsGen::GreadyDirection gd(c);
+//     CutsGen::SpecifiedDirection gd(c);
 //
 //     A << 1, 0, 0,
 //         1, 1, 0,
@@ -265,7 +265,7 @@ namespace ILPCuts
 //     std::vector<CutsGen::int_vec> true_cuts;
 //     CutsGen::rat_vec optLP(3);
 //     CutsGen::rat_vec c(3);
-//     CutsGen::GreadyDirection gd(c);
+//     CutsGen::SpecifiedDirection gd(c);
 //     CutsGen::rat_vec b(3);
 //
 //     A << 1, 0, 0,

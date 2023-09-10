@@ -1,6 +1,6 @@
 #pragma once
 
-#include <eigen3/Eigen/SparseCore>
+#include "dependencies/Eigen/SparseCore"
 
 #include "gmp_supp.h"
 
@@ -155,6 +155,16 @@ namespace ILPCuts
             }
         };
 
+        template <typename ratT>
+        class Ceil_Unary
+        {
+        public:
+            ratT operator()(const ratT &rat_x) const
+            {
+                return ceil(rat_x);
+            }
+        };
+
         template <typename intT, typename ratT>
         class RatToInt_Unary
         {
@@ -250,5 +260,20 @@ namespace ILPCuts
 
     using lis_vec = SparseVector<lint_type>;
     using lrs_vec = SparseVector<lrational_type>;
+
+    template <typename ratT>
+    bool is_zero(const ratT &val, double tolerance)
+    {
+        if (abs(val) <= tolerance)
+            return true;
+
+        return false;
+    }
+
+    template <typename ratT>
+    bool is_fract(const ratT &val, double tolerance)
+    {
+        return !is_zero(val - floor(val), tolerance);
+    }
 
 } // namespace ILPCuts

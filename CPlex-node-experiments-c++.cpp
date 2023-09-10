@@ -351,8 +351,8 @@ void run_cplex_experiment(logger &log,
 
     if (!baseline)
     {
-        cuts_gen_adapter.generator_ptr = std::make_unique<ConeCoverCutsGenerator>(log);
-        auto cuts_gen_ptr = cuts_gen_adapter.generator_ptr.get();
+        cuts_gen_adapter.generator_ptr = std::make_unique<CutsGen_CC>(log);
+        auto cuts_gen_ptr = static_cast<CutsGen_CC *>(cuts_gen_adapter.generator_ptr.get());
 
         cuts_gen_ptr->cone_coverer_ptr = std::make_unique<ConeCoverer_Zp>(log);
         auto cone_coverer_ptr = cuts_gen_ptr->cone_coverer_ptr.get();

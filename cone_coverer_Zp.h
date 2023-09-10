@@ -25,7 +25,12 @@ namespace ILPCuts
             res->A = A;
             res->det = det;
 
+            // std::cout << "Det = " << det << std::endl;
+
             SparseLU<rs_mat, COLAMDOrdering<int>> decomp_LU(A.cast<rational_type>());
+
+            if (decomp_LU.info() != ComputationInfo::Success)
+                throw Utility::EigenSolveException(decomp_LU.info());
 
             for (size_t i = 0; i < directions_pool.size(); ++i)
             {
