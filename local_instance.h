@@ -172,7 +172,9 @@ namespace ILPCuts
 
             bool is_updated = false;
 
-            std::tie(is_updated, A) = Utility::adjust_normal_cone(std::move(A.transpose()), c, tolerance, decomp_LU->transpose());
+            rs_mat AT = A.transpose().eval();
+
+            std::tie(is_updated, A) = Utility::adjust_normal_cone(std::move(AT), c, tolerance, decomp_LU->transpose());
 
             A = A.transpose().eval();
 
