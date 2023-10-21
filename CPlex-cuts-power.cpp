@@ -21,7 +21,8 @@ void check_input_params(
     int node_lim,
     size_t cprime,
     string scaling,
-    string model_cuts_switch)
+    string model_cuts_switch,
+    size_t det_limit)
 {
     if (tolerance <= 0.0)
     {
@@ -113,6 +114,13 @@ void check_input_params(
     //               << cplex_cuts_param << std::endl;
     //     exit(0);
     // }
+
+    if (det_limit < 1)
+    {
+        log.out() << "Wrong value of the CLI parameter --det_limit: "
+                  << det_limit << std::endl;
+        exit(0);
+    }
 }
 
 struct SolutionInfo
@@ -162,7 +170,8 @@ void run_cplex_experiment(
     double cplex_tl,
     double cuts_tl,
     size_t cuts_generation_submat_size_limit,
-    size_t row_trials_num)
+    size_t row_trials_num,
+    size_t det_limit)
 {
     // create CPLEX envirement
     IloEnv env;
@@ -340,6 +349,7 @@ void run_cplex_experiment(
         std::unique_ptr<ConeCoverer_Zp> cone_coverer_ptr = std::make_unique<ConeCoverer_Zp>(log);
         cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
         cone_coverer_ptr->max_conservative_prime = cprime;
+        cone_coverer_ptr->det_limit = det_limit;
 
         // set strategies for cutting generation
         if (rand_directions > 0)
@@ -574,6 +584,11 @@ int main(int argc, char **argv)
         .help("number of trials to choose rows for cut generation")
         .scan<'i', size_t>();
 
+    program.add_argument("--det_lim")
+        .default_value(size_t(512))
+        .help("cone determinant limit to stop the procedure; if 0, then algorithm uses dimension rule")
+        .scan<'i', size_t>();
+
     try
     {
         program.parse_args(argc, argv);
@@ -602,7 +617,8 @@ int main(int argc, char **argv)
             program.get<int>("--node_lim"),
             program.get<size_t>("--cprime"),
             program.get<string>("--scaling"),
-            program.get<string>("--model_cuts"));
+            program.get<string>("--model_cuts"),
+            program.get<size_t>("--det_lim"));
 
         size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
         size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -635,7 +651,8 @@ int main(int argc, char **argv)
             program.get<double>("--cplex_tl"),
             program.get<double>("--cuts_tl"),
             program.get<size_t>("--submat_limit"),
-            program.get<size_t>("--trials_num"));
+            program.get<size_t>("--trials_num"),
+            program.get<size_t>("--det_lim"));
     }
     catch (const IloException &err)
     {

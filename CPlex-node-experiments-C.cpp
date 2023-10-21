@@ -179,9 +179,9 @@ void check_input_params(
     // std::string solver_type,
     size_t cprime,
     // string cplex_cuts_param,
-    string scaling
+    string scaling,
     // string model_cuts_switch
-)
+    size_t det_limit)
 {
     if (tolerance <= 0.0)
     {
@@ -266,6 +266,13 @@ void check_input_params(
     //               << cplex_cuts_param << std::endl;
     //     exit(0);
     // }
+
+    if (det_limit < 1)
+    {
+        log.out() << "Wrong value of the CLI parameter --det_limit: "
+                  << det_limit << std::endl;
+        exit(0);
+    }
 }
 
 void run_cplex_experiment(logger &log,
@@ -285,7 +292,8 @@ void run_cplex_experiment(logger &log,
                           string scaling,
                           size_t min_dim,
                           size_t max_dim,
-                          double cplex_tl)
+                          double cplex_tl,
+                          size_t det_limit)
 {
     // define vars
     int status = 0;
@@ -448,6 +456,7 @@ void run_cplex_experiment(logger &log,
         std::mt19937 engine;
         cuts_gen_ptr->set_params(tolerance, err_tolerance, threads_cuts_gen, &engine);
         cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
+        cone_coverer_ptr->det_limit = det_limit;
         cuts_gen_adapter.is_lazy = CPlexAdapter::IsLazy::off;
         static_cast<ConeCoverer_Zp *>(cone_coverer_ptr)->max_conservative_prime = cprime;
 
@@ -625,6 +634,11 @@ int main(int argc, char **argv)
         .help("square submatrix size limit")
         .scan<'i', size_t>();
 
+    program.add_argument("--det_lim")
+        .default_value(size_t(512))
+        .help("cone determinant limit to stop the procedure; if 0, then algorithm uses dimension rule")
+        .scan<'i', size_t>();
+
     try
     {
         program.parse_args(argc, argv);
@@ -652,7 +666,8 @@ int main(int argc, char **argv)
             program.get<size_t>("--iters"),
             program.get<int>("--node_lim"),
             program.get<size_t>("--cprime"),
-            program.get<string>("--scaling"));
+            program.get<string>("--scaling"),
+            program.get<size_t>("--det_lim"));
 
         size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
         size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -680,7 +695,8 @@ int main(int argc, char **argv)
             program.get<string>("--scaling"),
             program.get<size_t>("--min_dim"),
             program.get<size_t>("--max_dim"),
-            program.get<double>("--cplex_tl"));
+            program.get<double>("--cplex_tl"),
+            program.get<size_t>("--det_lim"));
     }
     catch (const FractionalElementException &err)
     {

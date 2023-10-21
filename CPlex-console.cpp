@@ -29,7 +29,8 @@ void check_input_params(
 	string scaling,
 	string model_cuts_switch,
 	string cuts_fun_type,
-	string split_mode)
+	string split_mode,
+	size_t det_limit)
 {
 	if (tolerance <= 0.0)
 	{
@@ -128,6 +129,13 @@ void check_input_params(
 				  << split_mode << std::endl;
 		exit(0);
 	}
+
+	if (det_limit < 1)
+	{
+		log.out() << "Wrong value of the CLI parameter --det_limit: "
+				  << det_limit << std::endl;
+		exit(0);
+	}
 }
 
 void run_cplex_experiment(
@@ -156,7 +164,8 @@ void run_cplex_experiment(
 	size_t cuts_generation_submat_size_limit,
 	string cuts_fun_type,
 	size_t row_trials_num,
-	string split_mode)
+	string split_mode,
+	size_t det_limit)
 {
 	// create CPLEX envirement
 	IloEnv env;
@@ -296,6 +305,8 @@ void run_cplex_experiment(
 	}
 
 	cone_coverer_ptr->cone_limit_per_direction = cone_limit_per_direction;
+	cone_coverer_ptr->det_limit = det_limit;
+
 	cuts_gen_adapter.set_lazy(is_lazy_param);
 	if (solver_type == "zp")
 	{
@@ -516,6 +527,11 @@ int main(int argc, char **argv)
 		.default_value(std::string("gready"))
 		.help("Mode of split-cut generation; can be \"gready\" or \"fract\"");
 
+	program.add_argument("--det_lim")
+		.default_value(size_t(512))
+		.help("cone determinant limit to stop the procedure")
+		.scan<'i', size_t>();
+
 	try
 	{
 		program.parse_args(argc, argv);
@@ -548,7 +564,8 @@ int main(int argc, char **argv)
 			program.get<string>("--scaling"),
 			program.get<string>("--model_cuts"),
 			program.get<string>("--cuts_fun"),
-			program.get<string>("--split_mode"));
+			program.get<string>("--split_mode"),
+			program.get<size_t>("--det_lim"));
 
 		size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
 		size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -588,7 +605,8 @@ int main(int argc, char **argv)
 			program.get<size_t>("--submat_limit"),
 			program.get<string>("--cuts_fun"),
 			program.get<size_t>("--trials_num"),
-			program.get<string>("--split_mode"));
+			program.get<string>("--split_mode"),
+			program.get<size_t>("--det_lim"));
 	}
 	catch (const ILPCuts::Exception &err)
 	{

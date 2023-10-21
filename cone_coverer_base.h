@@ -158,9 +158,11 @@ namespace ILPCuts
 		size_t cone_limit_per_direction = 1;
 		std::vector<std::unique_ptr<typename DirectionStrategies::DirectionsStrategyBase>> direction_strategies;
 
-		using size_func = std::function<size_t(size_t)>;
-		size_func determinant_cut_limit = [](size_t n) -> size_t
-		{ return n; };
+		size_t det_limit = 512;
+
+		// using size_func = std::function<size_t(size_t)>;
+		// size_func determinant_cut_limit = [](size_t n) -> size_t
+		// { return n; };
 
 		explicit ConeCoverer_Base(logger &log)
 			: base(log), _Hilbert_base_alg(log)
@@ -206,9 +208,9 @@ namespace ILPCuts
 				int tid = omp_get_thread_num();
 				for (auto &next_node : next_node_layer)
 				{
-					if (next_node->det <= determinant_cut_limit(n))
+					if (abs(next_node->det) <= det_limit)
 					{
-						out() << "Determinant is cutted on the value of " << determinant_cut_limit(n) << ",\n"
+						out() << "Determinant is cutted on the value = " << next_node->det << ",\n"
 							  << "Total Gomory's cuts procedure is started..." << endl;
 						Timer timer;
 						timer.start();
