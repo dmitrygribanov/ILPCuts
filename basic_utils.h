@@ -370,5 +370,20 @@ namespace ILPCuts
 
 			return res;
 		}
+
+		template <typename T, typename randGenT>
+		std::vector<T> sample_vector_elements(size_t sample_size, const std::vector<T> &vec, randGenT &rgen)
+		{
+			// size_t n = vec.size();
+
+			// std::vector<size_t> one_to_n_idxs(n);
+			// std::iota(one_to_n_idxs.begin(), one_to_n_idxs.end(), 0);
+
+			std::vector<T> res;
+			std::sample(vec.begin(), vec.end(), std::back_inserter(res), sample_size, rgen);
+			std::sort(res.begin(), res.end());
+
+			return res;
+		}
 	} // namespace Utility
 } // namespace ILPCuts

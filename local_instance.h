@@ -33,7 +33,7 @@ namespace ILPCuts
         local_instance(local_instance &&u)
             : /*log(alog),*/ A(std::move(u.A)), c(std::move(u.c)), v(std::move(u.v)),
               ILP_var_types(std::move(u.ILP_var_types)), varsLB(std::move(u.varsLB)), varsUB(std::move(u.varsUB)),
-              det(std::move(u.det)), decomp_LU(std::move(u.decomp_LU))
+              det(std::move(u.det)), decomp_LU(std::move(u.decomp_LU)), ineq_A_indexes(std::move(u.ineq_A_indexes))
         {
         }
 
@@ -44,6 +44,7 @@ namespace ILPCuts
             c = std::move(u.c);
             v = std::move(u.v);
             ILP_var_types = std::move(u.ILP_var_types);
+            ineq_A_indexes = std::move(u.ineq_A_indexes);
             varsLB = std::move(u.varsLB);
             varsUB = std::move(u.varsUB);
             det = std::move(u.det);
@@ -57,8 +58,20 @@ namespace ILPCuts
         rs_vec c;
         rs_vec v;
         std::vector<var_ILP_type> ILP_var_types;
+        std::vector<size_t> ineq_A_indexes;
         rs_vec varsLB;
         rs_vec varsUB;
+
+        const std::vector<size_t> &get_A_ineq_idxs() const
+        {
+            return ineq_A_indexes;
+        }
+
+        std::vector<size_t> get_A_var_idxs() const
+        {
+            size_t n = A.cols();
+            return Utility::idxs_set_complement(n, get_A_ineq_idxs());
+        }
 
         size_t get_index_of_most_fractional_vcomp(const vector<size_t> &idxs, double tolerance) const
         {
@@ -188,36 +201,5 @@ namespace ILPCuts
         {
             adjust_normal_cone(log, c, tolerance);
         }
-
-        // void adjust_normal_cone(logger &log, const rs_vec &c, double tolerance)
-        // {
-        //     rs_vec t = solve_ATX_eq_b(log, c);
-
-        //     bool is_updated = false;
-
-        //     A = A.transpose().eval();
-
-        //     for (typename rs_vec::InnerIterator it(t); it; ++it)
-        //     {
-        //         if (it.value() < 0 && !is_zero(it.value(), tolerance))
-        //         {
-        //             A.col(it.index()) = -A.col(it.index());
-
-        //             is_updated = true;
-        //         }
-        //     }
-
-        //     A = A.transpose().eval();
-
-        //     if (is_updated)
-        //         decomp_LU.release();
-        // }
-
-        // void adjust_normal_cone(logger &log, double tolerance)
-        // {
-        //     adjust_normal_cone(log, c, tolerance);
-        // }
-
-        // size_t get_num_constr() const { return A.rows(); }
     };
 }

@@ -72,21 +72,28 @@ namespace ILPCuts
             size_t n = inst().get_num_vars();
             size_t submat_n = submat_size_fun(inst());
 
-            std::vector<std::vector<size_t>> res;
+            auto ineq_A_idxs = inst().get_A_ineq_idxs();
+            auto var_A_idxs = inst().get_A_var_idxs();
 
-            std::vector<size_t> one_to_n_idxs(n);
-            std::iota(one_to_n_idxs.begin(), one_to_n_idxs.end(), 0);
+            std::vector<std::vector<size_t>> res_row_samples;
 
             for (size_t i = 0; i < trials_num; ++i)
             {
-                std::vector<size_t> rows;
-                std::sample(one_to_n_idxs.begin(), one_to_n_idxs.end(), std::back_inserter(rows), submat_n, rgen());
-                std::sort(rows.begin(), rows.end());
+                size_t ineq_A_sample_size = std::min(submat_n, ineq_A_idxs.size());
+                size_t vars_A_sample_size = submat_n - ineq_A_sample_size;
 
-                res.push_back(rows);
+                std::vector<size_t> res_rows = Utility::sample_vector_elements(ineq_A_sample_size, ineq_A_idxs, rgen());
+
+                if (vars_A_sample_size > 0)
+                {
+                    auto additional_var_A_idxs = Utility::sample_vector_elements(vars_A_sample_size, var_A_idxs, rgen());
+                    res_rows.insert(res_rows.end(), additional_var_A_idxs.begin(), additional_var_A_idxs.end());
+                }
+
+                res_row_samples.push_back(res_rows);
             }
 
-            return res;
+            return res_row_samples;
         }
     };
 

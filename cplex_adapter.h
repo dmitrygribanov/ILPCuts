@@ -260,6 +260,7 @@ namespace ILPCuts
 						_fill_triplets_IloRow(&triplets, &iter, -1.0, basis_i, var_index_map, constr);
 						++basis_i;
 					}
+					resInst.ineq_A_indexes.push_back(basis_i);
 				}
 
 				out() << "reading active variables..." << endl;
@@ -522,6 +523,7 @@ namespace ILPCuts
 								// }
 
 								triplets.emplace_back(Trilpl(basis_i, col_idx, val));
+								resInst.ineq_A_indexes.push_back(basis_i);
 							}
 
 							++basis_i;
