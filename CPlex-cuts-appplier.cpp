@@ -42,7 +42,7 @@ void check_input_params(
 
     if (node_lim < -1)
     {
-        log.out() << "Wrong value of the CLI parameter --node_lim: "
+        log.out() << "Wrong value of the CLI parameter --node_limit: "
                   << node_lim << std::endl;
         exit(0);
     }
@@ -167,9 +167,9 @@ int main(int argc, char **argv)
         .default_value(std::string("log.txt"))
         .help("output log file; default is \"log.txt\"");
 
-    program.add_argument("--cuts_input")
-        .default_value(std::string("cuts_export.txt"))
-        .help("cuts import file; default is \"cuts_export.txt\"");
+    program.add_argument("--cuts_output")
+        .default_value(std::string("no"))
+        .help("cuts export file; default is \"no\", which disables the output");
 
     program.add_argument("-w", "--workers", "--threads")
         .default_value(size_t(1))
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
         .default_value(string("off"))
         .help("manages CPlex lazy constraints; can be \"on\", \"off\" or \"hybrid\"");
 
-    program.add_argument("--node_lim")
+    program.add_argument("--node_limit")
         .default_value(int(-1))
         .help("maximal number of nodes in CPlex B&C-algorithm (-1 = default CPlex behavor)")
         .scan<'i', int>();
@@ -225,7 +225,7 @@ int main(int argc, char **argv)
             log,
             program.get<size_t>("--threads"),
             program.get<string>("--lazy"),
-            program.get<int>("--node_lim"),
+            program.get<int>("--node_limit"),
             program.get<string>("--scaling"),
             program.get<string>("--model_cuts"));
 
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
             program.get<bool>("--validation"),
             program.get<size_t>("--threads"),
             program.get<string>("--lazy"),
-            program.get<int>("--node_lim"),
+            program.get<int>("--node_limit"),
             program.get<string>("--scaling"),
             program.get<string>("--model_cuts"),
             program.get<double>("--cplex_tl"));

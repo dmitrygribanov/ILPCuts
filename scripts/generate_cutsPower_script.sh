@@ -47,7 +47,7 @@ do
     echo "#$FNAME" >> $OUTPUT_SCRIPT
     echo "#-------------------------------------------------------" >> $OUTPUT_SCRIPT
     echo ../CPlexCutsPower -i ../$PROB_PATH -o $LOGF --cuts_output $CUTSF --comp_result $RESF \
-    --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS --node_lim $NODE_LIM --model_cuts $MODEL_CUTS_SWITCH --trials_num $ROW_TRIALS_NUM \
+    --wcgn 1 --wcpl $CPLEX_WS --iters $CUTS_GEN_ROUNDS --node_limit $NODE_LIM --model_cuts $MODEL_CUTS_SWITCH --trials_num $ROW_TRIALS_NUM \
     --cplex_tl $CPLEX_TL --cuts_tl $CUTS_TL --min_dim $MIN_DIM --max_dim $MAX_DIM --submat_limit $SUBMAT_SIZE_LIM >> $OUTPUT_SCRIPT
     #echo >> $OUTPUT_SCRIPT
 done

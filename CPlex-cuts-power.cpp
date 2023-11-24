@@ -89,7 +89,7 @@ void check_input_params(
 
     if (node_lim < -1)
     {
-        log.out() << "Wrong value of the CLI parameter --node_lim: "
+        log.out() << "Wrong value of the CLI parameter --node_limit: "
                   << node_lim << std::endl;
         exit(0);
     }
@@ -471,8 +471,8 @@ int main(int argc, char **argv)
         .help("output file with the comparison results");
 
     program.add_argument("--cuts_output")
-        .default_value(std::string("cuts_export.txt"))
-        .help("cuts export file; default is \"cuts_export.txt\"");
+        .default_value(std::string("no"))
+        .help("cuts export file; default is \"no\", which disables the output");
 
     // program.add_argument("--cgen")
     //     .default_value(std::string("zp"))
@@ -542,7 +542,7 @@ int main(int argc, char **argv)
         .help("number of boosting iterations in the root-node")
         .scan<'i', size_t>();
 
-    program.add_argument("--node_lim")
+    program.add_argument("--node_limit")
         .default_value(int(1))
         .help("maximal number of nodes in CPlex B&C-algorithm (-1 = default CPlex behavor)")
         .scan<'i', int>();
@@ -584,7 +584,7 @@ int main(int argc, char **argv)
         .help("number of trials to choose rows for cut generation")
         .scan<'i', size_t>();
 
-    program.add_argument("--det_lim")
+    program.add_argument("--det_limit")
         .default_value(size_t(512))
         .help("cone determinant limit to stop the procedure; if 0, then algorithm uses dimension rule")
         .scan<'i', size_t>();
@@ -614,11 +614,11 @@ int main(int argc, char **argv)
             program.get<size_t>("--cone_limit"),
             program.get<size_t>("--threads"),
             program.get<string>("--lazy"),
-            program.get<int>("--node_lim"),
+            program.get<int>("--node_limit"),
             program.get<size_t>("--cprime"),
             program.get<string>("--scaling"),
             program.get<string>("--model_cuts"),
-            program.get<size_t>("--det_lim"));
+            program.get<size_t>("--det_limit"));
 
         size_t threads_cuts_gen = program.get<size_t>("--threads_cuts");
         size_t threads_cplex = program.get<size_t>("--threads_cplex");
@@ -642,7 +642,7 @@ int main(int argc, char **argv)
             threads_cplex,
             program.get<string>("--lazy"),
             program.get<size_t>("--iters"),
-            program.get<int>("--node_lim"),
+            program.get<int>("--node_limit"),
             program.get<size_t>("--cprime"),
             program.get<string>("--scaling"),
             program.get<string>("--model_cuts"),
@@ -652,7 +652,7 @@ int main(int argc, char **argv)
             program.get<double>("--cuts_tl"),
             program.get<size_t>("--submat_limit"),
             program.get<size_t>("--trials_num"),
-            program.get<size_t>("--det_lim"));
+            program.get<size_t>("--det_limit"));
     }
     catch (const IloException &err)
     {
