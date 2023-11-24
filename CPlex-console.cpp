@@ -406,8 +406,8 @@ int main(int argc, char **argv)
 		.help("output log file; default is \"log.txt\"");
 
 	program.add_argument("--cuts_output")
-		.default_value(std::string("cuts_export.txt"))
-		.help("cuts export file; default is \"cuts_export.txt\"");
+		.default_value(std::string("no"))
+		.help("cuts export file; default is \"no\", which disables the output");
 
 	program.add_argument("--cgen")
 		.default_value(std::string("zp"))

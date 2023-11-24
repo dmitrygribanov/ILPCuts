@@ -81,8 +81,6 @@ namespace ILPCuts
             Timer boosting_timer;
             boosting_timer.start();
 
-            ofstream cuts_export_file(cuts_output_path);
-
             for (size_t iteration_idx = 0; iteration_idx < iterations_number; ++iteration_idx)
             {
                 env.out() << "root node boosting iteration " << iteration_idx << " is started..." << endl;
@@ -121,8 +119,10 @@ namespace ILPCuts
                 cuts_as_constr.end();
 
                 // exporting cuts to a file
-                if (cuts_output_path != "")
+                if (cuts_output_path != "no")
                 {
+                    ofstream cuts_export_file(cuts_output_path, std::ios::out | std::ios::ate);
+
                     env.out() << "exporting cuts to a file ..." << endl;
                     cuts_gen_adapter.export_cuts(cuts_export_file);
                 }
