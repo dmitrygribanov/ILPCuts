@@ -350,32 +350,39 @@ void run_cplex_experiment(
 	// cplex_master.setParam(IloCplex::Param::MIP::Interval, 1000);
 	// cplex_master.setParam(IloCplex::Param::RootAlgorithm, IloCplex::Primal);
 
-	double originalRelaxedObjVal = root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
-																		 obj, rngs, vars,
-																		 cuts_gen_adapter,
-																		 cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
+	auto result_boosting_info = root_node_boosting_console_subprogram(cplex_master, cplex_relaxed,
+																	  obj, rngs, vars,
+																	  cuts_gen_adapter,
+																	  cuts_tl, iterations_number, model_cuts_switch, cuts_output_path);
 
-	double boostedRelaxedObjVal = cplex_relaxed.getObjValue();
+	bool is_incumbent_found = cplex_master.solve();
+
+	env.out() << "\nILPCuts results:\n"
+			  << "Total cutting plane generation time: " << result_boosting_info.total_cuts_generation_time << "'s\n"
+			  << "Total boosting time: " << result_boosting_info.total_working_time << "'s\n"
+			  << endl;
 
 	// solve the ILP model
-	if (cplex_master.solve())
+	if (is_incumbent_found)
 	{
-		env.out() << "ILP solution value: " << cplex_master.getObjValue() << "\n"
+		env.out() << "An incumbent is found.\n"
+				  << "Solution status is " << cplex_master.getStatus() << "\n"
+				  << "ILP solution value: " << cplex_master.getObjValue() << "\n"
 				  << "ILP cutoff: " << cplex_master.getCutoff() << endl;
 
 		if (iterations_number != 0)
 		{
 			env.out()
 				<< "Duality gap decrease (ILP): "
-				<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_master.getObjValue()) << "\n"
+				<< result_boosting_info.boosted_objective_change / std::abs(result_boosting_info.original_relaxed_objective - cplex_master.getObjValue()) << "\n"
 				<< "Duality gap decrease (cutoff): "
-				<< (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_master.getCutoff()) << "\n"
+				<< result_boosting_info.boosted_objective_change / std::abs(result_boosting_info.original_relaxed_objective - cplex_master.getCutoff()) << "\n"
 				<< endl;
 		}
 	}
 	else
 	{
-		env.out() << "Integer optimal solution is not found...\n"
+		env.out() << "An incumbent is not found.\n"
 				  << "Solution status is " << cplex_master.getStatus() << "\n"
 				  << endl;
 	}
@@ -386,7 +393,7 @@ void run_cplex_experiment(
 	if (iterations_number != 0)
 	{
 		env.out() << "Duality gap decrease (LP): "
-				  << (originalRelaxedObjVal - boostedRelaxedObjVal) / (originalRelaxedObjVal - cplex_master.getBestObjValue()) << endl;
+				  << result_boosting_info.boosted_objective_change / std::abs(result_boosting_info.original_relaxed_objective - cplex_master.getBestObjValue()) << endl;
 	}
 
 	env.end();

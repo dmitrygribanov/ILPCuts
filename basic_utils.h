@@ -84,11 +84,12 @@ namespace ILPCuts
 		}
 	};
 
+	// callableT - muist return double = total time
 	template <typename callableT>
-	bool run_async_function_with_time_limit(double time_limit, callableT fun)
+	std::tuple<bool, double> run_async_function_with_time_limit(double time_limit, callableT fun)
 	{
 		// create wrapper for a function to create a tread
-		packaged_task<void()> task(fun);
+		packaged_task<double()> task(fun);
 
 		// taking shared information for the task called "future"
 		auto task_future = task.get_future();
@@ -105,17 +106,17 @@ namespace ILPCuts
 		{
 			task_thread.detach();
 
-			return false;
+			return std::make_tuple(false, 0.0);
 		}
 
 		// if the work is done, call "future::get()" to rethrow exceptions
 		// stored in shared state
-		task_future.get();
+		double tot_time = task_future.get();
 
 		// waiting for a correct termination of the thread
 		task_thread.join();
 
-		return true;
+		return std::make_tuple(true, tot_time);
 	}
 	namespace Utility
 	{

@@ -22,10 +22,22 @@ namespace ILPCuts
                   << endl;
     }
 
-    double root_node_boosting_console_subprogram(IloCplex cplex_master, IloCplex cplex_relaxed,
-                                                 IloObjective obj, IloRangeArray orig_rngs, IloNumVarArray vars,
-                                                 ModuleCPlex::CPlexAdapter &cuts_gen_adapter,
-                                                 double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
+    struct RootNodeBoostingConsoleSubprogramInfo
+    {
+        double total_cuts_generation_time = 0.0;
+        double total_working_time = 0.0;
+
+        double original_relaxed_objective = 0.0;
+        double boosted_objective_change = 0.0;
+
+        size_t total_iterations_num = 0;
+    };
+
+    RootNodeBoostingConsoleSubprogramInfo
+    root_node_boosting_console_subprogram(IloCplex cplex_master, IloCplex cplex_relaxed,
+                                          IloObjective obj, IloRangeArray orig_rngs, IloNumVarArray vars,
+                                          ModuleCPlex::CPlexAdapter &cuts_gen_adapter,
+                                          double cuts_tl, size_t iterations_number, string model_cuts_switch, string cuts_output_path)
     {
         IloEnv env = cplex_master.getEnv();
 
@@ -62,7 +74,10 @@ namespace ILPCuts
         }
 
         double originalRelaxedObjVal = cplex_relaxed.getObjValue();
-        double boostedRelaxedObjVal = 0;
+        double boostedRelaxedObjVal = 0.0;
+        double total_cut_generation_time = 0.0;
+        double total_boosting_time = 0.0;
+
         env.out() << "solution value  is " << originalRelaxedObjVal << endl;
 
         if (model_cuts_switch == "off")
@@ -87,7 +102,14 @@ namespace ILPCuts
 
                 // generate cuts from the relaxed model
                 env.out() << "cuts generation ..." << endl;
-                if (!generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, obj, rngs, vars))
+
+                bool is_successed = false;
+                double current_cut_generation_time = 0.0;
+                std::tie(is_successed, current_cut_generation_time) = generate_cuts_with_time_limit(cuts_gen_adapter, cuts_tl, cplex_relaxed, obj, rngs, vars);
+
+                total_cut_generation_time += current_cut_generation_time;
+
+                if (!is_successed)
                 {
                     env.out() << "\ncutting plane generation has been stopped due to the time limit (" << cuts_tl << "s),\n"
                               << "terminate..." << endl;
@@ -144,14 +166,18 @@ namespace ILPCuts
                           << "elapsed time is " << boosting_timer.finish_str()
                           << "current relaxed ILP solution value: " << boostedRelaxedObjVal << "\n"
                           << "original LP optimum: " << originalRelaxedObjVal << "\n"
-                          << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
+                          << "boosted object value change: " << std::abs(boostedRelaxedObjVal - originalRelaxedObjVal) << "\n"
+                          << "cuting planes generation time: " << current_cut_generation_time << endl;
             }
 
-            env.out() << "Cutting generation finished!\n"
+            total_boosting_time = boosting_timer.end();
+
+            env.out() << "Cutting plane generation is finished!\n"
                       << "Number of performed iterations: " << iterations_number << "\n"
-                      << "Total time (with boosting) is " << boosting_timer.finish_str()
+                      << "Total time (with boosting) is " << total_boosting_time << "'s\n"
                       << "original LP optimum: " << originalRelaxedObjVal << "\n"
-                      << "boosted object value increase: " << boostedRelaxedObjVal - originalRelaxedObjVal << endl;
+                      << "boosted object value change: " << std::abs(boostedRelaxedObjVal - originalRelaxedObjVal) << "\n"
+                      << "total cuting planes generation time: " << total_cut_generation_time << "'s" << endl;
         }
 
         if (model_cuts_switch == "on")
@@ -160,7 +186,8 @@ namespace ILPCuts
             cplex_master.extract(master_model);
         }
 
-        return originalRelaxedObjVal;
+        return RootNodeBoostingConsoleSubprogramInfo{total_cut_generation_time, total_boosting_time,
+                                                     originalRelaxedObjVal, std::abs(boostedRelaxedObjVal - originalRelaxedObjVal), iterations_number};
     }
 
     void cuts_applier_subprogram(IloCplex cplex_master,

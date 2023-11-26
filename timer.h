@@ -17,15 +17,16 @@ namespace ILPCuts
             _start = chrono::steady_clock::now();
         }
 
+        double end() const
+        {
+            return (std::chrono::steady_clock::now() - _start).count();
+        }
+
         string finish_str(string suff = "'s\n") const
         {
             stringstream res;
 
-            auto end = std::chrono::steady_clock::now();
-
-            std::chrono::duration<double> elapsed_seconds = end - _start;
-
-            res << elapsed_seconds.count() << suff;
+            res << end() << suff;
 
             return res.str();
         }
