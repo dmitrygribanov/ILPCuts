@@ -357,10 +357,14 @@ void run_cplex_experiment(
 
 	bool is_incumbent_found = cplex_master.solve();
 
-	env.out() << "\nILPCuts results:\n"
-			  << "Total cutting plane generation time: " << result_boosting_info.total_cuts_generation_time << "'s\n"
-			  << "Total boosting time: " << result_boosting_info.total_working_time << "'s\n"
-			  << endl;
+	env.out() << "\nILPCuts results:" << endl;
+
+	if (iterations_number != 0)
+	{
+		env.out() << "Total cutting plane generation time: " << result_boosting_info.total_cuts_generation_time << "'s\n"
+				  << "Total boosting time: " << result_boosting_info.total_working_time << "'s\n"
+				  << endl;
+	}
 
 	// solve the ILP model
 	if (is_incumbent_found)
@@ -368,7 +372,8 @@ void run_cplex_experiment(
 		env.out() << "An incumbent is found.\n"
 				  << "Solution status is " << cplex_master.getStatus() << "\n"
 				  << "ILP solution value: " << cplex_master.getObjValue() << "\n"
-				  << "ILP cutoff: " << cplex_master.getCutoff() << endl;
+				  << "ILP cutoff: " << cplex_master.getCutoff()
+				  << endl;
 
 		if (iterations_number != 0)
 		{
@@ -393,7 +398,8 @@ void run_cplex_experiment(
 	if (iterations_number != 0)
 	{
 		env.out() << "Duality gap decrease (LP): "
-				  << result_boosting_info.boosted_objective_change / std::abs(result_boosting_info.original_relaxed_objective - cplex_master.getBestObjValue()) << endl;
+				  << result_boosting_info.boosted_objective_change / std::abs(result_boosting_info.original_relaxed_objective - cplex_master.getBestObjValue())
+				  << endl;
 	}
 
 	env.end();

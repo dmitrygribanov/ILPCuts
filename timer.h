@@ -19,7 +19,7 @@ namespace ILPCuts
 
         double end() const
         {
-            return (std::chrono::steady_clock::now() - _start).count();
+            return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - _start).count();
         }
 
         string finish_str(string suff = "'s\n") const
