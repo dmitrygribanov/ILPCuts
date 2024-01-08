@@ -11,17 +11,31 @@
 
 #include "cuts_gen_submat.h"
 
+#include "HiGHS_module.h"
+
 using namespace ILPCuts;
 using namespace std;
 
 int main(int argc, char **argv)
 {
-    logger log;
-    HermiteCutsGen_RWDS cuts_gen(log);
+    Eigen::SparseMatrix<double> A(2, 2);
+    A.insert(0, 0) = 0.033;
+    A.insert(0, 1) = 0.005;
+    A.insert(1, 0) = 0.0029;
+    A.insert(1, 1) = 0.31;
 
-    DimSizeGen ds;
-    RandomNondegSubmatGen sg(cuts_gen);
-    sg(ds);
+    cout << A << endl;
+
+    A = ILPCuts::ModuleHiGHS::matrix_integizer(A, {0, 1}, 1E-6);
+
+    cout << A << endl;
+
+    // logger log;
+    // HermiteCutsGen_RWDS cuts_gen(log);
+
+    // DimSizeGen ds;
+    // RandomNondegSubmatGen sg(cuts_gen);
+    // sg(ds);
     // logger log;
     //  ConeCoverCutsGenerator g1(log);
     //  ConeCoverer_Zp zp(log);
