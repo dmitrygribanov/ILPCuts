@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gmpxx.h>
+// #include "/home/istikhobaev/old_env/gmp/include/gmpxx.h"
 
 #include "dependencies/Eigen/Core"
 namespace Eigen
@@ -109,11 +110,14 @@ mpf_class round(const mpf_class &x)
 
 mpq_class round(const mpq_class &x)
 {
-    if (x >= mpq_class(0))
-        return floor(x + mpq_class(1, 2));
+    if (x >= mpq_class(0)) {
+        mpq_class res = x + mpq_class(1, 2);
+        return floor(res);
+    }
     else
     {
-        return ceil(x - mpq_class(1, 2));
+        mpq_class res = x - mpq_class(1, 2);
+        return ceil(res);
     }
     // return mpq_class(ceil(x));
     //  return floor(x); // (x > mpf_class(0)) ? mpf_class(floor(x + mpf_class(0.5))) : mpf_class(ceil(x - mpf_class(0.5)));
